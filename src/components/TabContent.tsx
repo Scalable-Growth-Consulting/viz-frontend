@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { FileTextIcon, DatabaseIcon, BarChartIcon } from 'lucide-react';
+import ChartVisualizer from './ChartVisualizer';
 
 interface TabContentProps {
   activeTab: 'answer' | 'sql' | 'charts';
@@ -48,14 +49,7 @@ const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult }) => {
     }
 
     if (activeTab === 'charts') {
-      return (
-        <div className="p-4">
-          <p className="text-center text-viz-text-secondary mb-4">Charts visualization would appear here</p>
-          <div className="aspect-video bg-viz-medium/50 rounded-lg flex items-center justify-center">
-            <BarChartIcon className="w-16 h-16 text-viz-accent/50" />
-          </div>
-        </div>
-      );
+      return <ChartVisualizer queryResult={queryResult} />;
     }
 
     return null;

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileTextIcon, DatabaseIcon, BarChartIcon } from 'lucide-react';
+import { FileTextIcon, DatabaseIcon, ChartBarIcon } from 'lucide-react';
 import TabContent from './TabContent';
 
 interface ResultsAreaProps {
@@ -37,7 +37,7 @@ const ResultsArea: React.FC<ResultsAreaProps> = ({ queryResult, activeTab, onTab
             onClick={() => onTabChange('charts')}
           >
             <span className="flex items-center">
-              <BarChartIcon className="w-4 h-4 mr-2" />
+              <ChartBarIcon className="w-4 h-4 mr-2" />
               Charts
             </span>
           </button>
