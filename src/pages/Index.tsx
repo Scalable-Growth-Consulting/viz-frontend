@@ -3,10 +3,12 @@ import React, { useState } from 'react';
 import Header from '../components/Header';
 import ChatInterface from '../components/ChatInterface';
 import ResultsArea from '../components/ResultsArea';
+import Login from '../components/Login';
 
 const Index = () => {
   const [queryResult, setQueryResult] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false); // In a real app, this would come from auth state
 
   const handleQuerySubmit = (query: string) => {
     setIsLoading(true);
@@ -31,6 +33,15 @@ const Index = () => {
       setIsLoading(false);
     }, 1200);
   };
+
+  const handleLogin = () => {
+    setIsLoggedIn(true);
+  };
+
+  // If user is not logged in, show login page
+  if (!isLoggedIn) {
+    return <Login onLogin={handleLogin} />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-viz-dark">

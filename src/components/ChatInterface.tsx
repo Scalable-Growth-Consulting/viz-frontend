@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { SendIcon, LightbulbIcon, SearchIcon } from 'lucide-react';
+import { SendIcon, LightbulbIcon } from 'lucide-react';
 import QueryButton from './QueryButton';
 
 interface ChatInterfaceProps {
@@ -27,7 +27,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onQuerySubmit }) => {
   };
 
   const handleQuickQuery = (text: string) => {
-    onQuerySubmit(text);
+    setQuery(text);
     if (inputRef.current) {
       inputRef.current.focus();
     }
@@ -45,7 +45,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onQuerySubmit }) => {
             <QueryButton 
               key={index} 
               text={queryText} 
-              onClick={() => handleQuickQuery(queryText)} 
+              onClick={handleQuickQuery} 
             />
           ))}
         </div>
