@@ -30,9 +30,20 @@ const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult }) => {
     
     if (activeTab === 'sql') {
       return (
-        <pre className="bg-viz-dark p-4 rounded-lg overflow-x-auto text-viz-text whitespace-pre-wrap">
-          <code>{queryResult}</code>
-        </pre>
+        <div className="space-y-4">
+          <div className="bg-viz-dark p-4 rounded-lg overflow-x-auto text-viz-text">
+            <div className="flex items-center mb-2 text-viz-text-secondary text-sm">
+              <DatabaseIcon className="w-4 h-4 mr-2" />
+              <span>SQL Query</span>
+            </div>
+            <pre className="whitespace-pre-wrap">
+              <code className="text-viz-accent">{queryResult}</code>
+            </pre>
+          </div>
+          <div className="text-sm text-viz-text-secondary px-1">
+            <p>This SQL query was generated based on your natural language request.</p>
+          </div>
+        </div>
       );
     }
 
