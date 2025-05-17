@@ -1,3 +1,6 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -35,19 +38,12 @@
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
@@ -79,6 +75,7 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+    
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -96,6 +93,40 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+  }
+}
+
+@layer components {
+  .viz-button {
+    @apply flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-300 outline-none focus:ring-2 focus:ring-viz-accent/25;
+  }
+
+  .viz-button-primary {
+    @apply viz-button bg-viz-accent text-white hover:bg-viz-accent-light;
+  }
+
+  .viz-button-secondary {
+    @apply viz-button bg-viz-medium text-white hover:bg-viz-light;
+  }
+
+  .viz-button-outline {
+    @apply viz-button bg-transparent text-viz-accent border border-viz-accent hover:bg-viz-accent/10;
+  }
+
+  .viz-card {
+    @apply rounded-xl shadow-lg bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light overflow-hidden;
+  }
+
+  .viz-input {
+    @apply w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-viz-light bg-white dark:bg-viz-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-viz-text-secondary focus:border-viz-accent focus:ring-2 focus:ring-viz-accent/25 outline-none transition-all duration-200;
+  }
+
+  .viz-tab {
+    @apply px-4 py-2 font-medium text-slate-600 dark:text-viz-text-secondary hover:text-viz-accent dark:hover:text-viz-accent-light border-b-2 border-transparent hover:border-viz-accent dark:hover:border-viz-accent-light transition-all duration-200;
+  }
+
+  .viz-tab-active {
+    @apply px-4 py-2 font-medium text-viz-accent dark:text-viz-accent-light border-b-2 border-viz-accent dark:border-viz-accent-light;
   }
 }
