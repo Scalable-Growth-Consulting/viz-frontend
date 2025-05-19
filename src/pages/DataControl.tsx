@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { useForm } from 'react-hook-form';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormDescription } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -23,6 +24,16 @@ const DataControl = () => {
     keyFile: null,
     location: 'US',
     testConnection: false
+  });
+
+  // Create a form instance for the BigQuery connection form
+  const form = useForm({
+    defaultValues: {
+      projectId: '',
+      datasetId: '',
+      keyFile: null,
+      location: 'US',
+    }
   });
 
   const handleSchemaSubmit = (e: React.FormEvent) => {
@@ -331,7 +342,8 @@ const DataControl = () => {
             </DialogDescription>
           </DialogHeader>
           
-          <Form>
+          {/* Fix: Wrap form content in a Form component with the form instance provided */}
+          <Form {...form}>
             {renderBigQueryStepContent()}
           </Form>
           
