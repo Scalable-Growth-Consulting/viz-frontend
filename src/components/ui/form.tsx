@@ -8,12 +8,23 @@ import {
   FieldValues,
   FormProvider,
   useFormContext,
+  UseFormReturn,
 } from "react-hook-form"
 
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
 
-const Form = FormProvider
+// Modified to accept UseFormReturn props
+const Form = <
+  TFieldValues extends FieldValues = FieldValues,
+  TContext = any,
+  TTransformedValues extends FieldValues = TFieldValues
+>({
+  children,
+  ...props
+}: React.PropsWithChildren<UseFormReturn<TFieldValues, TContext, TTransformedValues>>) => {
+  return <FormProvider {...props}>{children}</FormProvider>
+}
 
 type FormFieldContextValue<
   TFieldValues extends FieldValues = FieldValues,
