@@ -103,11 +103,11 @@
   }
 
   .viz-button-primary {
-    @apply viz-button bg-viz-accent text-white hover:bg-viz-accent-light;
+    @apply viz-button bg-viz-accent text-white hover:bg-viz-accent-light shadow-sm hover:shadow;
   }
 
   .viz-button-secondary {
-    @apply viz-button bg-viz-medium text-white hover:bg-viz-light;
+    @apply viz-button bg-viz-medium text-white hover:bg-viz-light shadow-sm hover:shadow;
   }
 
   .viz-button-outline {
@@ -119,14 +119,14 @@
   }
 
   .viz-input {
-    @apply w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-viz-light bg-white dark:bg-viz-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-viz-text-secondary focus:border-viz-accent focus:ring-2 focus:ring-viz-accent/25 outline-none transition-all duration-200;
+    @apply w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-viz-light/50 bg-white dark:bg-viz-medium/90 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-viz-text-secondary focus:border-viz-accent focus:ring-2 focus:ring-viz-accent/25 outline-none transition-all duration-200 shadow-sm;
   }
 
   .viz-tab {
-    @apply px-4 py-2 font-medium text-slate-600 dark:text-viz-text-secondary hover:text-viz-accent dark:hover:text-viz-accent-light border-b-2 border-transparent hover:border-viz-accent dark:hover:border-viz-accent-light transition-all duration-200;
+    @apply px-4 py-3 font-medium text-slate-600 dark:text-viz-text-secondary hover:text-viz-accent dark:hover:text-viz-accent-light border-b-2 border-transparent hover:border-viz-accent dark:hover:border-viz-accent-light transition-all duration-200;
   }
 
   .viz-tab-active {
-    @apply px-4 py-2 font-medium text-viz-accent dark:text-viz-accent-light border-b-2 border-viz-accent dark:border-viz-accent-light;
+    @apply px-4 py-3 font-medium text-viz-accent dark:text-viz-accent-light border-b-2 border-viz-accent dark:border-viz-accent-light;
   }
 }

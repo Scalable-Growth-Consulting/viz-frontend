@@ -57,23 +57,26 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-viz-dark">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-viz-dark dark:to-black">
       <Header />
-      <main className="flex-1 container max-w-6xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1">
-            <ChatInterface onQuerySubmit={handleQuerySubmit} />
+      <main className="flex-1 container max-w-6xl mx-auto px-4 py-6 md:py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
+          <div className="lg:col-span-1 flex flex-col">
+            <div className="bg-white dark:bg-viz-medium backdrop-blur-sm rounded-2xl shadow-lg border border-slate-100 dark:border-viz-light/20 p-5 animate-fade-in">
+              <ChatInterface onQuerySubmit={handleQuerySubmit} isLoading={isLoading} />
+            </div>
           </div>
-          <div className="lg:col-span-2 h-[calc(100vh-12rem)]">
+          <div className="lg:col-span-2 h-[calc(100vh-12rem)] md:h-[calc(100vh-14rem)]">
             <ResultsArea 
               queryResult={activeTab === 'sql' ? sqlQuery : queryResult} 
               activeTab={activeTab}
               onTabChange={handleTabChange}
+              isLoading={isLoading}
             />
           </div>
         </div>
       </main>
-      <footer className="bg-viz-dark text-white text-center py-4 text-sm">
+      <footer className="bg-viz-dark text-white text-center py-3 text-sm">
         <p className="text-viz-text-secondary">© 2025 Viz • Powered by Advanced Business Intelligence AI</p>
       </footer>
     </div>
