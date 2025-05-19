@@ -1,16 +1,27 @@
 
 import React from 'react';
-import { FileTextIcon, DatabaseIcon, ChartBarIcon, Loader2 } from 'lucide-react';
+import { FileTextIcon, DatabaseIcon, ChartBarIcon } from 'lucide-react';
 import TabContent from './TabContent';
+import Loader from './ui/loader';
 
 interface ResultsAreaProps {
   queryResult: string | null;
   activeTab: 'answer' | 'sql' | 'charts';
   onTabChange: (tab: 'answer' | 'sql' | 'charts') => void;
   isLoading?: boolean;
+  isChartLoading?: boolean;
 }
 
-const ResultsArea: React.FC<ResultsAreaProps> = ({ queryResult, activeTab, onTabChange, isLoading = false }) => {
+const ResultsArea: React.FC<ResultsAreaProps> = ({ 
+  queryResult, 
+  activeTab, 
+  onTabChange, 
+  isLoading = false,
+  isChartLoading = false
+}) => {
+  // Determine if we should show a loader based on the current tab
+  const showLoader = isLoading || (activeTab === 'charts' && isChartLoading);
+  
   return (
     <div className="viz-card h-full flex flex-col bg-white/80 dark:bg-viz-medium/90 backdrop-blur-sm shadow-lg border border-slate-100 dark:border-viz-light/20 rounded-2xl overflow-hidden animate-fade-in">
       <div className="border-b border-slate-100 dark:border-viz-light/20">
@@ -49,12 +60,12 @@ const ResultsArea: React.FC<ResultsAreaProps> = ({ queryResult, activeTab, onTab
       </div>
 
       <div className="flex-1 overflow-auto p-5 md:p-6">
-        {isLoading ? (
+        {showLoader ? (
           <div className="flex items-center justify-center h-full">
-            <div className="flex flex-col items-center">
-              <Loader2 className="w-8 h-8 text-viz-accent animate-spin" />
-              <p className="mt-4 text-slate-500 dark:text-slate-400">Analyzing your data...</p>
-            </div>
+            <Loader 
+              size="md" 
+              text={activeTab === 'charts' && isChartLoading ? "Generating charts..." : "Analyzing your data..."}
+            />
           </div>
         ) : (
           <TabContent activeTab={activeTab} queryResult={queryResult} />

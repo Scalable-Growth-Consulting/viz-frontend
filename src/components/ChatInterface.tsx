@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { SendIcon, LightbulbIcon } from 'lucide-react';
 import QueryButton from './QueryButton';
+import { toast } from "@/components/ui/sonner";
 
 interface ChatInterfaceProps {
   onQuerySubmit: (query: string) => void;
@@ -23,13 +24,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onQuerySubmit, isLoading 
     e.preventDefault();
     if (query.trim() && !isLoading) {
       onQuerySubmit(query);
+      // Don't clear the query yet, as users might want to see what they asked
+    } else if (!query.trim()) {
+      toast("Please enter a query first");
     }
   };
 
   const handleQuickQuery = (text: string) => {
     setQuery(text);
+    
+    // Focus on the input for better UX
     if (inputRef.current) {
       inputRef.current.focus();
+    }
+    
+    // Automatically submit if not already loading
+    if (!isLoading) {
+      onQuerySubmit(text);
     }
   };
 

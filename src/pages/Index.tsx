@@ -1,54 +1,83 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import ChatInterface from '../components/ChatInterface';
 import ResultsArea from '../components/ResultsArea';
 import Login from '../components/Login';
+import ApiService, { QueryResponse, ChartData } from '../services/api';
+import { useToast } from "@/components/ui/use-toast";
 
 const Index = () => {
+  // State for query results
   const [queryResult, setQueryResult] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [sqlQuery, setSqlQuery] = useState<string | null>(null);
+  const [chartData, setChartData] = useState<ChartData | null>(null);
+  
+  // Loading states
+  const [isQueryLoading, setIsQueryLoading] = useState(false);
+  const [isChartLoading, setIsChartLoading] = useState(false);
+  
+  // UI states
   const [isLoggedIn, setIsLoggedIn] = useState(false); // In a real app, this would come from auth state
   const [activeTab, setActiveTab] = useState<'answer' | 'sql' | 'charts'>('answer');
-  const [sqlQuery, setSqlQuery] = useState<string | null>(null);
+  
+  const { toast } = useToast();
 
-  const handleQuerySubmit = (query: string) => {
-    setIsLoading(true);
+  // Handle user query submission
+  const handleQuerySubmit = async (query: string) => {
+    setIsQueryLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      let result = null;
-      let sql = null;
+    try {
+      // First API call - Get query result and SQL
+      const response: QueryResponse = await ApiService.processQuery(query);
+      setQueryResult(response.result);
+      setSqlQuery(response.sql);
       
-      if (query.includes("revenue")) {
-        result = "Based on the data analysis, California has the highest revenue at $2.4M, followed by New York at $1.8M and Texas at $1.5M. The lowest revenue was recorded in Wyoming at $120K.";
-        sql = "SELECT state, SUM(revenue) as total_revenue\nFROM sales\nGROUP BY state\nORDER BY total_revenue DESC;";
-      } else if (query.includes("Delivery Performance")) {
-        result = "The overall delivery performance shows a 94.7% on-time delivery rate across all regions. The average delivery time is 2.3 days, with express shipping averaging 1.1 days.";
-        sql = "SELECT\n  COUNT(CASE WHEN status = 'on-time' THEN 1 END) * 100.0 / COUNT(*) as on_time_percentage,\n  AVG(delivery_time) as avg_delivery_time,\n  AVG(CASE WHEN shipping_method = 'express' THEN delivery_time END) as avg_express_time\nFROM deliveries;";
-      } else if (query.includes("GMV") && query.includes("orders")) {
-        result = "California: GMV $3.2M, 24,500 orders\nNew York: GMV $2.7M, 21,300 orders\nTexas: GMV $2.1M, 18,900 orders\nFlorida: GMV $1.9M, 16,200 orders";
-        sql = "SELECT\n  state,\n  SUM(order_value) as gmv,\n  COUNT(*) as total_orders\nFROM orders\nGROUP BY state\nORDER BY gmv DESC\nLIMIT 4;";
-      } else if (query.includes("GMV") && query.includes("month")) {
-        result = "January: $1.4M\nFebruary: $1.6M\nMarch: $2.1M\nApril: $1.9M\nMay: $2.3M\nJune: $2.5M";
-        sql = "SELECT\n  EXTRACT(MONTH FROM order_date) as month,\n  SUM(order_value) as monthly_gmv\nFROM orders\nWHERE EXTRACT(YEAR FROM order_date) = 2025\nGROUP BY month\nORDER BY month;";
-      } else {
-        result = `Analysis for: "${query}"\n\nPlease provide more specific information about what you're looking for in the data.`;
-        sql = "-- No specific SQL generated for this query\n-- Please refine your question to get specific data";
-      }
-      
-      setQueryResult(result);
-      setSqlQuery(sql);
-      setIsLoading(false);
-    }, 1200);
+      // Second API call - Get chart data
+      setIsChartLoading(true);
+      const chartResponse = await ApiService.getChartData(query);
+      setChartData(chartResponse);
+    } catch (error) {
+      console.error('Error processing query:', error);
+      toast({
+        title: "Query failed",
+        description: "There was a problem processing your query. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsQueryLoading(false);
+      setIsChartLoading(false);
+    }
   };
 
+  // Handle tab change
   const handleTabChange = (tab: 'answer' | 'sql' | 'charts') => {
+    if (isQueryLoading) {
+      // Don't allow tab changes during initial query loading
+      return;
+    }
+    
     setActiveTab(tab);
+    
+    // If we're switching to charts and don't have chart data yet, show loading state
+    if (tab === 'charts' && !chartData && queryResult) {
+      setIsChartLoading(true);
+      
+      // Simulate loading charts (would be a real API call in production)
+      ApiService.getChartData(queryResult).then(data => {
+        setChartData(data);
+        setIsChartLoading(false);
+      });
+    }
   };
 
+  // Handle user login
   const handleLogin = () => {
     setIsLoggedIn(true);
+    toast({
+      title: "Welcome to Viz",
+      description: "You're now logged in to the dashboard",
+    });
   };
 
   // If user is not logged in, show login page
@@ -63,7 +92,10 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
           <div className="lg:col-span-1 flex flex-col">
             <div className="bg-white dark:bg-viz-medium backdrop-blur-sm rounded-2xl shadow-lg border border-slate-100 dark:border-viz-light/20 p-5 animate-fade-in">
-              <ChatInterface onQuerySubmit={handleQuerySubmit} isLoading={isLoading} />
+              <ChatInterface 
+                onQuerySubmit={handleQuerySubmit} 
+                isLoading={isQueryLoading}
+              />
             </div>
           </div>
           <div className="lg:col-span-2 h-[calc(100vh-12rem)] md:h-[calc(100vh-14rem)]">
@@ -71,7 +103,8 @@ const Index = () => {
               queryResult={activeTab === 'sql' ? sqlQuery : queryResult} 
               activeTab={activeTab}
               onTabChange={handleTabChange}
-              isLoading={isLoading}
+              isLoading={isQueryLoading}
+              isChartLoading={isChartLoading}
             />
           </div>
         </div>
