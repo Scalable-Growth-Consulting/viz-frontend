@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import TableList from '../components/TableList';
@@ -321,7 +320,7 @@ const TableExplorer = () => {
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-viz-dark">
       <Header />
-      <main className="flex-1 container max-w-7xl mx-auto px-4 py-6">
+      <main className="flex-1 px-6 py-6">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
