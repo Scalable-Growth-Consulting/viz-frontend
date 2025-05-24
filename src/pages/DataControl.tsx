@@ -1,5 +1,5 @@
-
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { DatabaseIcon, BarChartIcon, PlusIcon, SaveIcon, AlertCircleIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormDescription } fr
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const DataControl = () => {
+  const navigate = useNavigate();
   const [jsonSchema, setJsonSchema] = useState('');
   const [kpiName, setKpiName] = useState('');
   const [kpiDescription, setKpiDescription] = useState('');
@@ -66,10 +67,12 @@ const DataControl = () => {
     if (currentStep < 3) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Submit connection
+      // Submit connection and redirect to Table Explorer
       setBigQueryModalOpen(false);
       alert('BigQuery connection added successfully!');
       setCurrentStep(1);
+      // Redirect to Table Explorer
+      navigate('/table-explorer');
     }
   };
 
