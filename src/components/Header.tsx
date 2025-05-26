@@ -1,9 +1,22 @@
 
 import React from 'react';
-import { BarChartIcon, LightbulbIcon, DatabaseIcon, UserIcon } from 'lucide-react';
+import { BarChartIcon, LightbulbIcon, DatabaseIcon, UserIcon, LogOut } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from './ui/button';
+import { Avatar, AvatarFallback } from './ui/avatar';
 
 const Header: React.FC = () => {
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
+  const userInitials = user?.user_metadata?.full_name
+    ? user.user_metadata.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase()
+    : user?.email?.substring(0, 2).toUpperCase() || 'U';
+
   return (
     <header className="bg-white/10 dark:bg-viz-dark/70 backdrop-blur-lg border-b border-slate-200/20 dark:border-viz-light/10 py-3 px-4 md:px-6 flex justify-between items-center shadow-sm">
       <Link to="/" className="flex items-center space-x-3 group">
@@ -18,6 +31,7 @@ const Header: React.FC = () => {
           <p className="text-xs text-slate-500 dark:text-viz-text-secondary">Business Intelligence AI</p>
         </div>
       </Link>
+      
       <div className="flex items-center space-x-2 md:space-x-3">
         <Link to="/data-control" className="flex items-center space-x-1 bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105">
           <DatabaseIcon className="w-4 h-4 text-viz-accent" />
@@ -27,9 +41,30 @@ const Header: React.FC = () => {
           <LightbulbIcon className="w-4 h-4 text-viz-accent" />
           <span className="text-sm font-medium hidden md:inline text-slate-700 dark:text-white">Tips</span>
         </Link>
-        <Link to="/login" className="flex items-center space-x-1 bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light px-2 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105">
-          <UserIcon className="w-4 h-4 text-slate-700 dark:text-white" />
-        </Link>
+        
+        {user && (
+          <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 bg-white/20 dark:bg-viz-medium px-3 py-1.5 rounded-lg">
+              <Avatar className="h-6 w-6">
+                <AvatarFallback className="text-xs bg-viz-accent text-white">
+                  {userInitials}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-sm font-medium text-slate-700 dark:text-white hidden md:inline">
+                {user.user_metadata?.full_name || user.email}
+              </span>
+            </div>
+            <Button
+              onClick={handleSignOut}
+              variant="ghost"
+              size="sm"
+              className="bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden md:inline ml-2">Sign out</span>
+            </Button>
+          </div>
+        )}
       </div>
     </header>
   );

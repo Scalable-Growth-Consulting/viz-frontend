@@ -1,11 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import Header from '../components/Header';
 import ChatInterface from '../components/ChatInterface';
 import ResultsArea from '../components/ResultsArea';
-import Login from '../components/Login';
+import { useAuth } from '../contexts/AuthContext';
 import ApiService, { QueryResponse, ChartData } from '../services/api';
 import { useToast } from "@/components/ui/use-toast";
+import { Loader2 } from 'lucide-react';
 
 const Index = () => {
   // State for query results
@@ -18,10 +20,24 @@ const Index = () => {
   const [isChartLoading, setIsChartLoading] = useState(false);
   
   // UI states
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // In a real app, this would come from auth state
   const [activeTab, setActiveTab] = useState<'answer' | 'sql' | 'charts'>('answer');
   
+  const { user, loading } = useAuth();
   const { toast } = useToast();
+
+  // Show loading spinner while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-viz-dark dark:to-black">
+        <Loader2 className="w-8 h-8 animate-spin text-viz-accent" />
+      </div>
+    );
+  }
+
+  // Redirect to auth if not logged in
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
 
   // Handle user query submission
   const handleQuerySubmit = async (query: string) => {
@@ -70,20 +86,6 @@ const Index = () => {
       });
     }
   };
-
-  // Handle user login
-  const handleLogin = () => {
-    setIsLoggedIn(true);
-    toast({
-      title: "Welcome to Viz",
-      description: "You're now logged in to the dashboard",
-    });
-  };
-
-  // If user is not logged in, show login page
-  if (!isLoggedIn) {
-    return <Login onLogin={handleLogin} />;
-  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-viz-dark dark:to-black">
