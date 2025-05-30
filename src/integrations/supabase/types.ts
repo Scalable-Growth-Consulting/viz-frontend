@@ -9,6 +9,42 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      chat_sessions: {
+        Row: {
+          answer: string | null
+          chart_code: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          prompt: string
+          sql_query: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answer?: string | null
+          chart_code?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          prompt: string
+          sql_query?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answer?: string | null
+          chart_code?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          prompt?: string
+          sql_query?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -36,12 +72,99 @@ export type Database = {
         }
         Relationships: []
       }
+      table_relationships: {
+        Row: {
+          alias: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          source_key: string
+          source_table: string
+          target_key: string
+          target_table: string
+          updated_at: string
+        }
+        Insert: {
+          alias?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          source_key: string
+          source_table: string
+          target_key: string
+          target_table: string
+          updated_at?: string
+        }
+        Update: {
+          alias?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          source_key?: string
+          source_table?: string
+          target_key?: string
+          target_table?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_oauth_credentials: {
+        Row: {
+          access_token_encrypted: string | null
+          created_at: string
+          id: string
+          is_bigquery_connected: boolean | null
+          provider: string
+          refresh_token_encrypted: string | null
+          scopes: string[] | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token_encrypted?: string | null
+          created_at?: string
+          id?: string
+          is_bigquery_connected?: boolean | null
+          provider?: string
+          refresh_token_encrypted?: string | null
+          scopes?: string[] | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token_encrypted?: string | null
+          created_at?: string
+          id?: string
+          is_bigquery_connected?: boolean | null
+          provider?: string
+          refresh_token_encrypted?: string | null
+          scopes?: string[] | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_tables: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          table_name: string
+          column_name: string
+          data_type: string
+          is_primary_key: boolean
+          is_foreign_key: boolean
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

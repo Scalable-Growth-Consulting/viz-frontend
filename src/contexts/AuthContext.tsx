@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,10 +30,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
+        console.log('Auth state changed:', event, session);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+
+        // Handle OAuth callback for BigQuery
+        if (event === 'SIGNED_IN' && session?.provider_token) {
+          await handleOAuthCallback(session);
+        }
       }
     );
 
@@ -47,6 +52,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const handleOAuthCallback = async (session: Session) => {
+    try {
+      if (session.provider_token && session.provider_refresh_token) {
+        // Store OAuth credentials
+        const { error } = await supabase
+          .from('user_oauth_credentials')
+          .upsert({
+            user_id: session.user.id,
+            provider: 'google',
+            access_token_encrypted: session.provider_token, // TODO: Encrypt before storing
+            refresh_token_encrypted: session.provider_refresh_token, // TODO: Encrypt before storing
+            token_expires_at: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
+            scopes: ['https://www.googleapis.com/auth/bigquery.readonly', 'https://www.googleapis.com/auth/userinfo.email'],
+            is_bigquery_connected: true,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,provider'
+          });
+
+        if (error) {
+          console.error('Error storing OAuth credentials:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error handling OAuth callback:', error);
+    }
+  };
 
   const signUp = async (email: string, password: string, fullName?: string) => {
     const { data, error } = await supabase.auth.signUp({
@@ -73,7 +106,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/`,
+        redirectTo: `${window.location.origin}/data-control`,
+        scopes: 'https://www.googleapis.com/auth/bigquery.readonly https://www.googleapis.com/auth/userinfo.email',
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent'
+        }
       },
     });
     return { data, error };
