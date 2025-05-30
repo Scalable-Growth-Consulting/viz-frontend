@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { sessionId, sqlQuery, metadata } = await req.json()
+    const { sessionId } = await req.json()
 
     // Get auth header
     const authHeader = req.headers.get('Authorization')!
@@ -29,57 +29,67 @@ serve(async (req) => {
       throw new Error('Unauthorized')
     }
 
-    // Get user's BigQuery credentials
-    const { data: credentials, error: credError } = await supabase
-      .from('user_oauth_credentials')
+    // Get the session data
+    const { data: session, error: sessionError } = await supabase
+      .from('chat_sessions')
       .select('*')
-      .eq('user_id', user.id)
-      .eq('provider', 'google')
+      .eq('id', sessionId)
       .single()
 
-    if (credError || !credentials?.is_bigquery_connected) {
-      throw new Error('BigQuery not connected')
+    if (sessionError || !session) {
+      throw new Error('Session not found')
     }
 
-    // TODO: Replace with your actual Cloud Run URL
-    const cloudRunUrl = 'https://your-cloud-run-url/generate-chart-code'
-    
-    // Call Cloud Run service for chart generation
-    const cloudRunResponse = await fetch(cloudRunUrl, {
+    // Check if we have the required data from the inference call
+    if (!session.metadata?.data || !session.sql_query) {
+      throw new Error('No data available for chart generation')
+    }
+
+    console.log('Generating chart for session:', sessionId)
+
+    // Call your BIAgent API with the data from the inference
+    const biAgentResponse = await fetch('https://bi-agent-286070583332.us-central1.run.app', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${credentials.access_token_encrypted}` // You'll need to decrypt this
       },
       body: JSON.stringify({
-        sql_query: sqlQuery,
-        metadata,
-        user_id: user.id
+        sql: session.sql_query,
+        data: session.metadata.data,
+        inference: session.answer,
+        User_query: session.metadata.user_query || session.prompt
       })
     })
 
-    if (!cloudRunResponse.ok) {
-      throw new Error('Cloud Run chart generation failed')
+    if (!biAgentResponse.ok) {
+      console.error('BIAgent API error:', biAgentResponse.status, biAgentResponse.statusText)
+      throw new Error('Failed to generate chart with BIAgent API')
     }
 
-    const result = await cloudRunResponse.json()
+    const chartScript = await biAgentResponse.text()
+    console.log('Generated chart script')
 
     // Update the chat session with the chart code
     const { error: updateError } = await supabase
       .from('chat_sessions')
       .update({
-        chart_code: result.chart_code,
-        metadata: { ...metadata, chart_generated: true },
+        chart_code: chartScript,
+        metadata: { 
+          ...session.metadata, 
+          chart_generated: true,
+          chart_generated_at: new Date().toISOString()
+        },
         updated_at: new Date().toISOString()
       })
       .eq('id', sessionId)
 
     if (updateError) {
+      console.error('Database update error:', updateError)
       throw updateError
     }
 
     return new Response(
-      JSON.stringify({ success: true, chart_code: result.chart_code }),
+      JSON.stringify({ success: true, chart_code: chartScript }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 

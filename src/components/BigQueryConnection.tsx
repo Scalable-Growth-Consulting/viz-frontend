@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,32 +5,37 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { DatabaseIcon, CheckCircleIcon, AlertCircleIcon, RefreshCwIcon } from 'lucide-react';
+import { 
+  DatabaseIcon, 
+  CheckCircleIcon, 
+  AlertCircleIcon, 
+  ExternalLinkIcon,
+  ClockIcon,
+  PlayIcon
+} from 'lucide-react';
 
-interface OAuthCredentials {
-  id: string;
+interface ConnectionStatus {
+  isConnected: boolean;
   provider: string;
-  is_bigquery_connected: boolean;
-  scopes: string[];
-  token_expires_at: string;
-  created_at: string;
+  connectedAt?: string;
+  scopes?: string[];
 }
 
 const BigQueryConnection: React.FC = () => {
-  const [credentials, setCredentials] = useState<OAuthCredentials | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [connecting, setConnecting] = useState(false);
   
   const { user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
-      loadCredentials();
+      checkConnectionStatus();
     }
   }, [user]);
 
-  const loadCredentials = async () => {
+  const checkConnectionStatus = async () => {
     try {
       const { data, error } = await supabase
         .from('user_oauth_credentials')
@@ -44,12 +48,24 @@ const BigQueryConnection: React.FC = () => {
         throw error;
       }
 
-      setCredentials(data);
+      if (data) {
+        setConnectionStatus({
+          isConnected: data.is_bigquery_connected || false,
+          provider: data.provider,
+          connectedAt: data.created_at,
+          scopes: data.scopes || []
+        });
+      } else {
+        setConnectionStatus({
+          isConnected: false,
+          provider: 'google'
+        });
+      }
     } catch (error) {
-      console.error('Error loading credentials:', error);
+      console.error('Error checking connection status:', error);
       toast({
-        title: "Error loading credentials",
-        description: "Failed to load BigQuery connection status",
+        title: "Error",
+        description: "Failed to check connection status",
         variant: "destructive",
       });
     } finally {
@@ -57,19 +73,14 @@ const BigQueryConnection: React.FC = () => {
     }
   };
 
-  const handleConnectToBigQuery = async () => {
-    setConnecting(true);
+  const handleGoogleConnect = async () => {
+    setIsConnecting(true);
     try {
-      // Enhanced Google OAuth with BigQuery scopes
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          scopes: 'https://www.googleapis.com/auth/bigquery.readonly https://www.googleapis.com/auth/userinfo.email',
-          redirectTo: `${window.location.origin}/data-control`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent'
-          }
+          scopes: 'openid email profile https://www.googleapis.com/auth/bigquery',
+          redirectTo: `${window.location.origin}/data-control`
         }
       });
 
@@ -78,138 +89,141 @@ const BigQueryConnection: React.FC = () => {
       }
 
       toast({
-        title: "Redirecting to Google",
-        description: "Please authorize BigQuery access in the popup window",
+        title: "Connecting to Google",
+        description: "Please complete the authentication in the popup window",
       });
     } catch (error) {
-      console.error('Error connecting to BigQuery:', error);
+      console.error('Error connecting to Google:', error);
       toast({
         title: "Connection failed",
-        description: "Failed to initiate BigQuery connection",
+        description: "Failed to initiate Google connection",
         variant: "destructive",
       });
-    } finally {
-      setConnecting(false);
+      setIsConnecting(false);
     }
   };
 
-  const handleDisconnect = async () => {
-    try {
-      const { error } = await supabase
-        .from('user_oauth_credentials')
-        .delete()
-        .eq('user_id', user?.id)
-        .eq('provider', 'google');
-
-      if (error) throw error;
-
-      setCredentials(null);
-      toast({
-        title: "Disconnected",
-        description: "BigQuery connection has been removed",
-      });
-    } catch (error) {
-      console.error('Error disconnecting:', error);
-      toast({
-        title: "Error",
-        description: "Failed to disconnect from BigQuery",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const isTokenExpired = () => {
-    if (!credentials?.token_expires_at) return false;
-    return new Date(credentials.token_expires_at) < new Date();
-  };
+  const OtherConnectionCard = ({ title, icon: Icon, status }: { 
+    title: string; 
+    icon: React.ComponentType<any>; 
+    status: string;
+  }) => (
+    <Card className="border-dashed border-2 border-slate-200 dark:border-viz-light/20">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-slate-100 dark:bg-viz-light/10 rounded-lg">
+              <Icon className="w-6 h-6 text-slate-500" />
+            </div>
+            <div>
+              <h3 className="font-medium text-viz-dark dark:text-white">{title}</h3>
+              <p className="text-sm text-viz-text-secondary">{status}</p>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-xs">
+            {status}
+          </Badge>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-viz-accent"></div>
+      <div className="space-y-6">
+        <div className="animate-pulse">
+          <div className="h-32 bg-slate-200 dark:bg-viz-light/10 rounded-lg"></div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-viz-dark dark:text-white">BigQuery Connection</h2>
-        <p className="text-viz-text-secondary">Connect your Google BigQuery to query your data</p>
-      </div>
-
+      {/* BigQuery Connection */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <DatabaseIcon className="w-5 h-5" />
-            Connection Status
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                <DatabaseIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Google BigQuery</CardTitle>
+                <p className="text-sm text-viz-text-secondary">
+                  Connect your BigQuery datasets for advanced analytics
+                </p>
+              </div>
+            </div>
+            {connectionStatus?.isConnected && (
+              <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                <CheckCircleIcon className="w-3 h-3 mr-1" />
+                Connected
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
-          {credentials?.is_bigquery_connected ? (
+          {connectionStatus?.isConnected ? (
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <CheckCircleIcon className="w-5 h-5 text-green-500" />
-                <span className="font-medium text-green-700 dark:text-green-400">Connected to BigQuery</span>
-                {isTokenExpired() && (
-                  <Badge variant="destructive" className="ml-2">Token Expired</Badge>
-                )}
+              <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400">
+                <CheckCircleIcon className="w-4 h-4" />
+                <span>Successfully connected to Google BigQuery</span>
               </div>
               
-              <div className="space-y-2 text-sm text-viz-text-secondary">
-                <p><strong>Provider:</strong> {credentials.provider}</p>
-                <p><strong>Scopes:</strong> {credentials.scopes?.join(', ')}</p>
-                <p><strong>Connected:</strong> {new Date(credentials.created_at).toLocaleDateString()}</p>
-                {credentials.token_expires_at && (
-                  <p><strong>Token Expires:</strong> {new Date(credentials.token_expires_at).toLocaleDateString()}</p>
-                )}
-              </div>
+              {connectionStatus.connectedAt && (
+                <div className="flex items-center space-x-2 text-sm text-viz-text-secondary">
+                  <ClockIcon className="w-4 h-4" />
+                  <span>
+                    Connected on {new Date(connectionStatus.connectedAt).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
 
-              <div className="flex gap-2">
-                {isTokenExpired() && (
-                  <Button onClick={handleConnectToBigQuery} disabled={connecting} className="bg-yellow-600 hover:bg-yellow-700">
-                    <RefreshCwIcon className="w-4 h-4 mr-2" />
-                    Refresh Connection
+              <div className="pt-2">
+                <p className="text-sm text-viz-text-secondary mb-2">Available actions:</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm">
+                    <PlayIcon className="w-3 h-3 mr-1" />
+                    Test Connection
                   </Button>
-                )}
-                <Button variant="outline" onClick={handleDisconnect}>
-                  Disconnect
-                </Button>
+                  <Button variant="outline" size="sm">
+                    <ExternalLinkIcon className="w-3 h-3 mr-1" />
+                    View Tables
+                  </Button>
+                </div>
               </div>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <AlertCircleIcon className="w-5 h-5 text-yellow-500" />
-                <span className="font-medium text-yellow-700 dark:text-yellow-400">Not Connected</span>
+              <div className="flex items-center space-x-2 text-sm text-amber-600 dark:text-amber-400">
+                <AlertCircleIcon className="w-4 h-4" />
+                <span>BigQuery connection required for advanced features</span>
               </div>
               
-              <p className="text-sm text-viz-text-secondary">
-                Connect your Google account with BigQuery access to enable data querying capabilities.
-              </p>
-
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Required Permissions:</h4>
-                <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-                  <li>• BigQuery read access</li>
-                  <li>• User profile information</li>
+              <div className="text-sm text-viz-text-secondary">
+                <p className="mb-2">To enable BigQuery features, you need to:</p>
+                <ul className="list-disc list-inside space-y-1 ml-4">
+                  <li>Connect your Google account</li>
+                  <li>Grant BigQuery access permissions</li>
+                  <li>Select your BigQuery projects</li>
                 </ul>
               </div>
 
               <Button 
-                onClick={handleConnectToBigQuery} 
-                disabled={connecting}
-                className="bg-viz-accent hover:bg-viz-accent-light"
+                onClick={handleGoogleConnect}
+                disabled={isConnecting}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
               >
-                {connecting ? (
+                {isConnecting ? (
                   <>
-                    <RefreshCwIcon className="w-4 h-4 mr-2 animate-spin" />
+                    <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     Connecting...
                   </>
                 ) : (
                   <>
-                    <DatabaseIcon className="w-4 h-4 mr-2" />
-                    Connect to BigQuery
+                    <ExternalLinkIcon className="w-4 h-4 mr-2" />
+                    Connect Google BigQuery
                   </>
                 )}
               </Button>
@@ -217,6 +231,43 @@ const BigQueryConnection: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Other Connections */}
+      <div>
+        <h3 className="text-lg font-medium text-viz-dark dark:text-white mb-4">Other Data Sources</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <OtherConnectionCard
+            title="Amazon Redshift"
+            icon={DatabaseIcon}
+            status="Coming Soon"
+          />
+          <OtherConnectionCard
+            title="Snowflake"
+            icon={DatabaseIcon}
+            status="Work in Progress"
+          />
+          <OtherConnectionCard
+            title="PostgreSQL"
+            icon={DatabaseIcon}
+            status="Coming Soon"
+          />
+          <OtherConnectionCard
+            title="MySQL"
+            icon={DatabaseIcon}
+            status="Work in Progress"
+          />
+          <OtherConnectionCard
+            title="MongoDB"
+            icon={DatabaseIcon}
+            status="Coming Soon"
+          />
+          <OtherConnectionCard
+            title="Microsoft SQL Server"
+            icon={DatabaseIcon}
+            status="Work in Progress"
+          />
+        </div>
+      </div>
     </div>
   );
 };

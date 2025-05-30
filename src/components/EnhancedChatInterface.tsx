@@ -78,44 +78,52 @@ const EnhancedChatInterface: React.FC = () => {
 
       if (sessionError) throw sessionError;
 
-      // TODO: Call your Cloud Run inference endpoint here
-      // For now, we'll simulate the response
-      await simulateInferenceCall(sessionData);
+      // Call inference edge function
+      const { data: inferenceResult, error: inferenceError } = await supabase.functions.invoke('inference', {
+        body: {
+          sessionId: sessionData.id,
+          prompt: prompt.trim(),
+          metadata: { timestamp: new Date().toISOString() }
+        }
+      });
 
+      if (inferenceError) {
+        console.error('Inference error:', inferenceError);
+        throw new Error(inferenceError.message || 'Failed to process query');
+      }
+
+      if (!inferenceResult.success) {
+        throw new Error(inferenceResult.error || 'Failed to process query');
+      }
+
+      // Reload session data
+      const { data: updatedSession, error: fetchError } = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .eq('id', sessionData.id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      setCurrentSession(updatedSession);
       setPrompt('');
       setActiveTab('answer');
       loadRecentSessions();
+
+      toast({
+        title: "Query processed",
+        description: "Your query has been successfully analyzed",
+      });
     } catch (error) {
       console.error('Error submitting prompt:', error);
       toast({
         title: "Error",
-        description: "Failed to process your request",
+        description: error.message || "Failed to process your request",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  };
-
-  const simulateInferenceCall = async (session: ChatSession) => {
-    // Simulate API call to Cloud Run /generate-sql-answer endpoint
-    const mockAnswer = `Based on your query "${session.prompt}", here's the analysis...`;
-    const mockSQL = `SELECT * FROM your_table WHERE condition = 'example';`;
-
-    // Update session with response
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .update({
-        answer: mockAnswer,
-        sql_query: mockSQL,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', session.id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    setCurrentSession(data);
   };
 
   const handleGenerateChart = async () => {
@@ -130,62 +138,46 @@ const EnhancedChatInterface: React.FC = () => {
 
     setChartLoading(true);
     try {
-      // TODO: Call your Cloud Run chart generation endpoint here
-      const mockChartCode = `
-        <script>
-          const ctx = document.getElementById('myChart').getContext('2d');
-          new Chart(ctx, {
-            type: 'bar',
-            data: {
-              labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
-              datasets: [{
-                label: 'Sample Data',
-                data: [12, 19, 3, 5, 2],
-                backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1
-              }]
-            },
-            options: {
-              responsive: true,
-              scales: {
-                y: {
-                  beginAtZero: true
-                }
-              }
-            }
-          });
-        </script>
-      `;
+      const { data: chartResult, error: chartError } = await supabase.functions.invoke('generate-chart', {
+        body: {
+          sessionId: currentSession.id
+        }
+      });
 
-      // Update session with chart code
-      const { data, error } = await supabase
+      if (chartError) {
+        console.error('Chart generation error:', chartError);
+        throw new Error(chartError.message || 'Failed to generate chart');
+      }
+
+      if (!chartResult.success) {
+        throw new Error(chartResult.error || 'Failed to generate chart');
+      }
+
+      // Reload session data
+      const { data: updatedSession, error: fetchError } = await supabase
         .from('chat_sessions')
-        .update({
-          chart_code: mockChartCode,
-          updated_at: new Date().toISOString()
-        })
+        .select('*')
         .eq('id', currentSession.id)
-        .select()
         .single();
 
-      if (error) throw error;
-      setCurrentSession(data);
+      if (fetchError) throw fetchError;
+
+      setCurrentSession(updatedSession);
 
       // Inject chart code into DOM
-      if (data.chart_code) {
+      if (updatedSession.chart_code) {
         const chartContainer = document.getElementById('chartContainer');
         if (chartContainer) {
-          chartContainer.innerHTML = '<canvas id="myChart"></canvas>';
+          chartContainer.innerHTML = '<canvas id="myChart" width="400" height="200"></canvas>';
           
-          // Extract and execute script
-          const scriptMatch = data.chart_code.match(/<script>(.*?)<\/script>/s);
-          if (scriptMatch) {
-            const scriptContent = scriptMatch[1];
+          // Add Chart.js library if not already loaded
+          if (!window.Chart) {
             const script = document.createElement('script');
-            script.textContent = scriptContent;
-            document.body.appendChild(script);
-            document.body.removeChild(script);
+            script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+            script.onload = () => executeChartScript(updatedSession.chart_code);
+            document.head.appendChild(script);
+          } else {
+            executeChartScript(updatedSession.chart_code);
           }
         }
       }
@@ -198,7 +190,7 @@ const EnhancedChatInterface: React.FC = () => {
       console.error('Error generating chart:', error);
       toast({
         title: "Error",
-        description: "Failed to generate chart",
+        description: error.message || "Failed to generate chart",
         variant: "destructive",
       });
     } finally {
@@ -206,9 +198,37 @@ const EnhancedChatInterface: React.FC = () => {
     }
   };
 
+  const executeChartScript = (chartCode: string) => {
+    try {
+      // Extract and execute script content
+      const scriptMatch = chartCode.match(/<script>(.*?)<\/script>/s);
+      if (scriptMatch) {
+        const scriptContent = scriptMatch[1];
+        const func = new Function(scriptContent);
+        func();
+      }
+    } catch (error) {
+      console.error('Error executing chart script:', error);
+    }
+  };
+
   const selectSession = (session: ChatSession) => {
     setCurrentSession(session);
     setActiveTab('answer');
+    
+    // If switching to charts and we have chart code, render it
+    if (session.chart_code && activeTab === 'charts') {
+      setTimeout(() => executeChartScript(session.chart_code), 100);
+    }
+  };
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    
+    // If switching to charts and we have chart code, render it
+    if (tab === 'charts' && currentSession?.chart_code) {
+      setTimeout(() => executeChartScript(currentSession.chart_code), 100);
+    }
   };
 
   return (
@@ -254,7 +274,7 @@ const EnhancedChatInterface: React.FC = () => {
               <Textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Ask me anything about your data..."
+                placeholder="Ask me anything about your data... (e.g., 'give monthly revenue?')"
                 className="flex-1 min-h-[60px] resize-none"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -289,7 +309,7 @@ const EnhancedChatInterface: React.FC = () => {
                     ? 'border-viz-accent text-viz-accent'
                     : 'border-transparent text-viz-text-secondary hover:text-viz-dark dark:hover:text-white'
                 }`}
-                onClick={() => setActiveTab('answer')}
+                onClick={() => handleTabChange('answer')}
               >
                 <FileTextIcon className="w-4 h-4 mr-2 inline" />
                 Answer
@@ -300,7 +320,7 @@ const EnhancedChatInterface: React.FC = () => {
                     ? 'border-viz-accent text-viz-accent'
                     : 'border-transparent text-viz-text-secondary hover:text-viz-dark dark:hover:text-white'
                 }`}
-                onClick={() => setActiveTab('sql')}
+                onClick={() => handleTabChange('sql')}
               >
                 <DatabaseIcon className="w-4 h-4 mr-2 inline" />
                 SQL
@@ -311,12 +331,7 @@ const EnhancedChatInterface: React.FC = () => {
                     ? 'border-viz-accent text-viz-accent'
                     : 'border-transparent text-viz-text-secondary hover:text-viz-dark dark:hover:text-white'
                 }`}
-                onClick={() => {
-                  setActiveTab('charts');
-                  if (currentSession && !currentSession.chart_code && !chartLoading) {
-                    handleGenerateChart();
-                  }
-                }}
+                onClick={() => handleTabChange('charts')}
               >
                 <BarChartIcon className="w-4 h-4 mr-2 inline" />
                 Charts
@@ -349,7 +364,7 @@ const EnhancedChatInterface: React.FC = () => {
                   <div>
                     {currentSession.sql_query ? (
                       <div className="bg-viz-dark p-4 rounded-lg">
-                        <pre className="text-viz-accent text-sm overflow-x-auto">
+                        <pre className="text-viz-accent text-sm overflow-x-auto whitespace-pre-wrap">
                           <code>{currentSession.sql_query}</code>
                         </pre>
                       </div>
@@ -370,14 +385,17 @@ const EnhancedChatInterface: React.FC = () => {
                         <span>Generating chart...</span>
                       </div>
                     ) : currentSession.chart_code ? (
-                      <div id="chartContainer" className="w-full h-64">
+                      <div id="chartContainer" className="w-full min-h-[400px]">
                         {/* Chart will be injected here */}
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center py-8">
                         <BarChartIcon className="w-6 h-6 text-viz-text-secondary mb-2" />
                         <span className="text-viz-text-secondary mb-4">No chart available</span>
-                        <Button onClick={handleGenerateChart} disabled={!currentSession.sql_query}>
+                        <Button 
+                          onClick={handleGenerateChart} 
+                          disabled={!currentSession.sql_query || !currentSession.metadata?.data}
+                        >
                           Generate Chart
                         </Button>
                       </div>

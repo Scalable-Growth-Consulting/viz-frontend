@@ -29,58 +29,57 @@ serve(async (req) => {
       throw new Error('Unauthorized')
     }
 
-    // Get user's BigQuery credentials
-    const { data: credentials, error: credError } = await supabase
-      .from('user_oauth_credentials')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('provider', 'google')
-      .single()
+    console.log('Processing query:', prompt)
 
-    if (credError || !credentials?.is_bigquery_connected) {
-      throw new Error('BigQuery not connected')
-    }
-
-    // TODO: Replace with your actual Cloud Run URL
-    const cloudRunUrl = 'https://your-cloud-run-url/generate-sql-answer'
-    
-    // Call Cloud Run service
-    const cloudRunResponse = await fetch(cloudRunUrl, {
+    // Call your Text2SQL API
+    const text2sqlResponse = await fetch('https://text-sql-v2-286070583332.us-central1.run.app', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${credentials.access_token_encrypted}` // You'll need to decrypt this
       },
       body: JSON.stringify({
-        prompt,
-        metadata,
-        user_id: user.id
+        query: prompt
       })
     })
 
-    if (!cloudRunResponse.ok) {
-      throw new Error('Cloud Run request failed')
+    if (!text2sqlResponse.ok) {
+      console.error('Text2SQL API error:', text2sqlResponse.status, text2sqlResponse.statusText)
+      throw new Error('Failed to process query with Text2SQL API')
     }
 
-    const result = await cloudRunResponse.json()
+    const text2sqlResult = await text2sqlResponse.json()
+    console.log('Text2SQL result:', text2sqlResult)
 
     // Update the chat session with the response
     const { error: updateError } = await supabase
       .from('chat_sessions')
       .update({
-        answer: result.answer,
-        sql_query: result.sql,
-        metadata: { ...metadata, ...result.metadata },
+        answer: text2sqlResult.inference,
+        sql_query: text2sqlResult.sql,
+        metadata: { 
+          ...metadata, 
+          data: text2sqlResult.data,
+          user_query: text2sqlResult.User_query,
+          processed_at: new Date().toISOString()
+        },
         updated_at: new Date().toISOString()
       })
       .eq('id', sessionId)
 
     if (updateError) {
+      console.error('Database update error:', updateError)
       throw updateError
     }
 
     return new Response(
-      JSON.stringify({ success: true, data: result }),
+      JSON.stringify({ 
+        success: true, 
+        data: {
+          answer: text2sqlResult.inference,
+          sql: text2sqlResult.sql,
+          queryData: text2sqlResult.data
+        }
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 
