@@ -29,6 +29,8 @@ serve(async (req) => {
       throw new Error('Unauthorized')
     }
 
+    console.log('Generating chart for session:', sessionId)
+
     // Get the session data
     const { data: session, error: sessionError } = await supabase
       .from('chat_sessions')
@@ -37,17 +39,18 @@ serve(async (req) => {
       .single()
 
     if (sessionError || !session) {
+      console.error('Session error:', sessionError)
       throw new Error('Session not found')
     }
 
     // Check if we have the required data from the inference call
     if (!session.metadata?.data || !session.sql_query) {
-      throw new Error('No data available for chart generation')
+      throw new Error('No data available for chart generation. Please run a query first.')
     }
 
-    console.log('Generating chart for session:', sessionId)
+    console.log('Session data found, calling BIAgent API')
 
-    // Call the correct BIAgent API
+    // Call the BIAgent API
     const biAgentResponse = await fetch('https://bi-agent-286070583332.us-central1.run.app', {
       method: 'POST',
       headers: {
@@ -68,7 +71,7 @@ serve(async (req) => {
     }
 
     const chartScript = await biAgentResponse.text()
-    console.log('Generated chart script')
+    console.log('Generated chart script successfully')
 
     // Update the chat session with the chart code
     const { error: updateError } = await supabase
@@ -88,6 +91,8 @@ serve(async (req) => {
       console.error('Database update error:', updateError)
       throw updateError
     }
+
+    console.log('Successfully updated session with chart code')
 
     return new Response(
       JSON.stringify({ success: true, chart_code: chartScript }),

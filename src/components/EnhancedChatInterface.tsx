@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,7 +12,7 @@ import { SendIcon, DatabaseIcon, BarChartIcon, FileTextIcon, Loader2 } from 'luc
 // Declare Chart.js types for TypeScript
 declare global {
   interface Window {
-    Chart: any;
+    Chart?: any;
   }
 }
 
@@ -71,6 +72,8 @@ const EnhancedChatInterface: React.FC = () => {
 
     setLoading(true);
     try {
+      console.log('Creating new chat session with prompt:', prompt);
+      
       // Create new chat session
       const { data: sessionData, error: sessionError } = await supabase
         .from('chat_sessions')
@@ -82,9 +85,15 @@ const EnhancedChatInterface: React.FC = () => {
         .select()
         .single();
 
-      if (sessionError) throw sessionError;
+      if (sessionError) {
+        console.error('Session creation error:', sessionError);
+        throw sessionError;
+      }
+
+      console.log('Session created:', sessionData);
 
       // Call inference edge function
+      console.log('Calling inference function...');
       const { data: inferenceResult, error: inferenceError } = await supabase.functions.invoke('inference', {
         body: {
           sessionId: sessionData.id,
@@ -93,13 +102,15 @@ const EnhancedChatInterface: React.FC = () => {
         }
       });
 
+      console.log('Inference result:', { inferenceResult, inferenceError });
+
       if (inferenceError) {
         console.error('Inference error:', inferenceError);
         throw new Error(inferenceError.message || 'Failed to process query');
       }
 
-      if (!inferenceResult.success) {
-        throw new Error(inferenceResult.error || 'Failed to process query');
+      if (!inferenceResult || !inferenceResult.success) {
+        throw new Error(inferenceResult?.error || 'Failed to process query');
       }
 
       // Reload session data
@@ -109,7 +120,12 @@ const EnhancedChatInterface: React.FC = () => {
         .eq('id', sessionData.id)
         .single();
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error('Fetch error:', fetchError);
+        throw fetchError;
+      }
+
+      console.log('Updated session:', updatedSession);
 
       setCurrentSession(updatedSession);
       setPrompt('');
@@ -124,7 +140,7 @@ const EnhancedChatInterface: React.FC = () => {
       console.error('Error submitting prompt:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to process your request",
+        description: error.message || "Failed to process your request. Please check the console for more details.",
         variant: "destructive",
       });
     } finally {
@@ -144,19 +160,23 @@ const EnhancedChatInterface: React.FC = () => {
 
     setChartLoading(true);
     try {
+      console.log('Calling generate-chart function for session:', currentSession.id);
+      
       const { data: chartResult, error: chartError } = await supabase.functions.invoke('generate-chart', {
         body: {
           sessionId: currentSession.id
         }
       });
 
+      console.log('Chart result:', { chartResult, chartError });
+
       if (chartError) {
         console.error('Chart generation error:', chartError);
         throw new Error(chartError.message || 'Failed to generate chart');
       }
 
-      if (!chartResult.success) {
-        throw new Error(chartResult.error || 'Failed to generate chart');
+      if (!chartResult || !chartResult.success) {
+        throw new Error(chartResult?.error || 'Failed to generate chart');
       }
 
       // Reload session data
@@ -196,7 +216,7 @@ const EnhancedChatInterface: React.FC = () => {
       console.error('Error generating chart:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to generate chart",
+        description: error.message || "Failed to generate chart. Please check the console for more details.",
         variant: "destructive",
       });
     } finally {
@@ -206,6 +226,7 @@ const EnhancedChatInterface: React.FC = () => {
 
   const executeChartScript = (chartCode: string) => {
     try {
+      console.log('Executing chart script:', chartCode);
       // Extract and execute script content
       const scriptMatch = chartCode.match(/<script>(.*?)<\/script>/s);
       if (scriptMatch) {

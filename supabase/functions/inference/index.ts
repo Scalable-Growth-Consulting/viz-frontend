@@ -30,8 +30,9 @@ serve(async (req) => {
     }
 
     console.log('Processing query:', prompt)
+    console.log('Session ID:', sessionId)
 
-    // Call the correct Text2SQL API
+    // Call the Text2SQL API
     const text2sqlResponse = await fetch('https://text-sql-v2-286070583332.us-central1.run.app', {
       method: 'POST',
       headers: {
@@ -71,6 +72,8 @@ serve(async (req) => {
       console.error('Database update error:', updateError)
       throw updateError
     }
+
+    console.log('Successfully updated chat session')
 
     return new Response(
       JSON.stringify({ 

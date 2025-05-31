@@ -14,7 +14,8 @@ import {
   ClockIcon,
   PlayIcon,
   Loader2,
-  TableIcon
+  TableIcon,
+  RefreshCwIcon
 } from 'lucide-react';
 
 interface ConnectionStatus {
@@ -96,26 +97,33 @@ const BigQueryConnection: React.FC = () => {
   const fetchBigQueryTables = async () => {
     setFetchingTables(true);
     try {
-      const { data, error } = await supabase.functions.invoke('fetch-bigquery-tables', {});
+      console.log('Calling fetch-bigquery-tables function...');
+      
+      const { data, error } = await supabase.functions.invoke('fetch-bigquery-tables', {
+        body: {}
+      });
+
+      console.log('Function response:', { data, error });
 
       if (error) {
+        console.error('Function error:', error);
         throw error;
       }
 
-      if (data.success) {
-        setTables(data.tables);
+      if (data && data.success) {
+        setTables(data.tables || []);
         toast({
           title: "Tables loaded",
           description: `Found ${data.total_tables} BigQuery tables`,
         });
       } else {
-        throw new Error(data.error || 'Failed to fetch tables');
+        throw new Error(data?.error || 'Failed to fetch tables');
       }
     } catch (error) {
       console.error('Error fetching BigQuery tables:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch BigQuery tables",
+        description: error.message || "Failed to fetch BigQuery tables. Please check your connection and try again.",
         variant: "destructive",
       });
     } finally {
@@ -243,9 +251,9 @@ const BigQueryConnection: React.FC = () => {
                     {fetchingTables ? (
                       <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                     ) : (
-                      <TableIcon className="w-3 h-3 mr-1" />
+                      <RefreshCwIcon className="w-3 h-3 mr-1" />
                     )}
-                    Refresh Tables
+                    {fetchingTables ? 'Loading...' : 'Refresh Tables'}
                   </Button>
                 </div>
 
@@ -271,7 +279,7 @@ const BigQueryConnection: React.FC = () => {
                 ) : (
                   <div className="text-center py-4 text-viz-text-secondary">
                     <TableIcon className="w-8 h-8 mx-auto mb-2" />
-                    <p>No tables found or click refresh to load tables</p>
+                    <p>No tables found. Click refresh to load tables or check your BigQuery permissions.</p>
                   </div>
                 )}
               </div>
