@@ -31,7 +31,7 @@ serve(async (req) => {
 
     console.log('Processing query:', prompt)
 
-    // Call your Text2SQL API
+    // Call the correct Text2SQL API
     const text2sqlResponse = await fetch('https://text-sql-v2-286070583332.us-central1.run.app', {
       method: 'POST',
       headers: {
@@ -43,8 +43,9 @@ serve(async (req) => {
     })
 
     if (!text2sqlResponse.ok) {
-      console.error('Text2SQL API error:', text2sqlResponse.status, text2sqlResponse.statusText)
-      throw new Error('Failed to process query with Text2SQL API')
+      const errorText = await text2sqlResponse.text()
+      console.error('Text2SQL API error:', text2sqlResponse.status, text2sqlResponse.statusText, errorText)
+      throw new Error(`Failed to process query with Text2SQL API: ${text2sqlResponse.status} ${errorText}`)
     }
 
     const text2sqlResult = await text2sqlResponse.json()

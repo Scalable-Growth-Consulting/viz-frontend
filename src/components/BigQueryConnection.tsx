@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +12,9 @@ import {
   AlertCircleIcon, 
   ExternalLinkIcon,
   ClockIcon,
-  PlayIcon
+  PlayIcon,
+  Loader2,
+  TableIcon
 } from 'lucide-react';
 
 interface ConnectionStatus {
@@ -21,10 +24,21 @@ interface ConnectionStatus {
   scopes?: string[];
 }
 
+interface BigQueryTable {
+  project_id: string;
+  dataset_id: string;
+  table_id: string;
+  full_table_name: string;
+  schema: any[];
+  description?: string;
+}
+
 const BigQueryConnection: React.FC = () => {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [tables, setTables] = useState<BigQueryTable[]>([]);
+  const [fetchingTables, setFetchingTables] = useState(false);
   
   const { user } = useAuth();
   const { toast } = useToast();
@@ -49,12 +63,18 @@ const BigQueryConnection: React.FC = () => {
       }
 
       if (data) {
-        setConnectionStatus({
+        const status = {
           isConnected: data.is_bigquery_connected || false,
           provider: data.provider,
           connectedAt: data.created_at,
           scopes: data.scopes || []
-        });
+        };
+        setConnectionStatus(status);
+        
+        // Auto-fetch tables if connected
+        if (status.isConnected) {
+          await fetchBigQueryTables();
+        }
       } else {
         setConnectionStatus({
           isConnected: false,
@@ -70,6 +90,36 @@ const BigQueryConnection: React.FC = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBigQueryTables = async () => {
+    setFetchingTables(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-bigquery-tables', {});
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.success) {
+        setTables(data.tables);
+        toast({
+          title: "Tables loaded",
+          description: `Found ${data.total_tables} BigQuery tables`,
+        });
+      } else {
+        throw new Error(data.error || 'Failed to fetch tables');
+      }
+    } catch (error) {
+      console.error('Error fetching BigQuery tables:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch BigQuery tables",
+        variant: "destructive",
+      });
+    } finally {
+      setFetchingTables(false);
     }
   };
 
@@ -180,6 +230,52 @@ const BigQueryConnection: React.FC = () => {
                 </div>
               )}
 
+              {/* Tables Section */}
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-viz-dark dark:text-white">Available Tables</h4>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={fetchBigQueryTables}
+                    disabled={fetchingTables}
+                  >
+                    {fetchingTables ? (
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    ) : (
+                      <TableIcon className="w-3 h-3 mr-1" />
+                    )}
+                    Refresh Tables
+                  </Button>
+                </div>
+
+                {fetchingTables ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                    <span>Loading tables...</span>
+                  </div>
+                ) : tables.length > 0 ? (
+                  <div className="max-h-60 overflow-y-auto space-y-2">
+                    {tables.map((table, index) => (
+                      <div key={index} className="p-3 bg-slate-50 dark:bg-viz-light/10 rounded-lg">
+                        <div className="font-mono text-sm text-viz-dark dark:text-white">
+                          {table.full_table_name}
+                        </div>
+                        <div className="text-xs text-viz-text-secondary mt-1">
+                          {table.schema.length} columns
+                          {table.description && ` • ${table.description}`}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-viz-text-secondary">
+                    <TableIcon className="w-8 h-8 mx-auto mb-2" />
+                    <p>No tables found or click refresh to load tables</p>
+                  </div>
+                )}
+              </div>
+
               <div className="pt-2">
                 <p className="text-sm text-viz-text-secondary mb-2">Available actions:</p>
                 <div className="flex flex-wrap gap-2">
@@ -189,7 +285,7 @@ const BigQueryConnection: React.FC = () => {
                   </Button>
                   <Button variant="outline" size="sm">
                     <ExternalLinkIcon className="w-3 h-3 mr-1" />
-                    View Tables
+                    View in Console
                   </Button>
                 </div>
               </div>
@@ -217,7 +313,7 @@ const BigQueryConnection: React.FC = () => {
               >
                 {isConnecting ? (
                   <>
-                    <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Connecting...
                   </>
                 ) : (

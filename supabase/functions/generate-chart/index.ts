@@ -47,7 +47,7 @@ serve(async (req) => {
 
     console.log('Generating chart for session:', sessionId)
 
-    // Call your BIAgent API with the data from the inference
+    // Call the correct BIAgent API
     const biAgentResponse = await fetch('https://bi-agent-286070583332.us-central1.run.app', {
       method: 'POST',
       headers: {
@@ -62,8 +62,9 @@ serve(async (req) => {
     })
 
     if (!biAgentResponse.ok) {
-      console.error('BIAgent API error:', biAgentResponse.status, biAgentResponse.statusText)
-      throw new Error('Failed to generate chart with BIAgent API')
+      const errorText = await biAgentResponse.text()
+      console.error('BIAgent API error:', biAgentResponse.status, biAgentResponse.statusText, errorText)
+      throw new Error(`Failed to generate chart with BIAgent API: ${biAgentResponse.status} ${errorText}`)
     }
 
     const chartScript = await biAgentResponse.text()
