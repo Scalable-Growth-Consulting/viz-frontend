@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +7,13 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { SendIcon, DatabaseIcon, BarChartIcon, FileTextIcon, Loader2 } from 'lucide-react';
+
+// Declare Chart.js types for TypeScript
+declare global {
+  interface Window {
+    Chart: any;
+  }
+}
 
 interface ChatSession {
   id: string;
@@ -171,7 +177,7 @@ const EnhancedChatInterface: React.FC = () => {
           chartContainer.innerHTML = '<canvas id="myChart" width="400" height="200"></canvas>';
           
           // Add Chart.js library if not already loaded
-          if (!window.Chart) {
+          if (typeof window.Chart === 'undefined') {
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
             script.onload = () => executeChartScript(updatedSession.chart_code);
