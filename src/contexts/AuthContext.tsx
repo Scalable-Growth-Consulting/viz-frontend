@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,9 +37,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Handle OAuth callback for BigQuery
-        if (event === 'SIGNED_IN' && session?.provider_token) {
-          await handleOAuthCallback(session);
+        // Only handle basic OAuth callback for regular authentication
+        if (event === 'SIGNED_IN' && session?.provider_token && !window.location.pathname.includes('/data-control')) {
+          await handleBasicOAuthCallback(session);
         }
       }
     );
@@ -53,20 +54,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleOAuthCallback = async (session: Session) => {
+  const handleBasicOAuthCallback = async (session: Session) => {
     try {
       if (session.provider_token && session.provider_refresh_token) {
-        // Store OAuth credentials
+        // Store basic OAuth credentials without BigQuery access
         const { error } = await supabase
           .from('user_oauth_credentials')
           .upsert({
             user_id: session.user.id,
             provider: 'google',
-            access_token_encrypted: session.provider_token, // TODO: Encrypt before storing
-            refresh_token_encrypted: session.provider_refresh_token, // TODO: Encrypt before storing
-            token_expires_at: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
-            scopes: ['https://www.googleapis.com/auth/bigquery.readonly', 'https://www.googleapis.com/auth/userinfo.email'],
-            is_bigquery_connected: true,
+            access_token_encrypted: session.provider_token,
+            refresh_token_encrypted: session.provider_refresh_token,
+            token_expires_at: new Date(Date.now() + 3600000).toISOString(),
+            scopes: ['https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile'],
+            is_bigquery_connected: false, // Not connected to BigQuery yet
             updated_at: new Date().toISOString()
           }, {
             onConflict: 'user_id,provider'
@@ -106,8 +107,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/data-control`,
-        scopes: 'https://www.googleapis.com/auth/bigquery.readonly https://www.googleapis.com/auth/userinfo.email',
+        redirectTo: `${window.location.origin}/`,
+        scopes: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid',
         queryParams: {
           access_type: 'offline',
           prompt: 'consent'

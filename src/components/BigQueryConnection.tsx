@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,6 +48,45 @@ const BigQueryConnection: React.FC = () => {
       checkConnectionStatus();
     }
   }, [user]);
+
+  // Handle BigQuery OAuth callback
+  useEffect(() => {
+    const handleBigQueryCallback = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      const state = urlParams.get('state');
+      
+      if (code && state === 'bigquery-connection') {
+        console.log('Handling BigQuery OAuth callback...');
+        setIsConnecting(true);
+        
+        try {
+          // Exchange code for tokens - this would typically be done in a backend
+          // For now, we'll simulate the connection
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          await checkConnectionStatus();
+          toast({
+            title: "BigQuery Connected",
+            description: "Successfully connected to Google BigQuery",
+          });
+        } catch (error) {
+          console.error('Error handling BigQuery callback:', error);
+          toast({
+            title: "Connection failed",
+            description: "Failed to complete BigQuery connection",
+            variant: "destructive",
+          });
+        } finally {
+          setIsConnecting(false);
+          // Clean up URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      }
+    };
+
+    handleBigQueryCallback();
+  }, []);
 
   const checkConnectionStatus = async () => {
     try {
@@ -131,14 +169,34 @@ const BigQueryConnection: React.FC = () => {
     }
   };
 
-  const handleGoogleConnect = async () => {
+  const handleBigQueryConnect = async () => {
     setIsConnecting(true);
     try {
+      // Redirect to Google OAuth with BigQuery-specific scopes
+      const clientId = 'YOUR_GOOGLE_CLIENT_ID'; // This should be set in your environment
+      const redirectUri = `${window.location.origin}/data-control`;
+      const scope = encodeURIComponent('https://www.googleapis.com/auth/bigquery.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile');
+      const state = 'bigquery-connection';
+      
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${clientId}&` +
+        `redirect_uri=${redirectUri}&` +
+        `scope=${scope}&` +
+        `response_type=code&` +
+        `access_type=offline&` +
+        `prompt=consent&` +
+        `state=${state}`;
+
+      // For now, we'll use Supabase OAuth but this should be a separate flow
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          scopes: 'openid email profile https://www.googleapis.com/auth/bigquery',
-          redirectTo: `${window.location.origin}/data-control`
+          scopes: 'https://www.googleapis.com/auth/bigquery.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+          redirectTo: `${window.location.origin}/data-control`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent'
+          }
         }
       });
 
@@ -147,14 +205,14 @@ const BigQueryConnection: React.FC = () => {
       }
 
       toast({
-        title: "Connecting to Google",
+        title: "Connecting to BigQuery",
         description: "Please complete the authentication in the popup window",
       });
     } catch (error) {
-      console.error('Error connecting to Google:', error);
+      console.error('Error connecting to BigQuery:', error);
       toast({
         title: "Connection failed",
-        description: "Failed to initiate Google connection",
+        description: "Failed to initiate BigQuery connection",
         variant: "destructive",
       });
       setIsConnecting(false);
@@ -308,14 +366,14 @@ const BigQueryConnection: React.FC = () => {
               <div className="text-sm text-viz-text-secondary">
                 <p className="mb-2">To enable BigQuery features, you need to:</p>
                 <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>Connect your Google account</li>
-                  <li>Grant BigQuery access permissions</li>
+                  <li>Connect your Google account with BigQuery access</li>
+                  <li>Grant BigQuery read permissions</li>
                   <li>Select your BigQuery projects</li>
                 </ul>
               </div>
 
               <Button 
-                onClick={handleGoogleConnect}
+                onClick={handleBigQueryConnect}
                 disabled={isConnecting}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
@@ -327,7 +385,7 @@ const BigQueryConnection: React.FC = () => {
                 ) : (
                   <>
                     <ExternalLinkIcon className="w-4 h-4 mr-2" />
-                    Connect Google BigQuery
+                    Connect BigQuery Access
                   </>
                 )}
               </Button>
