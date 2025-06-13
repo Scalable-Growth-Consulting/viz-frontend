@@ -8,4 +8,18 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+// Create Supabase client with local functions URL in development
+export const supabase = createClient<Database>(
+  SUPABASE_URL, 
+  SUPABASE_PUBLISHABLE_KEY,
+  {
+    auth: {
+      persistSession: true
+    }
+  }
+);
+
+// Override the functions URL in development
+if (process.env.NODE_ENV === 'development') {
+  supabase.functions.setEndpoint('http://localhost:54321/functions/v1');
+}

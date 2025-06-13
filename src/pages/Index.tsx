@@ -1,13 +1,22 @@
-
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import Header from '../components/Header';
 import ChatInterface from '../components/ChatInterface';
 import ResultsArea from '../components/ResultsArea';
 import { useAuth } from '../contexts/AuthContext';
-import ApiService, { QueryResponse, ChartData } from '../services/api';
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+
+export interface QueryResponse {
+  result: string | null;
+  sql: string | null;
+}
+
+export interface ChartData {
+  type: 'bar' | 'line' | 'pie';
+  data: any;
+}
 
 const Index = () => {
   // State for query results
@@ -44,15 +53,41 @@ const Index = () => {
     setIsQueryLoading(true);
     
     try {
-      // First API call - Get query result and SQL
-      const response: QueryResponse = await ApiService.processQuery(query);
-      setQueryResult(response.result);
-      setSqlQuery(response.sql);
+      console.log('=== Processing query ===');
+      console.log('Query:', query);
+
+      // Call inference function
+      const { data: inferenceResult, error: inferenceError } = await supabase.functions.invoke('inference', {
+        body: {
+          prompt: query
+        }
+      });
+
+      console.log('Inference result:', inferenceResult);
+
+      if (inferenceError) {
+        console.error('Inference error:', inferenceError);
+        throw new Error(inferenceError.message || 'Failed to process query');
+      }
+
+      if (!inferenceResult || !inferenceResult.success) {
+        console.error('Inference unsuccessful:', inferenceResult);
+        throw new Error(inferenceResult?.error || 'Failed to process query');
+      }
+
+      // Update UI with results
+      setQueryResult(inferenceResult.data.answer);
+      setSqlQuery(inferenceResult.data.sql);
       
-      // Second API call - Get chart data
-      setIsChartLoading(true);
-      const chartResponse = await ApiService.getChartData(query);
-      setChartData(chartResponse);
+      // Create chart data if available
+      if (inferenceResult.data.queryData) {
+        setChartData({
+          type: 'bar',
+          data: inferenceResult.data.queryData
+        });
+      }
+
+      console.log('=== Query processed successfully ===');
     } catch (error) {
       console.error('Error processing query:', error);
       toast({
@@ -72,19 +107,7 @@ const Index = () => {
       // Don't allow tab changes during initial query loading
       return;
     }
-    
     setActiveTab(tab);
-    
-    // If we're switching to charts and don't have chart data yet, show loading state
-    if (tab === 'charts' && !chartData && queryResult) {
-      setIsChartLoading(true);
-      
-      // Simulate loading charts (would be a real API call in production)
-      ApiService.getChartData(queryResult).then(data => {
-        setChartData(data);
-        setIsChartLoading(false);
-      });
-    }
   };
 
   return (

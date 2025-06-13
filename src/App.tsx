@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -9,6 +8,7 @@ import DataControl from './pages/DataControl';
 import TableExplorer from './pages/TableExplorer';
 import Tips from './pages/Tips';
 import NotFound from './pages/NotFound';
+import AuthCallback from '@/components/AuthCallback';
 import './App.css';
 
 function App() {
@@ -22,6 +22,7 @@ function App() {
             <Route path="/data-control" element={<DataControl />} />
             <Route path="/table-explorer" element={<TableExplorer />} />
             <Route path="/tips" element={<Tips />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />
