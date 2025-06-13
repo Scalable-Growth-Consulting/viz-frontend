@@ -1,14 +1,15 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session, AuthError, Provider } from '@supabase/supabase-js';
+import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ data: { user: User | null; session: Session | null; }; error: AuthError | null; }>;
-  signIn: (email: string, password: string) => Promise<{ data: { user: User | null; session: Session | null; }; error: AuthError | null; }>;
-  signInWithGoogle: () => Promise<{ data: { provider: Provider | null; url: string | null; }; error: AuthError | null; }>;
+  signUp: (email: string, password: string, fullName?: string) => Promise<any>;
+  signIn: (email: string, password: string) => Promise<any>;
+  signInWithGoogle: () => Promise<any>;
   signOut: () => Promise<void>;
 }
 
@@ -118,13 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (!error) {
-      // Redirect to the home page or login page after successful sign out
-      window.location.href = '/';
-    } else {
-      console.error('Error signing out:', error);
-    }
+    await supabase.auth.signOut();
   };
 
   const value = {
