@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -72,69 +71,61 @@ const EnhancedChatInterface: React.FC = () => {
 
     setLoading(true);
     try {
-      console.log('Creating new chat session with prompt:', prompt);
+      console.log('=== Starting query processing ===');
+      console.log('Input prompt:', prompt.trim());
       
-      // Create new chat session
+      // Call inference edge function
+      console.log('Calling inference function...');
+      const { data: inferenceResult, error: inferenceError } = await supabase.functions.invoke('inference', {
+        body: {
+          prompt: prompt.trim()
+        }
+      });
+
+      console.log('Inference API response:', { inferenceResult, inferenceError });
+
+      if (inferenceError) {
+        console.error('Inference function failed:', inferenceError);
+        throw new Error(inferenceError.message || 'Failed to process query');
+      }
+
+      if (!inferenceResult || !inferenceResult.success) {
+        console.error('Inference returned unsuccessful:', inferenceResult);
+        throw new Error(inferenceResult?.error || 'Failed to process query');
+      }
+
+      // Create new chat session with the response
       const { data: sessionData, error: sessionError } = await supabase
         .from('chat_sessions')
         .insert([{
           user_id: user?.id,
           prompt: prompt.trim(),
-          metadata: { timestamp: new Date().toISOString() }
+          answer: inferenceResult.data.answer,
+          sql_query: inferenceResult.data.sql,
+          metadata: { 
+            timestamp: new Date().toISOString(),
+            data: inferenceResult.data.queryData
+          }
         }])
         .select()
         .single();
 
       if (sessionError) {
-        console.error('Session creation error:', sessionError);
+        console.error('Session creation failed:', sessionError);
         throw sessionError;
       }
 
-      console.log('Session created:', sessionData);
-
-      // Call inference edge function
-      console.log('Calling inference function...');
-      const { data: inferenceResult, error: inferenceError } = await supabase.functions.invoke('inference', {
-        body: {
-          sessionId: sessionData.id,
-          prompt: prompt.trim(),
-          metadata: { timestamp: new Date().toISOString() }
-        }
-      });
-
-      console.log('Inference result:', { inferenceResult, inferenceError });
-
-      if (inferenceError) {
-        console.error('Inference error:', inferenceError);
-        throw new Error(inferenceError.message || 'Failed to process query');
-      }
-
-      if (!inferenceResult || !inferenceResult.success) {
-        throw new Error(inferenceResult?.error || 'Failed to process query');
-      }
-
-      // Reload session data
-      const { data: updatedSession, error: fetchError } = await supabase
-        .from('chat_sessions')
-        .select('*')
-        .eq('id', sessionData.id)
-        .single();
-
-      if (fetchError) {
-        console.error('Fetch error:', fetchError);
-        throw fetchError;
-      }
-
-      console.log('Updated session:', updatedSession);
-
-      setCurrentSession(updatedSession);
+      console.log('Session created with response:', sessionData);
+      setCurrentSession(sessionData);
       setPrompt('');
       setActiveTab('answer');
       loadRecentSessions();
+      
+      console.log('=== Query processing completed successfully ===');
 
       toast({
-        title: "Query processed",
-        description: "Your query has been successfully analyzed",
+        title: "Success",
+        description: "Your query has been processed successfully",
       });
     } catch (error) {
       console.error('Error submitting prompt:', error);

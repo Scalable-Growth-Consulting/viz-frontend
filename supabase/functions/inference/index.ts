@@ -1,6 +1,4 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,26 +11,14 @@ serve(async (req) => {
   }
 
   try {
-    const { sessionId, prompt, metadata } = await req.json()
+    console.log('=== Inference Function Started ===');
+    console.log('Request method:', req.method);
 
-    // Get auth header
-    const authHeader = req.headers.get('Authorization')!
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    )
-
-    // Get user from auth
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      throw new Error('Unauthorized')
-    }
-
-    console.log('Processing query:', prompt)
-    console.log('Session ID:', sessionId)
+    const { prompt } = await req.json()
+    console.log('Processing query:', prompt);
 
     // Call the Text2SQL API
+    console.log('Calling Text2SQL API...');
     const text2sqlResponse = await fetch('https://text-sql-v2-286070583332.us-central1.run.app', {
       method: 'POST',
       headers: {
@@ -52,28 +38,7 @@ serve(async (req) => {
     const text2sqlResult = await text2sqlResponse.json()
     console.log('Text2SQL result:', text2sqlResult)
 
-    // Update the chat session with the response
-    const { error: updateError } = await supabase
-      .from('chat_sessions')
-      .update({
-        answer: text2sqlResult.inference,
-        sql_query: text2sqlResult.sql,
-        metadata: { 
-          ...metadata, 
-          data: text2sqlResult.data,
-          user_query: text2sqlResult.User_query,
-          processed_at: new Date().toISOString()
-        },
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', sessionId)
-
-    if (updateError) {
-      console.error('Database update error:', updateError)
-      throw updateError
-    }
-
-    console.log('Successfully updated chat session')
+    console.log('=== Inference Function Completed Successfully ===');
 
     return new Response(
       JSON.stringify({ 
@@ -91,6 +56,7 @@ serve(async (req) => {
     )
 
   } catch (error) {
+    console.error('=== Inference Function Error ===')
     console.error('Error in inference function:', error)
     return new Response(
       JSON.stringify({ error: error.message }),

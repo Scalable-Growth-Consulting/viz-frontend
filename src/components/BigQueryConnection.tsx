@@ -172,27 +172,16 @@ const BigQueryConnection: React.FC = () => {
   const handleBigQueryConnect = async () => {
     setIsConnecting(true);
     try {
-      // Redirect to Google OAuth with BigQuery-specific scopes
-      const clientId = 'YOUR_GOOGLE_CLIENT_ID'; // This should be set in your environment
-      const redirectUri = `${window.location.origin}/data-control`;
-      const scope = encodeURIComponent('https://www.googleapis.com/auth/bigquery.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile');
-      const state = 'bigquery-connection';
-      
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-        `client_id=${clientId}&` +
-        `redirect_uri=${redirectUri}&` +
-        `scope=${scope}&` +
-        `response_type=code&` +
-        `access_type=offline&` +
-        `prompt=consent&` +
-        `state=${state}`;
+      // Get the current URL for the redirect
+      const currentUrl = window.location.origin;
+      console.log('Current URL:', currentUrl);
 
-      // For now, we'll use Supabase OAuth but this should be a separate flow
+      // Use Supabase OAuth with BigQuery scopes
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           scopes: 'https://www.googleapis.com/auth/bigquery.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
-          redirectTo: `${window.location.origin}/data-control`,
+          redirectTo: `${currentUrl}/auth/callback`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent'
@@ -201,8 +190,16 @@ const BigQueryConnection: React.FC = () => {
       });
 
       if (error) {
+        console.error('Supabase OAuth error:', error);
         throw error;
       }
+
+      // Log the OAuth attempt
+      console.log('OAuth Initialization:', {
+        origin: window.location.origin,
+        provider: 'google',
+        data: data
+      });
 
       toast({
         title: "Connecting to BigQuery",
@@ -212,7 +209,7 @@ const BigQueryConnection: React.FC = () => {
       console.error('Error connecting to BigQuery:', error);
       toast({
         title: "Connection failed",
-        description: "Failed to initiate BigQuery connection",
+        description: error.message || "Failed to initiate BigQuery connection. Please check console for details.",
         variant: "destructive",
       });
       setIsConnecting(false);
