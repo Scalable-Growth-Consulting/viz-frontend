@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,42 +14,17 @@ serve(async (req) => {
   }
 
   try {
-    const { sessionId } = await req.json()
+    // Directly extract inputs from the request body
+    const { sql, data, inference, User_query } = await req.json();
 
-    // Get auth header
-    const authHeader = req.headers.get('Authorization')!
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    )
+    console.log('Generating chart with received data:', { sql, data, inference, User_query });
 
-    // Get user from auth
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      throw new Error('Unauthorized')
+    // Check if we have the required data
+    if (!data || !sql || !inference || !User_query) {
+      throw new Error('Missing required data for chart generation.');
     }
 
-    console.log('Generating chart for session:', sessionId)
-
-    // Get the session data
-    const { data: session, error: sessionError } = await supabase
-      .from('chat_sessions')
-      .select('*')
-      .eq('id', sessionId)
-      .single()
-
-    if (sessionError || !session) {
-      console.error('Session error:', sessionError)
-      throw new Error('Session not found')
-    }
-
-    // Check if we have the required data from the inference call
-    if (!session.metadata?.data || !session.sql_query) {
-      throw new Error('No data available for chart generation. Please run a query first.')
-    }
-
-    console.log('Session data found, calling BIAgent API')
+    console.log('Data received, calling BIAgent API')
 
     // Create AbortController for timeout
     const controller = new AbortController();
@@ -64,10 +38,10 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          sql: session.sql_query,
-          data: session.metadata.data,
-          inference: session.answer,
-          User_query: session.metadata.user_query || session.prompt
+          sql,
+          data,
+          inference,
+          User_query
         }),
         signal: controller.signal
       })
@@ -82,27 +56,6 @@ serve(async (req) => {
 
       const chartScript = await biAgentResponse.text()
       console.log('Generated chart script successfully')
-
-      // Update the chat session with the chart code
-      const { error: updateError } = await supabase
-        .from('chat_sessions')
-        .update({
-          chart_code: chartScript,
-          metadata: { 
-            ...session.metadata, 
-            chart_generated: true,
-            chart_generated_at: new Date().toISOString()
-          },
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', sessionId)
-
-      if (updateError) {
-        console.error('Database update error:', updateError)
-        throw updateError
-      }
-
-      console.log('Successfully updated session with chart code')
 
       return new Response(
         JSON.stringify({ success: true, chart_code: chartScript }),
@@ -133,4 +86,4 @@ serve(async (req) => {
       }
     )
   }
-})
+});

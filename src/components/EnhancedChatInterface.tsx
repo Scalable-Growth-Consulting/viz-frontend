@@ -9,13 +9,32 @@ import { useAuth } from '@/contexts/AuthContext';
 import { SendIcon, DatabaseIcon, BarChartIcon, FileTextIcon, Loader2 } from 'lucide-react';
 import { format } from 'sql-formatter';
 import { Json } from '@/integrations/supabase/types';
+import {
+  Chart as ChartJS,
+  BarElement,
+  LineElement,
+  PieController,
+  CategoryScale,
+  LinearScale,
+  ArcElement,
+  Tooltip,
+  Legend,
+  Title,
+  PointElement
+} from 'chart.js';
 
-// Declare Chart.js types for TypeScript
-declare global {
-  interface Window {
-    Chart?: any;
-  }
-}
+ChartJS.register(
+  BarElement,
+  LineElement,
+  PieController,
+  CategoryScale,
+  LinearScale,
+  ArcElement,
+  Tooltip,
+  Legend,
+  Title,
+  PointElement
+);
 
 // Define a type for the metadata object properties, assuming it's an object when present
 interface ExpectedSessionMetadataProperties {
@@ -106,17 +125,44 @@ const EnhancedChatInterface: React.FC = () => {
         throw new Error(inferenceResult?.error || 'Failed to process query');
       }
 
-      // Create new chat session with the response
+      const inferenceData = inferenceResult.data; // Store inference data for reuse
+
+      // Call generate-chart edge function immediately
+      console.log('Calling generate-chart function...');
+      const { data: chartResult, error: chartError } = await supabase.functions.invoke('generate-chart', {
+        body: {
+          sql: inferenceData.sql,
+          data: inferenceData.queryData,
+          inference: inferenceData.answer,
+          User_query: prompt.trim()
+        }
+      });
+
+      if (chartError) {
+        console.error('Chart generation function failed:', chartError);
+        // Do not throw fatal error, allow query to proceed without chart
+        toast({
+          title: "Chart Generation Failed",
+          description: chartError.message || 'Failed to generate chart for the query.',
+          variant: 'destructive'
+        });
+      }
+
+      // Create new chat session with both inference and chart response
       const { data: sessionData, error: sessionError } = await supabase
         .from('chat_sessions')
         .insert([{
           user_id: user?.id,
           prompt: prompt.trim(),
-          answer: inferenceResult.data.answer,
-          sql_query: inferenceResult.data.sql,
+          answer: inferenceData.answer,
+          sql_query: inferenceData.sql,
+          chart_code: chartResult?.chart_code || null, // Save chart code
           metadata: { 
             timestamp: new Date().toISOString(),
-            data: inferenceResult.data.queryData
+            data: inferenceData.queryData,
+            user_query: prompt.trim(),
+            chart_generated: chartResult?.success || false,
+            chart_generated_at: chartResult?.success ? new Date().toISOString() : undefined,
           } as Json // Cast to Json when inserting
         }])
         .select()
@@ -128,11 +174,9 @@ const EnhancedChatInterface: React.FC = () => {
       }
 
       console.log('Session created with response:', sessionData);
-      // Ensure metadata is typed correctly when setting currentSession
       setCurrentSession({ ...sessionData, metadata: sessionData.metadata as Json | null });
-      console.log('Current session set after inference:', currentSession);
       setPrompt('');
-      setActiveTab('answer');
+      setActiveTab('answer'); // Start on answer tab
       loadRecentSessions();
       
       console.log('=== Query processing completed successfully ===');
@@ -150,100 +194,54 @@ const EnhancedChatInterface: React.FC = () => {
       });
     } finally {
       setLoading(false);
+      setChartLoading(false); // Ensure chart loading is reset
     }
   };
 
-  const handleGenerateChart = async () => {
-    console.log('handleGenerateChart called. currentSession:', currentSession);
-    const metadata = currentSession?.metadata;
-    if (!currentSession || !currentSession.sql_query || !metadata || typeof metadata !== 'object' || Array.isArray(metadata) || !('data' in metadata)) {
-      toast({
-        title: "No data available",
-        description: "Please run a query first to generate charts",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Now metadata is known to be an object with a 'data' property
-    const sessionMetadata = metadata as ExpectedSessionMetadataProperties;
-
+  // handleGenerateChart is no longer directly called by UI, now called internally by handleSubmitPrompt
+  const handleGenerateChart = async (sql: string, data: Json, inference: string, user_query: string, sessionId: string) => {
+    // This function now only handles the API call and returns the chart code,
+    // it does not update session state or toasts as that is done in handleSubmitPrompt
     setChartLoading(true);
     try {
-      console.log('Calling generate-chart function for session:', currentSession.id);
+      console.log('Calling generate-chart function internally with data:');
       
       const { data: chartResult, error: chartError } = await supabase.functions.invoke('generate-chart', {
         body: {
-          sessionId: currentSession.id
+          sql,
+          data,
+          inference,
+          User_query: user_query
         }
       });
 
-      console.log('Chart result:', { chartResult, chartError });
-
       if (chartError) {
-        console.error('Chart generation error:', chartError);
-        throw new Error(chartError.message || 'Failed to generate chart');
+        console.error('Internal Chart generation error:', chartError);
+        throw chartError; // Re-throw to be caught by handleSubmitPrompt
       }
 
       if (!chartResult || !chartResult.success) {
-        throw new Error(chartResult?.error || 'Failed to generate chart');
+        throw new Error(chartResult?.error || 'Internal chart generation unsuccessful');
       }
-
-      // Reload session data
-      const { data: updatedSession, error: fetchError } = await supabase
-        .from('chat_sessions')
-        .select('*')
-        .eq('id', currentSession.id)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      // Ensure metadata is typed correctly when setting currentSession
-      setCurrentSession({ ...updatedSession, metadata: updatedSession.metadata as Json | null });
-
-      // Inject chart code into DOM
-      if (updatedSession.chart_code) {
-        const chartContainer = document.getElementById('chartContainer');
-        if (chartContainer) {
-          chartContainer.innerHTML = '<canvas id="myChart" width="400" height="200"></canvas>';
-          
-          // Add Chart.js library if not already loaded
-          if (typeof window.Chart === 'undefined') {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
-            script.onload = () => executeChartScript(updatedSession.chart_code);
-            document.head.appendChild(script);
-          } else {
-            executeChartScript(updatedSession.chart_code);
-          }
-        }
-      }
-
-      toast({
-        title: "Chart generated",
-        description: "Your chart has been created successfully",
-      });
+      return chartResult.chart_code; // Return the chart code
     } catch (error) {
-      console.error('Error generating chart:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to generate chart. Please check the console for more details.",
-        variant: "destructive",
-      });
+      console.error('Error in internal handleGenerateChart:', error);
+      throw error; // Propagate error
     } finally {
-      setChartLoading(false);
+      // setLoading and setChartLoading are handled by handleSubmitPrompt's finally block
     }
   };
+
+  // This function is no longer needed in this new flow
+  // const handleGenerateChartOld = async () => { /* ... */ };
 
   const executeChartScript = (chartCode: string) => {
     try {
       console.log('Executing chart script:', chartCode);
-      // Extract and execute script content
       const scriptMatch = chartCode.match(/<script>(.*?)<\/script>/s);
       if (scriptMatch) {
         const scriptContent = scriptMatch[1];
-        // Ensure scriptContent is a string before passing to new Function
-        const func = new Function(scriptContent as string); // Cast to string
+        const func = new Function(scriptContent as string);
         func();
       }
     } catch (error) {
@@ -252,11 +250,10 @@ const EnhancedChatInterface: React.FC = () => {
   };
 
   const selectSession = (session: ChatSession) => {
-    // When selecting a session, ensure metadata is treated as Json
     setCurrentSession({ ...session, metadata: session.metadata as Json | null });
     setActiveTab('answer');
     
-    // If switching to charts and we have chart code, render it
+    // If selecting a session that already has chart code, render it
     if (session.chart_code && activeTab === 'charts') {
       setTimeout(() => executeChartScript(session.chart_code), 100);
     }
@@ -264,20 +261,16 @@ const EnhancedChatInterface: React.FC = () => {
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
-    console.log('handleTabChange called. Tab:', tab, 'currentSession:', currentSession);
     
     // If switching to charts and we have chart code, render it
     if (tab === 'charts') {
       if (currentSession?.chart_code) {
         setTimeout(() => executeChartScript(currentSession.chart_code), 100);
       } else {
-        // Check if currentSession.metadata is an object with a data property before calling handleGenerateChart
-        const metadata = currentSession?.metadata;
-        console.log('Check 4: typeof metadata !== "object":', typeof metadata !== 'object');
-        if (currentSession?.sql_query && metadata && typeof metadata === 'object' && !Array.isArray(metadata) && 'data' in metadata) {
-          console.log('Attempting to generate chart as data is available.');
-          handleGenerateChart();
-        }
+        // Since chart generation is now automated in handleSubmitPrompt,
+        // if no chart code exists, it means generation failed or wasn't attempted.
+        // We do not call handleGenerateChart here anymore.
+        // The UI will show "No chart available"
       }
     }
   };
@@ -325,7 +318,7 @@ const EnhancedChatInterface: React.FC = () => {
               <Textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Ask me anything about your data... (e.g., 'give monthly revenue?')"
+                placeholder="Ask me anything about your data..."
                 className="flex-1 min-h-[60px] resize-none"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -443,12 +436,7 @@ const EnhancedChatInterface: React.FC = () => {
                       <div className="flex flex-col items-center justify-center py-8">
                         <BarChartIcon className="w-6 h-6 text-viz-text-secondary mb-2" />
                         <span className="text-viz-text-secondary mb-4">No chart available</span>
-                        <Button 
-                          onClick={handleGenerateChart} 
-                          disabled={!currentSession.sql_query || !(currentSession.metadata && typeof currentSession.metadata === 'object' && !Array.isArray(currentSession.metadata) && 'data' in currentSession.metadata)}
-                        >
-                          Generate Chart
-                        </Button>
+                        {/* Removed Generate Chart button as it's now automated */}
                       </div>
                     )}
                   </div>
