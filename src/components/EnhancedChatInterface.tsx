@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { SendIcon, DatabaseIcon, BarChartIcon, FileTextIcon, Loader2 } from 'lucide-react';
 import { format } from 'sql-formatter';
+import { Json } from '@/integrations/supabase/types';
 
 // Declare Chart.js types for TypeScript
 declare global {
@@ -16,13 +17,22 @@ declare global {
   }
 }
 
+// Define a type for the metadata object properties, assuming it's an object when present
+interface ExpectedSessionMetadataProperties {
+  timestamp?: string;
+  data?: Json; // Use Json for data as its structure is dynamic
+  user_query?: string;
+  chart_generated?: boolean;
+  chart_generated_at?: string;
+}
+
 interface ChatSession {
   id: string;
   prompt: string;
   answer: string | null;
   sql_query: string | null;
   chart_code: string | null;
-  metadata: any;
+  metadata: Json | null; // Changed to Json | null to match Supabase's return type
   created_at: string;
 }
 
@@ -54,7 +64,8 @@ const EnhancedChatInterface: React.FC = () => {
         .limit(10);
 
       if (error) throw error;
-      setSessions(data || []);
+      // Ensure metadata is typed correctly when setting sessions
+      setSessions(data.map(s => ({ ...s, metadata: s.metadata as Json | null })) || []);
     } catch (error) {
       console.error('Error loading sessions:', error);
     }
@@ -106,7 +117,7 @@ const EnhancedChatInterface: React.FC = () => {
           metadata: { 
             timestamp: new Date().toISOString(),
             data: inferenceResult.data.queryData
-          }
+          } as Json // Cast to Json when inserting
         }])
         .select()
         .single();
@@ -117,7 +128,8 @@ const EnhancedChatInterface: React.FC = () => {
       }
 
       console.log('Session created with response:', sessionData);
-      setCurrentSession(sessionData);
+      // Ensure metadata is typed correctly when setting currentSession
+      setCurrentSession({ ...sessionData, metadata: sessionData.metadata as Json | null });
       setPrompt('');
       setActiveTab('answer');
       loadRecentSessions();
@@ -141,7 +153,9 @@ const EnhancedChatInterface: React.FC = () => {
   };
 
   const handleGenerateChart = async () => {
-    if (!currentSession || !currentSession.sql_query) {
+    console.log('handleGenerateChart called. currentSession:', currentSession);
+    const metadata = currentSession?.metadata;
+    if (!currentSession || !currentSession.sql_query || !metadata || typeof metadata !== 'object' || Array.isArray(metadata) || !('data' in metadata)) {
       toast({
         title: "No data available",
         description: "Please run a query first to generate charts",
@@ -149,6 +163,9 @@ const EnhancedChatInterface: React.FC = () => {
       });
       return;
     }
+
+    // Now metadata is known to be an object with a 'data' property
+    const sessionMetadata = metadata as ExpectedSessionMetadataProperties; 
 
     setChartLoading(true);
     try {
@@ -180,7 +197,8 @@ const EnhancedChatInterface: React.FC = () => {
 
       if (fetchError) throw fetchError;
 
-      setCurrentSession(updatedSession);
+      // Ensure metadata is typed correctly when setting currentSession
+      setCurrentSession({ ...updatedSession, metadata: updatedSession.metadata as Json | null });
 
       // Inject chart code into DOM
       if (updatedSession.chart_code) {
@@ -223,7 +241,8 @@ const EnhancedChatInterface: React.FC = () => {
       const scriptMatch = chartCode.match(/<script>(.*?)<\/script>/s);
       if (scriptMatch) {
         const scriptContent = scriptMatch[1];
-        const func = new Function(scriptContent);
+        // Ensure scriptContent is a string before passing to new Function
+        const func = new Function(scriptContent as string); // Cast to string
         func();
       }
     } catch (error) {
@@ -232,7 +251,8 @@ const EnhancedChatInterface: React.FC = () => {
   };
 
   const selectSession = (session: ChatSession) => {
-    setCurrentSession(session);
+    // When selecting a session, ensure metadata is treated as Json
+    setCurrentSession({ ...session, metadata: session.metadata as Json | null });
     setActiveTab('answer');
     
     // If switching to charts and we have chart code, render it
@@ -243,10 +263,20 @@ const EnhancedChatInterface: React.FC = () => {
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
+    console.log('handleTabChange called. Tab:', tab, 'currentSession:', currentSession);
     
     // If switching to charts and we have chart code, render it
-    if (tab === 'charts' && currentSession?.chart_code) {
-      setTimeout(() => executeChartScript(currentSession.chart_code), 100);
+    if (tab === 'charts') {
+      if (currentSession?.chart_code) {
+        setTimeout(() => executeChartScript(currentSession.chart_code), 100);
+      } else {
+        // Check if currentSession.metadata is an object with a data property before calling handleGenerateChart
+        const metadata = currentSession?.metadata;
+        if (currentSession?.sql_query && metadata && typeof metadata === 'object' && !Array.isArray(metadata) && 'data' in metadata) {
+          console.log('Attempting to generate chart as data is available.');
+          handleGenerateChart();
+        }
+      }
     }
   };
 
@@ -384,7 +414,7 @@ const EnhancedChatInterface: React.FC = () => {
                     {currentSession.sql_query ? (
                       <div className="bg-viz-dark p-4 rounded-lg">
                         <pre className="text-viz-accent text-sm overflow-x-auto whitespace-pre-wrap">
-                          <code>{format(currentSession.sql_query, { language: 'bigquery', indent: '  ' })}</code>
+                          <code>{format(currentSession.sql_query, { language: 'bigquery', tabWidth: 2 })}</code>
                         </pre>
                       </div>
                     ) : (
@@ -413,7 +443,7 @@ const EnhancedChatInterface: React.FC = () => {
                         <span className="text-viz-text-secondary mb-4">No chart available</span>
                         <Button 
                           onClick={handleGenerateChart} 
-                          disabled={!currentSession.sql_query || !currentSession.metadata?.data}
+                          disabled={!currentSession.sql_query || !(currentSession.metadata && typeof currentSession.metadata === 'object' && !Array.isArray(currentSession.metadata) && 'data' in currentSession.metadata)}
                         >
                           Generate Chart
                         </Button>

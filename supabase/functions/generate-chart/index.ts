@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -6,6 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+// Timeout duration in milliseconds (120 seconds)
+const TIMEOUT_DURATION = 120000;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -50,65 +52,84 @@ serve(async (req) => {
 
     console.log('Session data found, calling BIAgent API')
 
-    // Call the BIAgent API
-    const biAgentResponse = await fetch('https://bi-agent-286070583332.us-central1.run.app', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        sql: session.sql_query,
-        data: session.metadata.data,
-        inference: session.answer,
-        User_query: session.metadata.user_query || session.prompt
-      })
-    })
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_DURATION);
 
-    if (!biAgentResponse.ok) {
-      const errorText = await biAgentResponse.text()
-      console.error('BIAgent API error:', biAgentResponse.status, biAgentResponse.statusText, errorText)
-      throw new Error(`Failed to generate chart with BIAgent API: ${biAgentResponse.status} ${errorText}`)
-    }
-
-    const chartScript = await biAgentResponse.text()
-    console.log('Generated chart script successfully')
-
-    // Update the chat session with the chart code
-    const { error: updateError } = await supabase
-      .from('chat_sessions')
-      .update({
-        chart_code: chartScript,
-        metadata: { 
-          ...session.metadata, 
-          chart_generated: true,
-          chart_generated_at: new Date().toISOString()
+    try {
+      // Call the BIAgent API
+      const biAgentResponse = await fetch('https://bi-agent-286070583332.us-central1.run.app', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        updated_at: new Date().toISOString()
+        body: JSON.stringify({
+          sql: session.sql_query,
+          data: session.metadata.data,
+          inference: session.answer,
+          User_query: session.metadata.user_query || session.prompt
+        }),
+        signal: controller.signal
       })
-      .eq('id', sessionId)
 
-    if (updateError) {
-      console.error('Database update error:', updateError)
-      throw updateError
-    }
+      clearTimeout(timeoutId); // Clear timeout if request completes
 
-    console.log('Successfully updated session with chart code')
-
-    return new Response(
-      JSON.stringify({ success: true, chart_code: chartScript }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
+      if (!biAgentResponse.ok) {
+        const errorText = await biAgentResponse.text()
+        console.error('BIAgent API error:', biAgentResponse.status, biAgentResponse.statusText, errorText)
+        throw new Error(`Failed to generate chart with BIAgent API: ${biAgentResponse.status} ${errorText}`)
       }
-    )
+
+      const chartScript = await biAgentResponse.text()
+      console.log('Generated chart script successfully')
+
+      // Update the chat session with the chart code
+      const { error: updateError } = await supabase
+        .from('chat_sessions')
+        .update({
+          chart_code: chartScript,
+          metadata: { 
+            ...session.metadata, 
+            chart_generated: true,
+            chart_generated_at: new Date().toISOString()
+          },
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', sessionId)
+
+      if (updateError) {
+        console.error('Database update error:', updateError)
+        throw updateError
+      }
+
+      console.log('Successfully updated session with chart code')
+
+      return new Response(
+        JSON.stringify({ success: true, chart_code: chartScript }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        }
+      )
+    } catch (fetchError) {
+      clearTimeout(timeoutId); // Clear timeout on error
+
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Chart generation request timed out after 120 seconds. The BI agent is taking longer than expected to respond.');
+      }
+      throw fetchError;
+    }
 
   } catch (error) {
     console.error('Error in chart generation function:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({
+        error: error.message,
+        errorType: error.name === 'AbortError' ? 'timeout' : 'general'
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400 
+        status: error.name === 'AbortError' ? 504 : 400 
       }
     )
   }
