@@ -130,6 +130,7 @@ const EnhancedChatInterface: React.FC = () => {
       console.log('Session created with response:', sessionData);
       // Ensure metadata is typed correctly when setting currentSession
       setCurrentSession({ ...sessionData, metadata: sessionData.metadata as Json | null });
+      console.log('Current session set after inference:', currentSession);
       setPrompt('');
       setActiveTab('answer');
       loadRecentSessions();
