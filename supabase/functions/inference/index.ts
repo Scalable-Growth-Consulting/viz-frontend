@@ -5,6 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Timeout duration in milliseconds (120 seconds)
+const TIMEOUT_DURATION = 1200000;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -12,58 +15,68 @@ serve(async (req) => {
 
   try {
     console.log('=== Inference Function Started ===');
-    console.log('Request method:', req.method);
+    const { prompt } = await req.json();
+    console.log('Prompt:', prompt);
 
-    const { prompt } = await req.json()
-    console.log('Processing query:', prompt);
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_DURATION);
 
-    // Call the Text2SQL API
-    console.log('Calling Text2SQL API...');
-    const text2sqlResponse = await fetch('https://text-sql-v2-286070583332.us-central1.run.app', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: prompt
-      })
-    })
+    try {
+      const text2sqlResponse = await fetch('https://text-sql-v2-286070583332.us-central1.run.app', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: prompt }),
+        signal: controller.signal
+      });
 
-    if (!text2sqlResponse.ok) {
-      const errorText = await text2sqlResponse.text()
-      console.error('Text2SQL API error:', text2sqlResponse.status, text2sqlResponse.statusText, errorText)
-      throw new Error(`Failed to process query with Text2SQL API: ${text2sqlResponse.status} ${errorText}`)
+      clearTimeout(timeoutId); // Clear timeout if request completes
+
+      const rawText = await text2sqlResponse.text();
+      console.log('Raw response from GCP:', rawText);
+
+      if (!text2sqlResponse.ok) {
+        console.error('GCP API failed with status:', text2sqlResponse.status);
+        throw new Error(`GCP API error: ${text2sqlResponse.statusText}`);
+      }
+
+      const text2sqlResult = JSON.parse(rawText);
+      console.log('Parsed result:', text2sqlResult);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          data: {
+            answer: text2sqlResult.inference,
+            sql: text2sqlResult.sql,
+            queryData: text2sqlResult.data
+          }
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        }
+      );
+    } catch (fetchError) {
+      clearTimeout(timeoutId); // Clear timeout on error
+      
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Request timed out after 60 seconds. The GCP function is taking longer than expected to respond.');
+      }
+      throw fetchError;
     }
 
-    const text2sqlResult = await text2sqlResponse.json()
-    console.log('Text2SQL result:', text2sqlResult)
-
-    console.log('=== Inference Function Completed Successfully ===');
-
+  } catch (error) {
+    console.error('Inference Function Error:', error);
     return new Response(
       JSON.stringify({ 
-        success: true, 
-        data: {
-          answer: text2sqlResult.inference,
-          sql: text2sqlResult.sql,
-          queryData: text2sqlResult.data
-        }
+        error: error.message,
+        errorType: error.name === 'AbortError' ? 'timeout' : 'general'
       }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
+        status: error.name === 'AbortError' ? 504 : 400 // Use 504 Gateway Timeout for timeout errors
       }
-    )
-
-  } catch (error) {
-    console.error('=== Inference Function Error ===')
-    console.error('Error in inference function:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400 
-      }
-    )
+    );
   }
-})
+});

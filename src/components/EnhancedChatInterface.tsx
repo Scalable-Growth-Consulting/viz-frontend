@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { SendIcon, DatabaseIcon, BarChartIcon, FileTextIcon, Loader2 } from 'lucide-react';
+import { format } from 'sql-formatter';
 
 // Declare Chart.js types for TypeScript
 declare global {
@@ -383,7 +384,7 @@ const EnhancedChatInterface: React.FC = () => {
                     {currentSession.sql_query ? (
                       <div className="bg-viz-dark p-4 rounded-lg">
                         <pre className="text-viz-accent text-sm overflow-x-auto whitespace-pre-wrap">
-                          <code>{currentSession.sql_query}</code>
+                          <code>{format(currentSession.sql_query, { language: 'bigquery', indent: '  ' })}</code>
                         </pre>
                       </div>
                     ) : (
