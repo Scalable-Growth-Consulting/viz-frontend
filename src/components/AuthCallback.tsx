@@ -16,25 +16,19 @@ const AuthCallback = () => {
         if (sessionError) throw sessionError;
 
         if (session) {
-          // Prepare the data to be upserted
-          const upsertData = {
-            user_id: session.user.id,
-            provider: 'google',
-            access_token_encrypted: session.provider_token || null, // Ensure null if undefined
-            refresh_token_encrypted: session.provider_refresh_token || null, // Ensure null if undefined
-            token_expires_at: new Date(Date.now() + 3600000).toISOString(),
-            scopes: ['https://www.googleapis.com/auth/bigquery.readonly'],
-            is_bigquery_connected: true,
-            updated_at: new Date().toISOString()
-          };
-
-          console.log('Session object:', session);
-          console.log('Upserting OAuth credentials with data:', upsertData);
-
           // Store the OAuth credentials
           const { error: credError } = await supabase
             .from('user_oauth_credentials')
-            .upsert(upsertData, {
+            .upsert({
+              user_id: session.user.id,
+              provider: 'google',
+              access_token_encrypted: session.provider_token,
+              refresh_token_encrypted: session.provider_refresh_token,
+              token_expires_at: new Date(Date.now() + 3600000).toISOString(),
+              scopes: ['https://www.googleapis.com/auth/bigquery.readonly'],
+              is_bigquery_connected: true,
+              updated_at: new Date().toISOString()
+            }, {
               onConflict: 'user_id,provider'
             });
 
