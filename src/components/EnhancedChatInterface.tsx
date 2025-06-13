@@ -155,6 +155,16 @@ const EnhancedChatInterface: React.FC = () => {
   const handleGenerateChart = async () => {
     console.log('handleGenerateChart called. currentSession:', currentSession);
     const metadata = currentSession?.metadata;
+    console.log('handleGenerateChart - extracted metadata:', metadata);
+
+    // Detailed checks for debugging
+    console.log('Check 1: !currentSession:', !currentSession);
+    console.log('Check 2: !currentSession?.sql_query:', !currentSession?.sql_query);
+    console.log('Check 3: !metadata:', !metadata);
+    console.log('Check 4: typeof metadata !== 'object':', typeof metadata !== 'object');
+    console.log('Check 5: Array.isArray(metadata):', Array.isArray(metadata));
+    console.log('Check 6: !(\'data\' in metadata):', metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? !('data' in metadata) : 'N/A - metadata not object');
+
     if (!currentSession || !currentSession.sql_query || !metadata || typeof metadata !== 'object' || Array.isArray(metadata) || !('data' in metadata)) {
       toast({
         title: "No data available",
