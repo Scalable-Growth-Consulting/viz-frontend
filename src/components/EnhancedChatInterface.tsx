@@ -119,15 +119,23 @@ const EnhancedChatInterface: React.FC = () => {
 
       const inferenceData = inferenceResult.data;
 
+      // Log data sent to generate-chart edge function
+      console.log('--- Calling generate-chart function ---');
+      const chartRequestBody = {
+        sql: inferenceData.sql,
+        data: inferenceData.queryData,
+        inference: inferenceData.answer,
+        User_query: prompt.trim()
+      };
+      console.log('Data sent to generate-chart:', chartRequestBody);
+
       // Call generate-chart edge function immediately after inference
       const { data: chartResult, error: chartError } = await supabase.functions.invoke('generate-chart', {
-        body: {
-          sql: inferenceData.sql,
-          data: inferenceData.queryData,
-          inference: inferenceData.answer,
-          User_query: prompt.trim()
-        }
+        body: chartRequestBody
       });
+
+      // Log response from generate-chart edge function
+      console.log('Response from generate-chart:', { chartResult, chartError });
 
       if (chartError) {
         console.error('Chart generation failed:', chartError);
