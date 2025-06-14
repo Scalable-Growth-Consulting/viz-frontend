@@ -129,11 +129,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    console.log('Attempting to sign out...');
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error('Error signing out:', error);
+        console.error('Supabase sign out error:', error);
         // Even if there's a minor error, attempt to clear local state and redirect
+      } else {
+        console.log('Supabase sign out successful. Redirecting...');
       }
     } catch (e) {
       console.error('Unexpected error during sign out:', e);
