@@ -8,6 +8,29 @@ import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
+type APIResponse<T> = { data: T | null; error: Error | null; };
+
+// Helper function for retrying API calls
+const retryFetch = async <T,>(fn: () => Promise<APIResponse<T>>, retries = 3, delay = 1000): Promise<APIResponse<T>> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const result = await fn();
+      if (result.error && result.error.message.includes('Failed to send a request to the Edge Function')) {
+        throw result.error; // Treat network errors as retryable
+      }
+      return result;
+    } catch (error) {
+      if (i < retries - 1) {
+        console.warn(`Attempt ${i + 1} failed. Retrying in ${delay / 1000}s...`, error);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        throw error; // Last attempt, re-throw the error
+      }
+    }
+  }
+  throw new Error('All retry attempts failed'); // Should not be reached
+};
+
 export interface QueryResponse {
   result: string | null;
   sql: string | null;
@@ -55,11 +78,17 @@ const Index = () => {
       console.log('=== Processing query ===');
       console.log('Query:', query);
 
-      // Call inference function
-      const { data: inferenceResult, error: inferenceError } = await supabase.functions.invoke('inference', {
-        body: {
-          prompt: query
-        }
+      // Call inference function with retry logic
+      const { data: inferenceResult, error: inferenceError } = await retryFetch<{
+        success: boolean;
+        error?: string;
+        data: { answer: string; sql: string; queryData: unknown[]; };
+      }>(async () => {
+        return supabase.functions.invoke('inference', {
+          body: {
+            prompt: query
+          }
+        });
       });
 
       console.log('Inference result:', inferenceResult);
@@ -83,13 +112,16 @@ const Index = () => {
         console.log('Data being sent to generate-charts edge function:', inferenceResult.data.queryData);
         setIsChartLoading(true);
         try {
-          const { data: chartGenerationResult, error: chartGenerationError } = await supabase.functions.invoke('generate-charts', {
-            body: {
-              queryData: inferenceResult.data.queryData,
-              sql: inferenceResult.data.sql, // Assuming SQL might be useful for chart generation
-              inference: inferenceResult.data.answer, // Add the inference result/answer
-              User_query: query // Add the original user query
-            }
+          // Call generate-charts function with retry logic
+          const { data: chartGenerationResult, error: chartGenerationError } = await retryFetch<{ script: string | null }>(async () => {
+            return supabase.functions.invoke('generate-charts', {
+              body: {
+                queryData: inferenceResult.data.queryData,
+                sql: inferenceResult.data.sql, // Assuming SQL might be useful for chart generation
+                inference: inferenceResult.data.answer, // Add the inference result/answer
+                User_query: query // Add the original user query
+              }
+            });
           });
 
           if (chartGenerationError) {
@@ -127,7 +159,6 @@ const Index = () => {
       });
     } finally {
       setIsQueryLoading(false);
-      setIsChartLoading(false);
     }
   };
 
