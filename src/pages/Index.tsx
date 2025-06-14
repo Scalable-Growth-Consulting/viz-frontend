@@ -86,7 +86,9 @@ const Index = () => {
           const { data: chartGenerationResult, error: chartGenerationError } = await supabase.functions.invoke('generate-charts', {
             body: {
               queryData: inferenceResult.data.queryData,
-              sql: inferenceResult.data.sql // Assuming SQL might be useful for chart generation
+              sql: inferenceResult.data.sql, // Assuming SQL might be useful for chart generation
+              inference: inferenceResult.data.answer, // Add the inference result/answer
+              User_query: query // Add the original user query
             }
           });
 
