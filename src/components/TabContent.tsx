@@ -1,7 +1,5 @@
-
 import React from 'react';
 import { FileTextIcon, DatabaseIcon, BarChartIcon } from 'lucide-react';
-import ChartVisualizer from './ChartVisualizer';
 
 interface TabContentProps {
   activeTab: 'answer' | 'sql' | 'charts';
@@ -49,7 +47,12 @@ const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult }) => {
     }
 
     if (activeTab === 'charts') {
-      return <ChartVisualizer queryResult={queryResult} />;
+      return (
+        <div className="flex flex-col items-center justify-center py-8">
+          <BarChartIcon className="w-6 h-6 text-viz-text-secondary mb-2" />
+          <span className="text-viz-text-secondary mb-4">No chart available in this view. Please use the main chat interface for charts.</span>
+        </div>
+      );
     }
 
     return null;
