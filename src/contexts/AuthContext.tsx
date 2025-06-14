@@ -138,6 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     console.log('Attempting to sign out...');
     try {
+      console.log('Calling supabase.auth.signOut()...');
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('Supabase sign out error:', error);
@@ -149,6 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Unexpected error during sign out:', e);
     } finally {
       // Always redirect after attempting sign out
+      console.log('Executing finally block for sign out. Redirecting...');
       window.location.href = '/';
     }
   };

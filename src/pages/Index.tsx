@@ -14,8 +14,7 @@ export interface QueryResponse {
 }
 
 export interface ChartData {
-  type: 'bar' | 'line' | 'pie';
-  data: any;
+  chartScript: string | null;
 }
 
 const Index = () => {
@@ -81,10 +80,39 @@ const Index = () => {
       
       // Create chart data if available
       if (inferenceResult.data.queryData) {
-        setChartData({
-          type: 'bar',
-          data: inferenceResult.data.queryData
-        });
+        console.log('Data being sent to generate-charts edge function:', inferenceResult.data.queryData);
+        setIsChartLoading(true);
+        try {
+          const { data: chartGenerationResult, error: chartGenerationError } = await supabase.functions.invoke('generate-charts', {
+            body: {
+              queryData: inferenceResult.data.queryData,
+              sql: inferenceResult.data.sql // Assuming SQL might be useful for chart generation
+            }
+          });
+
+          if (chartGenerationError) {
+            console.error('Chart generation error:', chartGenerationError);
+            throw new Error(chartGenerationError.message || 'Failed to generate chart');
+          }
+
+          if (chartGenerationResult && chartGenerationResult.script) {
+            setChartData({ chartScript: chartGenerationResult.script });
+            setActiveTab('charts'); // Automatically switch to charts tab
+          } else {
+            console.warn('Chart generation successful but no script returned.', chartGenerationResult);
+            setChartData({ chartScript: null });
+          }
+
+        } catch (chartError) {
+          console.error('Error during chart generation:', chartError);
+          toast({
+            title: "Chart generation failed",
+            description: "There was a problem generating the chart. Please try again.",
+            variant: "destructive",
+          });
+        } finally {
+          setIsChartLoading(false);
+        }
       }
 
       console.log('=== Query processed successfully ===');
@@ -130,6 +158,7 @@ const Index = () => {
               onTabChange={handleTabChange}
               isLoading={isQueryLoading}
               isChartLoading={isChartLoading}
+              chartData={chartData}
             />
           </div>
         </div>

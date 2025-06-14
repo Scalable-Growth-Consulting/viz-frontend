@@ -1,12 +1,27 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { FileTextIcon, DatabaseIcon, BarChartIcon } from 'lucide-react';
+import { ChartData } from '../pages/Index';
 
 interface TabContentProps {
   activeTab: 'answer' | 'sql' | 'charts';
   queryResult: string | null;
+  chartData: ChartData | null;
 }
 
-const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult }) => {
+const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult, chartData }) => {
+
+  useEffect(() => {
+    if (activeTab === 'charts' && chartData?.chartScript) {
+      try {
+        const scriptElement = document.createElement('script');
+        scriptElement.innerHTML = chartData.chartScript;
+        document.getElementById('chart-container')?.appendChild(scriptElement);
+      } catch (error) {
+        console.error("Error injecting chart script:", error);
+      }
+    }
+  }, [activeTab, chartData]);
+
   const getContent = () => {
     if (!queryResult) {
       return (
@@ -47,12 +62,20 @@ const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult }) => {
     }
 
     if (activeTab === 'charts') {
-      return (
-        <div className="flex flex-col items-center justify-center py-8">
-          <BarChartIcon className="w-6 h-6 text-viz-text-secondary mb-2" />
-          <span className="text-viz-text-secondary mb-4">No chart available in this view. Please use the main chat interface for charts.</span>
-        </div>
-      );
+      if (chartData?.chartScript) {
+        return (
+          <div id="chart-container" className="w-full h-full flex items-center justify-center">
+            {/* Chart will be rendered here by the injected script */}
+          </div>
+        );
+      } else {
+        return (
+          <div className="flex flex-col items-center justify-center py-8">
+            <BarChartIcon className="w-6 h-6 text-viz-text-secondary mb-2" />
+            <span className="text-viz-text-secondary mb-4">No chart available for this query yet.</span>
+          </div>
+        );
+      }
     }
 
     return null;

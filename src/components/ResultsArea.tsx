@@ -1,8 +1,8 @@
-
 import React from 'react';
 import { FileTextIcon, DatabaseIcon, ChartBarIcon } from 'lucide-react';
 import TabContent from './TabContent';
 import Loader from './ui/loader';
+import { ChartData } from '../pages/Index';
 
 interface ResultsAreaProps {
   queryResult: string | null;
@@ -10,6 +10,7 @@ interface ResultsAreaProps {
   onTabChange: (tab: 'answer' | 'sql' | 'charts') => void;
   isLoading?: boolean;
   isChartLoading?: boolean;
+  chartData: ChartData | null;
 }
 
 const ResultsArea: React.FC<ResultsAreaProps> = ({ 
@@ -17,7 +18,8 @@ const ResultsArea: React.FC<ResultsAreaProps> = ({
   activeTab, 
   onTabChange, 
   isLoading = false,
-  isChartLoading = false
+  isChartLoading = false,
+  chartData
 }) => {
   // Determine if we should show a loader based on the current tab
   const showLoader = isLoading || (activeTab === 'charts' && isChartLoading);
@@ -68,7 +70,7 @@ const ResultsArea: React.FC<ResultsAreaProps> = ({
             />
           </div>
         ) : (
-          <TabContent activeTab={activeTab} queryResult={queryResult} />
+          <TabContent activeTab={activeTab} queryResult={queryResult} chartData={chartData} />
         )}
       </div>
     </div>
