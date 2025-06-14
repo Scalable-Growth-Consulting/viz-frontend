@@ -5,13 +5,15 @@ import { supabase } from '@/integrations/supabase/client';
 type AuthResultData = { user: User | null; session: Session | null; };
 type OAuthResultData = { provider: Provider; url: string | null; };
 
-type SupabaseSignInResponse = 
-  | { data: AuthResultData; error: null; }
-  | { data: { user: null; session: null; }; error: AuthError; };
+type SupabaseSignInResponse = {
+  data: AuthResultData;
+  error: AuthError | null;
+};
 
-type SupabaseOAuthResponse = 
-  | { data: OAuthResultData; error: null; }
-  | { data: { provider: Provider; url: null; }; error: AuthError; };
+type SupabaseOAuthResponse = {
+  data: OAuthResultData;
+  error: AuthError | null;
+};
 
 interface AuthContextType {
   user: User | null;
@@ -47,6 +49,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         setLoading(false);
 
+        // Redirect to homepage if signed out
+        if (event === 'SIGNED_OUT') {
+          window.location.href = '/';
+        }
+
         // Only handle basic OAuth callback for regular authentication
         if (event === 'SIGNED_IN' && session?.provider_token && !window.location.pathname.includes('/data-control')) {
           await handleBasicOAuthCallback(session);
@@ -67,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleBasicOAuthCallback = async (session: Session) => {
     try {
       if (session.provider_token && session.provider_refresh_token) {
-        // Store basic OAuth credentials without BigQuery access
+        // Store basic OAuth credentials with 1-day expiration
         const { error } = await supabase
           .from('user_oauth_credentials')
           .upsert({
@@ -75,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             provider: 'google',
             access_token_encrypted: session.provider_token,
             refresh_token_encrypted: session.provider_refresh_token,
-            token_expires_at: new Date(Date.now() + 3600000).toISOString(),
+            token_expires_at: new Date(Date.now() + 86400000).toISOString(), // 1 day in milliseconds
             scopes: ['https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile'],
             is_bigquery_connected: false, // Not connected to BigQuery yet
             updated_at: new Date().toISOString()
@@ -102,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       },
     });
-    return { data, error };
+    return { data: { user: data.user, session: data.session }, error };
   };
 
   const signIn = async (email: string, password: string) => {
@@ -110,7 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email,
       password,
     });
-    return { data, error };
+    return { data: { user: data.user, session: data.session }, error };
   };
 
   const signInWithGoogle = async () => {
@@ -125,7 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       },
     });
-    return { data, error };
+    return { data: { provider: data.provider, url: data.url }, error };
   };
 
   const signOut = async () => {
