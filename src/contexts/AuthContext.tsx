@@ -1,15 +1,25 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { User, Session, AuthError, Provider } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+
+type AuthResultData = { user: User | null; session: Session | null; };
+type OAuthResultData = { provider: Provider; url: string | null; };
+
+type SupabaseSignInResponse = 
+  | { data: AuthResultData; error: null; }
+  | { data: { user: null; session: null; }; error: AuthError; };
+
+type SupabaseOAuthResponse = 
+  | { data: OAuthResultData; error: null; }
+  | { data: { provider: Provider; url: null; }; error: AuthError; };
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName?: string) => Promise<any>;
-  signIn: (email: string, password: string) => Promise<any>;
-  signInWithGoogle: () => Promise<any>;
+  signUp: (email: string, password: string, fullName?: string) => Promise<SupabaseSignInResponse>;
+  signIn: (email: string, password: string) => Promise<SupabaseSignInResponse>;
+  signInWithGoogle: () => Promise<SupabaseOAuthResponse>;
   signOut: () => Promise<void>;
 }
 
@@ -119,12 +129,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (!error) {
-      // Redirect to the home page or login page after successful sign out
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Error signing out:', error);
+        // Even if there's a minor error, attempt to clear local state and redirect
+      }
+    } catch (e) {
+      console.error('Unexpected error during sign out:', e);
+    } finally {
+      // Always redirect after attempting sign out
       window.location.href = '/';
-    } else {
-      console.error('Error signing out:', error);
     }
   };
 
