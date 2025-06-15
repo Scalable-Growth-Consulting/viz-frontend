@@ -104,16 +104,25 @@ const Index = () => {
       
       // If we have query data, start chart generation in parallel
       if (inferenceResult.data.queryData) {
-        console.log('Data being sent to generate-charts edge function:', inferenceResult.data.queryData);
+        console.log('queryData is present. Attempting chart generation...');
+        let transformedQueryData = inferenceResult.data.queryData;
+        // Check if queryData is a nested array like [[value]] and flatten it
+        if (Array.isArray(transformedQueryData) && transformedQueryData.length > 0 && Array.isArray(transformedQueryData[0])) {
+          transformedQueryData = transformedQueryData[0]; // Take the inner array
+        }
+
+        console.log('Data being sent to generate-charts edge function (after transformation):', transformedQueryData);
         setIsChartLoading(true); // Only set chart loading state
         
         // Start chart generation process
         (async () => {
+          console.log('Initiating async chart generation process...');
           try {
+            console.log('Calling supabase.functions.invoke(\'generate-charts\')...');
             // Call generate-charts function
             const { data: chartGenerationResult, error: chartGenerationError } = await supabase.functions.invoke('generate-charts', {
               body: {
-                queryData: inferenceResult.data.queryData,
+                queryData: transformedQueryData,
                 sql: inferenceResult.data.sql,
                 inference: inferenceResult.data.answer,
                 User_query: query
@@ -126,6 +135,7 @@ const Index = () => {
             }
 
             if (chartGenerationResult && chartGenerationResult.script) {
+              console.log('Chart script received successfully.');
               setChartData({ chartScript: chartGenerationResult.script });
               setActiveTab('charts'); // Automatically switch to charts tab
             } else {
@@ -141,9 +151,13 @@ const Index = () => {
               variant: "destructive",
             });
           } finally {
+            console.log('Finished chart generation process. Setting isChartLoading to false.');
             setIsChartLoading(false);
           }
         })();
+      } else {
+        console.log('No queryData available for chart generation.');
+        setIsChartLoading(false); // Ensure loader is off if no chart data
       }
 
       console.log('=== Query processed successfully ===');
