@@ -103,50 +103,55 @@ const Index = () => {
         throw new Error(inferenceResult?.error || 'Failed to process query');
       }
 
-      // Update UI with results
+      // Immediately update UI with inference results and SQL
       setQueryResult(inferenceResult.data.answer);
       setSqlQuery(inferenceResult.data.sql);
+      setIsQueryLoading(false); // Stop the main loading state
       
-      // Create chart data if available
+      // If we have query data, start chart generation in parallel
       if (inferenceResult.data.queryData) {
         console.log('Data being sent to generate-charts edge function:', inferenceResult.data.queryData);
-        setIsChartLoading(true);
-        try {
-          // Call generate-charts function with retry logic
-          const { data: chartGenerationResult, error: chartGenerationError } = await retryFetch<{ script: string | null }>(async () => {
-            return supabase.functions.invoke('generate-charts', {
-              body: {
-                queryData: inferenceResult.data.queryData,
-                sql: inferenceResult.data.sql, // Assuming SQL might be useful for chart generation
-                inference: inferenceResult.data.answer, // Add the inference result/answer
-                User_query: query // Add the original user query
-              }
+        setIsChartLoading(true); // Only set chart loading state
+        
+        // Start chart generation process
+        (async () => {
+          try {
+            // Call generate-charts function with retry logic
+            const { data: chartGenerationResult, error: chartGenerationError } = await retryFetch<{ script: string | null }>(async () => {
+              return supabase.functions.invoke('generate-charts', {
+                body: {
+                  queryData: inferenceResult.data.queryData,
+                  sql: inferenceResult.data.sql,
+                  inference: inferenceResult.data.answer,
+                  User_query: query
+                }
+              });
             });
-          });
 
-          if (chartGenerationError) {
-            console.error('Chart generation error:', chartGenerationError);
-            throw new Error(chartGenerationError.message || 'Failed to generate chart');
+            if (chartGenerationError) {
+              console.error('Chart generation error:', chartGenerationError);
+              throw new Error(chartGenerationError.message || 'Failed to generate chart');
+            }
+
+            if (chartGenerationResult && chartGenerationResult.script) {
+              setChartData({ chartScript: chartGenerationResult.script });
+              setActiveTab('charts'); // Automatically switch to charts tab
+            } else {
+              console.warn('Chart generation successful but no script returned.', chartGenerationResult);
+              setChartData({ chartScript: null });
+            }
+
+          } catch (chartError) {
+            console.error('Error during chart generation:', chartError);
+            toast({
+              title: "Chart generation failed",
+              description: "There was a problem generating the chart. Please try again.",
+              variant: "destructive",
+            });
+          } finally {
+            setIsChartLoading(false);
           }
-
-          if (chartGenerationResult && chartGenerationResult.script) {
-            setChartData({ chartScript: chartGenerationResult.script });
-            setActiveTab('charts'); // Automatically switch to charts tab
-          } else {
-            console.warn('Chart generation successful but no script returned.', chartGenerationResult);
-            setChartData({ chartScript: null });
-          }
-
-        } catch (chartError) {
-          console.error('Error during chart generation:', chartError);
-          toast({
-            title: "Chart generation failed",
-            description: "There was a problem generating the chart. Please try again.",
-            variant: "destructive",
-          });
-        } finally {
-          setIsChartLoading(false);
-        }
+        })();
       }
 
       console.log('=== Query processed successfully ===');
@@ -157,8 +162,8 @@ const Index = () => {
         description: "There was a problem processing your query. Please try again.",
         variant: "destructive",
       });
-    } finally {
       setIsQueryLoading(false);
+      setIsChartLoading(false);
     }
   };
 
