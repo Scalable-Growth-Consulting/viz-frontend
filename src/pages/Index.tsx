@@ -78,17 +78,11 @@ const Index = () => {
       console.log('=== Processing query ===');
       console.log('Query:', query);
 
-      // Call inference function with retry logic
-      const { data: inferenceResult, error: inferenceError } = await retryFetch<{
-        success: boolean;
-        error?: string;
-        data: { answer: string; sql: string; queryData: unknown[]; };
-      }>(async () => {
-        return supabase.functions.invoke('inference', {
-          body: {
-            prompt: query
-          }
-        });
+      // Call inference function
+      const { data: inferenceResult, error: inferenceError } = await supabase.functions.invoke('inference', {
+        body: {
+          prompt: query
+        }
       });
 
       console.log('Inference result:', inferenceResult);
@@ -116,16 +110,14 @@ const Index = () => {
         // Start chart generation process
         (async () => {
           try {
-            // Call generate-charts function with retry logic
-            const { data: chartGenerationResult, error: chartGenerationError } = await retryFetch<{ script: string | null }>(async () => {
-              return supabase.functions.invoke('generate-charts', {
-                body: {
-                  queryData: inferenceResult.data.queryData,
-                  sql: inferenceResult.data.sql,
-                  inference: inferenceResult.data.answer,
-                  User_query: query
-                }
-              });
+            // Call generate-charts function
+            const { data: chartGenerationResult, error: chartGenerationError } = await supabase.functions.invoke('generate-charts', {
+              body: {
+                queryData: inferenceResult.data.queryData,
+                sql: inferenceResult.data.sql,
+                inference: inferenceResult.data.answer,
+                User_query: query
+              }
             });
 
             if (chartGenerationError) {
