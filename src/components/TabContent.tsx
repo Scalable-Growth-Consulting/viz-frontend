@@ -12,23 +12,71 @@ const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult, chartDa
 
   useEffect(() => {
     if (activeTab === 'charts' && chartData?.chartScript) {
-      try {
-        // Remove any previous chart scripts
-        const container = document.getElementById('chart-container');
-        if (container) {
-          container.innerHTML = '<div id="myChart" style="width:100%;height:100%"></div>';
-        }
-
-        // Extract JS code from <script>...</script> if present
-        const match = chartData.chartScript.match(/<script>([\s\S]*?)<\/script>/i);
-        const jsCode = match ? match[1] : chartData.chartScript;
-
-        const scriptElement = document.createElement('script');
-        scriptElement.innerHTML = jsCode;
-        container?.appendChild(scriptElement);
-      } catch (error) {
-        console.error('Error injecting chart script:', error);
+      const container = document.getElementById('chart-container');
+      if (container) {
+        // Clear previous content and inject a fresh canvas
+        container.innerHTML = '<canvas id="myChart" style="width:100%;height:100%"></canvas>';
       }
+
+      // Helper to inject a script tag and return a promise that resolves when loaded
+      const injectScript = (src) => {
+        return new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = src;
+          script.async = false;
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      };
+
+      // Helper to inject a stylesheet
+      const injectStyle = (href) => {
+        if (!document.querySelector(`link[href="${href}"]`)) {
+          const link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = href;
+          document.head.appendChild(link);
+        }
+      };
+
+      // Inject required Chart.js libraries and plugins
+      const chartJsLibs = [
+        'https://cdn.jsdelivr.net/npm/chart.js',
+        'https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns',
+        'https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation',
+        'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels',
+        'https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom',
+        'https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js',
+      ];
+      const chartFont = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap';
+
+      injectStyle(chartFont);
+
+      // Extract JS code from <script>...</script> if present
+      const match = chartData.chartScript.match(/<script>([\s\S]*?)<\/script>/i);
+      const jsCode = match ? match[1] : chartData.chartScript;
+
+      // Load all Chart.js libraries sequentially, then inject the chart script
+      (async () => {
+        try {
+          for (const lib of chartJsLibs) {
+            await injectScript(lib);
+          }
+          // Now inject the chart script
+          const scriptElement = document.createElement('script');
+          scriptElement.type = 'text/javascript';
+          scriptElement.innerHTML = jsCode;
+          container?.appendChild(scriptElement);
+        } catch (err) {
+          console.error('Error loading chart libraries or script:', err);
+        }
+      })();
+
+      // Cleanup on tab change/unmount
+      return () => {
+        if (container) container.innerHTML = '';
+      };
     }
   }, [activeTab, chartData]);
 
@@ -75,7 +123,7 @@ const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult, chartDa
       if (chartData?.chartScript) {
         return (
           <div id="chart-container" className="w-full h-full flex items-center justify-center">
-            {/* #myChart will be injected here for the chart script to use */}
+            {/* Canvas will be injected here for the chart script to use */}
           </div>
         );
       } else {
