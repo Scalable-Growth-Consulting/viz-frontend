@@ -72,29 +72,18 @@ const Index = () => {
       console.log('=== Processing query ===');
       console.log('Query:', query);
 
-      // Call inference API - assuming API routes will be handled by GCP Run directly from frontend or a proxy
-      const inferenceResponse = await fetch(import.meta.env.VITE_GCP_RUN_INFERENCE_URL as string, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // You might need an Authorization header here if your GCP Run endpoint requires it
-          // 'Authorization': `Bearer ${YOUR_AUTH_TOKEN}`,
-        },
-        body: JSON.stringify({
-          prompt: query
-        })
+      // Call inference via Supabase Edge Function
+      const { data: inferenceResult, error: inferenceError } = await supabase.functions.invoke('inference', {
+        body: { prompt: query }
       });
 
-      if (!inferenceResponse.ok) {
-        throw new Error('Failed to process query');
+      if (inferenceError) {
+        throw new Error(inferenceError.message || 'Failed to process query');
       }
 
-      const inferenceResult = await inferenceResponse.json();
-      console.log('Inference result:', inferenceResult);
-
-      if (!inferenceResult.success) {
+      if (!inferenceResult || !inferenceResult.success) {
         console.error('Inference unsuccessful:', inferenceResult);
-        throw new Error(inferenceResult.error || 'Failed to process query');
+        throw new Error(inferenceResult?.error || 'Failed to process query');
       }
 
       // Immediately update UI with inference results and SQL
@@ -119,33 +108,25 @@ const Index = () => {
           console.log('Initiating async chart generation process...');
           try {
             console.log('Calling chart generation API...');
-            const chartResponse = await fetch(import.meta.env.VITE_GCP_RUN_CHART_URL as string, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                // You might need an Authorization header here if your GCP Run endpoint requires it
-                // 'Authorization': `Bearer ${YOUR_AUTH_TOKEN}`,
-              },
-              body: JSON.stringify({
+            const { data: chartResult, error: chartError } = await supabase.functions.invoke('generate-chart', {
+              body: {
                 queryData: transformedQueryData,
                 sql: inferenceResult.data.sql,
                 inference: inferenceResult.data.answer,
                 User_query: query
-              })
+              }
             });
 
-            if (!chartResponse.ok) {
-              throw new Error('Failed to generate chart');
+            if (chartError) {
+              throw new Error(chartError.message || 'Failed to generate chart');
             }
 
-            const chartGenerationResult = await chartResponse.json();
-
-            if (chartGenerationResult && chartGenerationResult.script) {
+            if (chartResult && chartResult.script) {
               console.log('Chart script received successfully.');
-              setChartData({ chartScript: chartGenerationResult.script });
+              setChartData({ chartScript: chartResult.script });
               setActiveTab('charts'); // Automatically switch to charts tab
             } else {
-              console.warn('Chart generation successful but no script returned.', chartGenerationResult);
+              console.warn('Chart generation successful but no script returned.', chartResult);
               setChartData({ chartScript: null });
             }
 
