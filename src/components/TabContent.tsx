@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { FileTextIcon, DatabaseIcon, BarChartIcon } from 'lucide-react';
-import { ChartData } from '../pages/Index';
+import { ChartData } from '../types/data';
 
 interface TabContentProps {
   activeTab: 'answer' | 'sql' | 'charts';
@@ -13,11 +13,21 @@ const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult, chartDa
   useEffect(() => {
     if (activeTab === 'charts' && chartData?.chartScript) {
       try {
+        // Remove any previous chart scripts
+        const container = document.getElementById('chart-container');
+        if (container) {
+          container.innerHTML = '<div id="myChart" style="width:100%;height:100%"></div>';
+        }
+
+        // Extract JS code from <script>...</script> if present
+        const match = chartData.chartScript.match(/<script>([\s\S]*?)<\/script>/i);
+        const jsCode = match ? match[1] : chartData.chartScript;
+
         const scriptElement = document.createElement('script');
-        scriptElement.innerHTML = chartData.chartScript;
-        document.getElementById('chart-container')?.appendChild(scriptElement);
+        scriptElement.innerHTML = jsCode;
+        container?.appendChild(scriptElement);
       } catch (error) {
-        console.error("Error injecting chart script:", error);
+        console.error('Error injecting chart script:', error);
       }
     }
   }, [activeTab, chartData]);
@@ -65,7 +75,7 @@ const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult, chartDa
       if (chartData?.chartScript) {
         return (
           <div id="chart-container" className="w-full h-full flex items-center justify-center">
-            {/* Chart will be rendered here by the injected script */}
+            {/* #myChart will be injected here for the chart script to use */}
           </div>
         );
       } else {
