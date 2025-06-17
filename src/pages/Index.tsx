@@ -100,30 +100,42 @@ const Index = () => {
           transformedQueryData = transformedQueryData[0]; // Take the inner array
         }
 
-        console.log('Data being sent to chart generation API:', transformedQueryData);
         setIsChartLoading(true); // Only set chart loading state
-        
-        // Start chart generation process
         (async () => {
-          console.log('Initiating async chart generation process...');
           try {
-            console.log('Calling chart generation API...');
+            // Insert the chat session and get the sessionId
+            const { data: sessionData, error: sessionError } = await supabase
+              .from('chat_sessions')
+              .insert([{
+                user_id: user?.id,
+                prompt: query,
+                answer: inferenceResult.data.answer,
+                sql_query: inferenceResult.data.sql,
+                metadata: {
+                  timestamp: new Date().toISOString(),
+                  data: transformedQueryData,
+                  user_query: query
+                }
+              }])
+              .select()
+              .single();
+
+            if (sessionError) {
+              throw sessionError;
+            }
+
+            // Now call generate-chart with the sessionId
             const { data: chartResult, error: chartError } = await supabase.functions.invoke('generate-chart', {
-              body: {
-                queryData: transformedQueryData,
-                sql: inferenceResult.data.sql,
-                inference: inferenceResult.data.answer,
-                User_query: query
-              }
+              body: { sessionId: sessionData.id }
             });
 
             if (chartError) {
               throw new Error(chartError.message || 'Failed to generate chart');
             }
 
-            if (chartResult && chartResult.script) {
+            if (chartResult && chartResult.chart_code) {
               console.log('Chart script received successfully.');
-              setChartData({ chartScript: chartResult.script });
+              setChartData({ chartScript: chartResult.chart_code });
               setActiveTab('charts'); // Automatically switch to charts tab
             } else {
               console.warn('Chart generation successful but no script returned.', chartResult);
@@ -138,12 +150,10 @@ const Index = () => {
               variant: "destructive",
             });
           } finally {
-            console.log('Finished chart generation process. Setting isChartLoading to false.');
             setIsChartLoading(false);
           }
         })();
       } else {
-        console.log('No queryData available for chart generation.');
         setIsChartLoading(false); // Ensure loader is off if no chart data
       }
 
