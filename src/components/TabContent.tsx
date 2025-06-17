@@ -122,7 +122,11 @@ const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult, chartDa
     if (activeTab === 'charts') {
       if (chartData?.chartScript) {
         return (
-          <div id="chart-container" className="w-full h-full flex items-center justify-center">
+          <div
+            id="chart-container"
+            className="w-full h-full flex items-center justify-center"
+            style={{ minHeight: '350px', height: '60vh', maxHeight: '600px', padding: 0, margin: 0 }}
+          >
             {/* Canvas will be injected here for the chart script to use */}
           </div>
         );
