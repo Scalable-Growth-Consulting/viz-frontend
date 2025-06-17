@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
 import Header from '../components/Header';
 import ChatInterface from '../components/ChatInterface';
 import ResultsArea from '../components/ResultsArea';
@@ -7,6 +6,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
+import { QueryResponse, ChartData } from '../types/data';
 
 type APIResponse<T> = { data: T | null; error: Error | null; };
 
@@ -31,15 +32,6 @@ const retryFetch = async <T,>(fn: () => Promise<APIResponse<T>>, retries = 3, de
   throw new Error('All retry attempts failed'); // Should not be reached
 };
 
-export interface QueryResponse {
-  result: string | null;
-  sql: string | null;
-}
-
-export interface ChartData {
-  chartScript: string | null;
-}
-
 const Index = () => {
   // State for query results
   const [queryResult, setQueryResult] = useState<string | null>(null);
@@ -55,6 +47,7 @@ const Index = () => {
   
   const { user, loading } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Show loading spinner while checking auth
   if (loading) {
@@ -67,7 +60,8 @@ const Index = () => {
 
   // Redirect to auth if not logged in
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    navigate('/auth');
+    return null;
   }
 
   // Handle user query submission
@@ -78,23 +72,29 @@ const Index = () => {
       console.log('=== Processing query ===');
       console.log('Query:', query);
 
-      // Call inference function
-      const { data: inferenceResult, error: inferenceError } = await supabase.functions.invoke('inference', {
-        body: {
+      // Call inference API - assuming API routes will be handled by GCP Run directly from frontend or a proxy
+      const inferenceResponse = await fetch(import.meta.env.VITE_GCP_RUN_INFERENCE_URL as string, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // You might need an Authorization header here if your GCP Run endpoint requires it
+          // 'Authorization': `Bearer ${YOUR_AUTH_TOKEN}`,
+        },
+        body: JSON.stringify({
           prompt: query
-        }
+        })
       });
 
-      console.log('Inference result:', inferenceResult);
-
-      if (inferenceError) {
-        console.error('Inference error:', inferenceError);
-        throw new Error(inferenceError.message || 'Failed to process query');
+      if (!inferenceResponse.ok) {
+        throw new Error('Failed to process query');
       }
 
-      if (!inferenceResult || !inferenceResult.success) {
+      const inferenceResult = await inferenceResponse.json();
+      console.log('Inference result:', inferenceResult);
+
+      if (!inferenceResult.success) {
         console.error('Inference unsuccessful:', inferenceResult);
-        throw new Error(inferenceResult?.error || 'Failed to process query');
+        throw new Error(inferenceResult.error || 'Failed to process query');
       }
 
       // Immediately update UI with inference results and SQL
@@ -111,28 +111,34 @@ const Index = () => {
           transformedQueryData = transformedQueryData[0]; // Take the inner array
         }
 
-        console.log('Data being sent to generate-charts edge function (after transformation):', transformedQueryData);
+        console.log('Data being sent to chart generation API:', transformedQueryData);
         setIsChartLoading(true); // Only set chart loading state
         
         // Start chart generation process
         (async () => {
           console.log('Initiating async chart generation process...');
           try {
-            console.log('Calling supabase.functions.invoke(\'generate-charts\')...');
-            // Call generate-charts function
-            const { data: chartGenerationResult, error: chartGenerationError } = await supabase.functions.invoke('generate-charts', {
-              body: {
+            console.log('Calling chart generation API...');
+            const chartResponse = await fetch(import.meta.env.VITE_GCP_RUN_CHART_URL as string, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                // You might need an Authorization header here if your GCP Run endpoint requires it
+                // 'Authorization': `Bearer ${YOUR_AUTH_TOKEN}`,
+              },
+              body: JSON.stringify({
                 queryData: transformedQueryData,
                 sql: inferenceResult.data.sql,
                 inference: inferenceResult.data.answer,
                 User_query: query
-              }
+              })
             });
 
-            if (chartGenerationError) {
-              console.error('Chart generation error:', chartGenerationError);
-              throw new Error(chartGenerationError.message || 'Failed to generate chart');
+            if (!chartResponse.ok) {
+              throw new Error('Failed to generate chart');
             }
+
+            const chartGenerationResult = await chartResponse.json();
 
             if (chartGenerationResult && chartGenerationResult.script) {
               console.log('Chart script received successfully.');

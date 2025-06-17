@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session, AuthError, Provider } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 type AuthResultData = { user: User | null; session: Session | null; };
 type OAuthResultData = { provider: Provider; url: string | null; };
@@ -39,6 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Set up auth state listener
@@ -51,11 +53,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Redirect to homepage if signed out
         if (event === 'SIGNED_OUT') {
-          window.location.href = '/';
+          navigate('/');
         }
 
-        // Only handle basic OAuth callback for regular authentication
-        if (event === 'SIGNED_IN' && session?.provider_token && !window.location.pathname.includes('/data-control')) {
+        // Handle OAuth callback for any signed-in event with provider token
+        if (event === 'SIGNED_IN' && session?.provider_token) {
           await handleBasicOAuthCallback(session);
         }
       }
@@ -69,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [navigate]);
 
   const handleBasicOAuthCallback = async (session: Session) => {
     try {
@@ -151,7 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       // Always redirect after attempting sign out
       console.log('Executing finally block for sign out. Redirecting...');
-      window.location.href = '/';
+      navigate('/');
     }
   };
 

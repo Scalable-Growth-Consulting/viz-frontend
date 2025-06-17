@@ -20,6 +20,6 @@ export const supabase = createClient<Database>(
 );
 
 // Override the functions URL in development
-if (process.env.NODE_ENV === 'development') {
-  supabase.functions.setEndpoint('http://localhost:54321/functions/v1');
-}
+// if (process.env.NODE_ENV === 'development') {
+//   supabase.functions.setEndpoint('http://localhost:54321/functions/v1');
+// }

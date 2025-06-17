@@ -1,12 +1,11 @@
-
 import React, { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, Mail, Lock, User } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -17,10 +16,12 @@ const Auth = () => {
   
   const { user, signIn, signUp, signInWithGoogle } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated - purely client-side to avoid SSR issues
   if (user) {
-    return <Navigate to="/" replace />;
+    navigate('/');
+    return null; // Render nothing while redirecting
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

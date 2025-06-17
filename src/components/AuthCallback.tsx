@@ -1,66 +1,29 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { Loader2 } from 'lucide-react';
 
 const AuthCallback = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { user, loading } = useAuth();
 
   useEffect(() => {
-    const handleCallback = async () => {
-      try {
-        // Get the current session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) throw sessionError;
-
-        if (session) {
-          // Store the OAuth credentials
-          const { error: credError } = await supabase
-            .from('user_oauth_credentials')
-            .upsert({
-              user_id: session.user.id,
-              provider: 'google',
-              access_token_encrypted: session.provider_token,
-              refresh_token_encrypted: session.provider_refresh_token,
-              token_expires_at: new Date(Date.now() + 3600000).toISOString(),
-              scopes: ['https://www.googleapis.com/auth/bigquery.readonly'],
-              is_bigquery_connected: true,
-              updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'user_id,provider'
-            });
-
-          if (credError) throw credError;
-
-          toast({
-            title: "Successfully connected",
-            description: "BigQuery connection has been established",
-          });
-        }
-      } catch (error) {
-        console.error('Error handling callback:', error);
-        toast({
-          title: "Connection failed",
-          description: "Failed to complete the BigQuery connection",
-          variant: "destructive",
-        });
-      } finally {
-        // Redirect back to the data control page
-        navigate('/data-control');
+    if (!loading) {
+      // Check for OAuth callback specific parameters if needed, though Supabase usually handles this internally.
+      // For a basic callback, we just ensure the user is logged in.
+      if (user) {
+        navigate('/');
+      } else {
+        // If no user after loading, means auth failed or no session was found
+        navigate('/auth');
       }
-    };
-
-    handleCallback();
-  }, [navigate, toast]);
+    }
+  }, [user, loading, navigate]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <h2 className="text-xl font-semibold mb-2">Completing Authentication...</h2>
-        <p className="text-viz-text-secondary">Please wait while we finish setting up your BigQuery connection.</p>
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-viz-dark dark:to-black">
+      <Loader2 className="w-8 h-8 animate-spin text-viz-accent" />
+      <p className="ml-3 text-viz-text-secondary">Authenticating...</p>
     </div>
   );
 };
