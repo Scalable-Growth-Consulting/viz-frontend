@@ -419,3 +419,5 @@ const TableExplorer = () => {
     </div>
   );
 };
+
+export default TableExplorer;
