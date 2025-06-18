@@ -219,11 +219,15 @@ const DataControl = () => {
                   </div>
                 )}
                 {showKpiForm && (
-                  <form onSubmit={handleKpiFormSubmit} className="bg-viz-light/10 dark:bg-viz-dark/10 rounded-lg p-6 flex flex-col gap-4 max-w-2xl mx-auto">
+                  <form
+                    onSubmit={handleKpiFormSubmit}
+                    className="bg-white dark:bg-viz-medium shadow-lg rounded-xl p-6 flex flex-col gap-4 w-full max-w-lg mx-auto border mt-4"
+                    style={{ minWidth: 0 }}
+                  >
                     <div className="flex flex-col gap-1">
-                      <label className="font-semibold">KPI Name</label>
+                      <label className="font-semibold mb-1">KPI Name</label>
                       <input
-                        className="viz-input"
+                        className="viz-input px-3 py-2 rounded-md border border-viz-light focus:border-viz-accent focus:ring-2 focus:ring-viz-accent/20 transition"
                         value={formKpi.name}
                         onChange={e => handleKpiFormChange('name', e.target.value)}
                         required
@@ -231,9 +235,9 @@ const DataControl = () => {
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="font-semibold">Definition</label>
+                      <label className="font-semibold mb-1">Definition</label>
                       <textarea
-                        className="viz-input"
+                        className="viz-input px-3 py-2 rounded-md border border-viz-light focus:border-viz-accent focus:ring-2 focus:ring-viz-accent/20 transition"
                         value={formKpi.definition}
                         onChange={e => handleKpiFormChange('definition', e.target.value)}
                         placeholder="Describe what this KPI measures..."
@@ -241,25 +245,25 @@ const DataControl = () => {
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="font-semibold">Formula</label>
+                      <label className="font-semibold mb-1">Formula</label>
                       <input
-                        className="viz-input font-mono"
+                        className="viz-input font-mono px-3 py-2 rounded-md border border-viz-light focus:border-viz-accent focus:ring-2 focus:ring-viz-accent/20 transition"
                         value={formKpi.formula}
                         onChange={e => handleKpiFormChange('formula', e.target.value)}
                         placeholder="e.g. (Total Orders / Total Visitors) * 100"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="font-semibold">Sample Query</label>
+                      <label className="font-semibold mb-1">Sample Query</label>
                       <textarea
-                        className="viz-input font-mono"
+                        className="viz-input font-mono px-3 py-2 rounded-md border border-viz-light focus:border-viz-accent focus:ring-2 focus:ring-viz-accent/20 transition"
                         value={formKpi.sampleQuery}
                         onChange={e => handleKpiFormChange('sampleQuery', e.target.value)}
                         placeholder="Provide a sample SQL query for this KPI..."
                         rows={2}
                       />
                     </div>
-                    <div className="flex gap-2 justify-end">
+                    <div className="flex gap-2 justify-end mt-2">
                       <button type="button" className="viz-button-secondary" onClick={() => setShowKpiForm(false)}>Cancel</button>
                       <button type="submit" className="viz-button-primary">{editingKpi ? 'Update KPI' : 'Add KPI'}</button>
                     </div>
