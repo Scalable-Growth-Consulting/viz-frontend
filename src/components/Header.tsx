@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BarChartIcon, LightbulbIcon, DatabaseIcon, UserIcon, LogOut } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -44,7 +43,7 @@ const Header: React.FC = () => {
         
         {user && (
           <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-2 bg-white/20 dark:bg-viz-medium px-3 py-1.5 rounded-lg">
+            <Link to="/profile" className="flex items-center space-x-2 bg-white/20 dark:bg-viz-medium px-3 py-1.5 rounded-lg hover:bg-white/30 dark:hover:bg-viz-light transition-all shadow-sm hover:shadow md:hover:scale-105">
               <Avatar className="h-6 w-6">
                 <AvatarFallback className="text-xs bg-viz-accent text-white">
                   {userInitials}
@@ -53,7 +52,7 @@ const Header: React.FC = () => {
               <span className="text-sm font-medium text-slate-700 dark:text-white hidden md:inline">
                 {user.user_metadata?.full_name || user.email}
               </span>
-            </div>
+            </Link>
             <Button
               onClick={handleSignOut}
               variant="ghost"
