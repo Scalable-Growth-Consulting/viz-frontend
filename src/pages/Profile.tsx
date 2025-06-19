@@ -5,12 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 const AVATAR_BUCKET = 'avatars';
 
 const Profile: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState({
     full_name: '',
     email: '',
@@ -101,6 +103,13 @@ const Profile: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-viz-dark dark:to-black px-4">
+      <Button
+        type="button"
+        onClick={() => navigate('/')}
+        className="mb-6 self-start bg-slate-200 dark:bg-viz-light/10 hover:bg-slate-300 dark:hover:bg-viz-light/20 text-slate-700 dark:text-white px-4 py-2 rounded-lg shadow-sm"
+      >
+        ← Back to Main
+      </Button>
       <div className="w-full max-w-md bg-white dark:bg-viz-medium rounded-xl shadow-lg p-8 border border-slate-200 dark:border-viz-light/20">
         <h2 className="text-2xl font-bold mb-6 text-center">Your Profile</h2>
         <form onSubmit={handleSave} className="space-y-4">
