@@ -3,6 +3,8 @@ import { User, Session, AuthError, Provider } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 
+// Type definitions
+
 type AuthResultData = { user: User | null; session: Session | null; };
 type OAuthResultData = { provider: Provider; url: string | null; };
 
@@ -70,7 +72,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Set up interval to refresh session every 60 seconds
+    const interval = setInterval(() => {
+      console.log('Refreshing session...');
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+      });
+    }, 60000); // 60 seconds
+
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(interval);
+    };
   }, [navigate]);
 
   const handleBasicOAuthCallback = async (session: Session) => {
@@ -176,3 +190,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
