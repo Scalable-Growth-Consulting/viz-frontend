@@ -74,9 +74,14 @@ const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult, chartDa
       })();
 
       // Cleanup on tab change/unmount
-      return () => {
-        if (container) container.innerHTML = '';
-      };
+     return () => {
+       if (container) {
+         while (container.firstChild) {
+          container.removeChild(container.firstChild);
+         }
+       }
+     };
+
     }
   }, [activeTab, chartData]);
 
