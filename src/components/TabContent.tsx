@@ -10,80 +10,89 @@ interface TabContentProps {
 
 const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult, chartData }) => {
 
-  useEffect(() => {
-    if (activeTab === 'charts' && chartData?.chartScript) {
-      const container = document.getElementById('chart-container');
-      if (container) {
-        // Clear previous content and inject a fresh canvas
-        container.innerHTML = '<canvas id="myChart" style="width:100%;height:100%"></canvas>';
-      }
+useEffect(() => {
+  if (activeTab === 'charts' && chartData?.chartScript) {
+    const container = document.getElementById('chart-container');
+    if (container) {
+      // Clear existing content and inject canvas
+      container.innerHTML = '<canvas id="myChart" style="width:100%;height:100%"></canvas>';
+    }
 
-      // Helper to inject a script tag and return a promise that resolves when loaded
-      const injectScript = (src) => {
-        return new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = src;
-          script.async = false;
-          script.onload = resolve;
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
-      };
+    const injectScript = (src: string) => {
+      return new Promise<void>((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = false;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`Failed to load ${src}`));
+        document.head.appendChild(script);
+      });
+    };
 
-      // Helper to inject a stylesheet
-      const injectStyle = (href) => {
-        if (!document.querySelector(`link[href="${href}"]`)) {
-          const link = document.createElement('link');
-          link.rel = 'stylesheet';
-          link.href = href;
-          document.head.appendChild(link);
-        }
-      };
-
-      // Inject required Chart.js libraries and plugins
-      const chartJsLibs = [
-        'https://cdn.jsdelivr.net/npm/chart.js',
-        'https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns',
-        'https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation',
-        'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels',
-        'https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom',
-        'https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js',
-      ];
-      const chartFont = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap';
-
-      injectStyle(chartFont);
-
-      // Extract JS code from <script>...</script> if present
-      const match = chartData.chartScript.match(/<script>([\s\S]*?)<\/script>/i);
-      const jsCode = match ? match[1] : chartData.chartScript;
-
-      // Load all Chart.js libraries sequentially, then inject the chart script
-      (async () => {
-        try {
-          for (const lib of chartJsLibs) {
-            await injectScript(lib);
-          }
-          // Now inject the chart script
-          const scriptElement = document.createElement('script');
-          scriptElement.type = 'text/javascript';
-          scriptElement.innerHTML = jsCode;
-          container?.appendChild(scriptElement);
-        } catch (err) {
-          console.error('Error loading chart libraries or script:', err);
-        }
-      })();
-
-      // Cleanup on tab change/unmount
-    return () => {
-      const container = document.getElementById('chart-container');
-      if (container && container.hasChildNodes()) {
-        container.innerHTML = '';
+    const injectStyle = (href: string) => {
+      if (!document.querySelector(`link[href="${href}"]`)) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = href;
+        document.head.appendChild(link);
       }
     };
 
+    const chartJsLibs = [
+      'https://cdn.jsdelivr.net/npm/chart.js',
+      'https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns',
+      'https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation',
+      'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels',
+      'https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom',
+      'https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js',
+    ];
 
-    }
-  }, [activeTab, chartData]);
+    const chartFont = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap';
+    injectStyle(chartFont);
+
+    const match = chartData.chartScript.match(/<script>([\s\S]*?)<\/script>/i);
+    const jsCode = match ? match[1] : chartData.chartScript;
+
+    (async () => {
+      try {
+        for (const lib of chartJsLibs) {
+          await injectScript(lib);
+        }
+
+        const scriptElement = document.createElement('script');
+        scriptElement.type = 'text/javascript';
+        scriptElement.innerHTML = jsCode;
+        container?.appendChild(scriptElement);
+      } catch (err) {
+        console.error('Error loading chart libraries or script:', err);
+      }
+    })();
+
+    // cleanup logic
+    return () => {
+      const container = document.getElementById('chart-container');
+      if (container) {
+        container.innerHTML = '';
+      }
+
+      // Optional: remove dynamically injected chart libraries (to avoid duplicates or memory leaks)
+      const scriptSrcsToClean = [
+        'chart.js',
+        'chartjs-adapter-date-fns',
+        'chartjs-plugin-annotation',
+        'chartjs-plugin-datalabels',
+        'chartjs-plugin-zoom',
+        'axios.min.js',
+      ];
+      document.querySelectorAll('script').forEach((script) => {
+        if (scriptSrcsToClean.some((part) => script.src.includes(part))) {
+          script.remove();
+        }
+      });
+    };
+  }
+}, [activeTab, chartData]);
+
 
   const getContent = () => {
     if (!queryResult) {
