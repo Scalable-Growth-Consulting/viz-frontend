@@ -71,7 +71,7 @@ useEffect(() => {
     // cleanup logic
     return () => {
       const container = document.getElementById('chart-container');
-      if (container) {
+      if (container && container.hasChildNodes()) {
         container.innerHTML = '';
       }
 
