@@ -9,13 +9,9 @@ interface TabContentProps {
 }
 
 const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult, chartData }) => {
-
-useEffect(() => {
-  let isMounted = true;
-  const container = document.getElementById('chart-container');
-
-  if (activeTab === 'charts' && chartData?.chartScript && container) {
-    container.innerHTML = '<canvas id="myChart" style="width:100%;height:100%"></canvas>';
+  useEffect(() => {
+    let isMounted = true;
+    const container = document.getElementById('chart-container');
 
     const injectScript = (src: string) => {
       return new Promise<void>((resolve, reject) => {
@@ -46,58 +42,57 @@ useEffect(() => {
       'https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js',
     ];
 
-    injectStyle('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+    const cleanupScripts = () => {
+      const scriptSrcsToClean = [
+        'chart.js',
+        'chartjs-adapter-date-fns',
+        'chartjs-plugin-annotation',
+        'chartjs-plugin-datalabels',
+        'chartjs-plugin-zoom',
+        'axios.min.js',
+      ];
 
-    const match = chartData.chartScript.match(/<script>([\s\S]*?)<\/script>/i);
-    const jsCode = match ? match[1] : chartData.chartScript;
+      document.querySelectorAll('script').forEach((script) => {
+        if (scriptSrcsToClean.some((part) => script.src.includes(part))) {
+          script.remove();
+        }
+      });
+    };
 
-    (async () => {
+    const renderChart = async () => {
+      if (activeTab !== 'charts' || !chartData?.chartScript || !container) return;
+
+      container.innerHTML = '<canvas id="myChart" style="width:100%;height:100%"></canvas>';
+
+      injectStyle('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
+      const match = chartData.chartScript.match(/<script>([\s\S]*?)<\/script>/i);
+      const jsCode = match ? match[1] : chartData.chartScript;
+
       try {
         for (const lib of chartJsLibs) {
           await injectScript(lib);
         }
 
-        // Only run script if component is still mounted and container is present
         if (!isMounted) return;
 
-        const chartContainer = document.getElementById('chart-container');
-        if (chartContainer) {
-          const scriptElement = document.createElement('script');
-          scriptElement.type = 'text/javascript';
-          scriptElement.innerHTML = jsCode;
-          chartContainer.appendChild(scriptElement);
-        }
+        const scriptElement = document.createElement('script');
+        scriptElement.type = 'text/javascript';
+        scriptElement.innerHTML = jsCode;
+        container.appendChild(scriptElement);
       } catch (err) {
         console.error('Error loading chart libraries or script:', err);
       }
-    })();
-  }
+    };
 
-  return () => {
-    isMounted = false;
-    const cleanupContainer = document.getElementById('chart-container');
-    if (cleanupContainer) {
-      cleanupContainer.innerHTML = '';
-    }
+    renderChart();
 
-    // Optionally remove injected chart scripts
-    const scriptSrcsToClean = [
-      'chart.js',
-      'chartjs-adapter-date-fns',
-      'chartjs-plugin-annotation',
-      'chartjs-plugin-datalabels',
-      'chartjs-plugin-zoom',
-      'axios.min.js',
-    ];
-    document.querySelectorAll('script').forEach((script) => {
-      if (scriptSrcsToClean.some((part) => script.src.includes(part))) {
-        script.remove();
-      }
-    });
-  };
-}, [activeTab, chartData]);
-
-
+    return () => {
+      isMounted = false;
+      if (container) container.innerHTML = '';
+      cleanupScripts();
+    };
+  }, [activeTab, chartData]);
 
   const getContent = () => {
     if (!queryResult) {
@@ -114,11 +109,10 @@ useEffect(() => {
       );
     }
 
-    // If we have a query result
     if (activeTab === 'answer') {
       return <div className="prose dark:prose-invert max-w-none">{queryResult}</div>;
     }
-    
+
     if (activeTab === 'sql') {
       return (
         <div className="space-y-4">
@@ -145,9 +139,7 @@ useEffect(() => {
             id="chart-container"
             className="w-full h-full flex items-center justify-center"
             style={{ minHeight: '350px', height: '60vh', maxHeight: '600px', padding: 0, margin: 0 }}
-          >
-            {/* Canvas will be injected here for the chart script to use */}
-          </div>
+          />
         );
       } else {
         return (
@@ -162,11 +154,7 @@ useEffect(() => {
     return null;
   };
 
-  return (
-    <div className="animate-fade-in py-6">
-      {getContent()}
-    </div>
-  );
+  return <div className="animate-fade-in py-6">{getContent()}</div>;
 };
 
 export default TabContent;
