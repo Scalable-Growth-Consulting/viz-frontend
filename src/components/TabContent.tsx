@@ -9,9 +9,13 @@ interface TabContentProps {
 }
 
 const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult, chartData }) => {
-  useEffect(() => {
-    let isMounted = true;
-    const container = document.getElementById('chart-container');
+
+useEffect(() => {
+  let isMounted = true;
+  const container = document.getElementById('chart-container');
+
+  if (activeTab === 'charts' && chartData?.chartScript && container) {
+    container.innerHTML = '<canvas id="myChart" style="width:100%;height:100%"></canvas>';
 
     const injectScript = (src: string) => {
       return new Promise<void>((resolve, reject) => {
@@ -42,57 +46,58 @@ const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult, chartDa
       'https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js',
     ];
 
-    const cleanupScripts = () => {
-      const scriptSrcsToClean = [
-        'chart.js',
-        'chartjs-adapter-date-fns',
-        'chartjs-plugin-annotation',
-        'chartjs-plugin-datalabels',
-        'chartjs-plugin-zoom',
-        'axios.min.js',
-      ];
+    injectStyle('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
 
-      document.querySelectorAll('script').forEach((script) => {
-        if (scriptSrcsToClean.some((part) => script.src.includes(part))) {
-          script.remove();
-        }
-      });
-    };
+    const match = chartData.chartScript.match(/<script>([\s\S]*?)<\/script>/i);
+    const jsCode = match ? match[1] : chartData.chartScript;
 
-    const renderChart = async () => {
-      if (activeTab !== 'charts' || !chartData?.chartScript || !container) return;
-
-      container.innerHTML = '<canvas id="myChart" style="width:100%;height:100%"></canvas>';
-
-      injectStyle('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-
-      const match = chartData.chartScript.match(/<script>([\s\S]*?)<\/script>/i);
-      const jsCode = match ? match[1] : chartData.chartScript;
-
+    (async () => {
       try {
         for (const lib of chartJsLibs) {
           await injectScript(lib);
         }
 
+        // Only run script if component is still mounted and container is present
         if (!isMounted) return;
 
-        const scriptElement = document.createElement('script');
-        scriptElement.type = 'text/javascript';
-        scriptElement.innerHTML = jsCode;
-        container.appendChild(scriptElement);
+        const chartContainer = document.getElementById('chart-container');
+        if (chartContainer) {
+          const scriptElement = document.createElement('script');
+          scriptElement.type = 'text/javascript';
+          scriptElement.innerHTML = jsCode;
+          chartContainer.appendChild(scriptElement);
+        }
       } catch (err) {
         console.error('Error loading chart libraries or script:', err);
       }
-    };
+    })();
+  }
 
-    renderChart();
+  return () => {
+    isMounted = false;
+    const cleanupContainer = document.getElementById('chart-container');
+    if (cleanupContainer) {
+      cleanupContainer.innerHTML = '';
+    }
 
-    return () => {
-      isMounted = false;
-      if (container) container.innerHTML = '';
-      cleanupScripts();
-    };
-  }, [activeTab, chartData]);
+    // Optionally remove injected chart scripts
+    const scriptSrcsToClean = [
+      'chart.js',
+      'chartjs-adapter-date-fns',
+      'chartjs-plugin-annotation',
+      'chartjs-plugin-datalabels',
+      'chartjs-plugin-zoom',
+      'axios.min.js',
+    ];
+    document.querySelectorAll('script').forEach((script) => {
+      if (scriptSrcsToClean.some((part) => script.src.includes(part))) {
+        script.remove();
+      }
+    });
+  };
+}, [activeTab, chartData]);
+
+
 
   const getContent = () => {
     if (!queryResult) {
@@ -109,10 +114,11 @@ const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult, chartDa
       );
     }
 
+    // If we have a query result
     if (activeTab === 'answer') {
       return <div className="prose dark:prose-invert max-w-none">{queryResult}</div>;
     }
-
+    
     if (activeTab === 'sql') {
       return (
         <div className="space-y-4">
@@ -139,7 +145,9 @@ const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult, chartDa
             id="chart-container"
             className="w-full h-full flex items-center justify-center"
             style={{ minHeight: '350px', height: '60vh', maxHeight: '600px', padding: 0, margin: 0 }}
-          />
+          >
+            {/* Canvas will be injected here for the chart script to use */}
+          </div>
         );
       } else {
         return (
@@ -154,7 +162,11 @@ const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult, chartDa
     return null;
   };
 
-  return <div className="animate-fade-in py-6">{getContent()}</div>;
+  return (
+    <div className="animate-fade-in py-6">
+      {getContent()}
+    </div>
+  );
 };
 
 export default TabContent;
