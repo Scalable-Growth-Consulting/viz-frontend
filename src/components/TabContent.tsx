@@ -11,12 +11,11 @@ interface TabContentProps {
 const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult, chartData }) => {
 
 useEffect(() => {
-  if (activeTab === 'charts' && chartData?.chartScript) {
-    const container = document.getElementById('chart-container');
-    if (container) {
-      // Clear existing content and inject canvas
-      container.innerHTML = '<canvas id="myChart" style="width:100%;height:100%"></canvas>';
-    }
+  let isMounted = true;
+  const container = document.getElementById('chart-container');
+
+  if (activeTab === 'charts' && chartData?.chartScript && container) {
+    container.innerHTML = '<canvas id="myChart" style="width:100%;height:100%"></canvas>';
 
     const injectScript = (src: string) => {
       return new Promise<void>((resolve, reject) => {
@@ -47,8 +46,7 @@ useEffect(() => {
       'https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js',
     ];
 
-    const chartFont = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap';
-    injectStyle(chartFont);
+    injectStyle('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
 
     const match = chartData.chartScript.match(/<script>([\s\S]*?)<\/script>/i);
     const jsCode = match ? match[1] : chartData.chartScript;
@@ -59,39 +57,46 @@ useEffect(() => {
           await injectScript(lib);
         }
 
-        const scriptElement = document.createElement('script');
-        scriptElement.type = 'text/javascript';
-        scriptElement.innerHTML = jsCode;
-        container?.appendChild(scriptElement);
+        // Only run script if component is still mounted and container is present
+        if (!isMounted) return;
+
+        const chartContainer = document.getElementById('chart-container');
+        if (chartContainer) {
+          const scriptElement = document.createElement('script');
+          scriptElement.type = 'text/javascript';
+          scriptElement.innerHTML = jsCode;
+          chartContainer.appendChild(scriptElement);
+        }
       } catch (err) {
         console.error('Error loading chart libraries or script:', err);
       }
     })();
-
-    // cleanup logic
-    return () => {
-      const container = document.getElementById('chart-container');
-      if (container && container.hasChildNodes()) {
-        container.innerHTML = '';
-      }
-
-      // Optional: remove dynamically injected chart libraries (to avoid duplicates or memory leaks)
-      const scriptSrcsToClean = [
-        'chart.js',
-        'chartjs-adapter-date-fns',
-        'chartjs-plugin-annotation',
-        'chartjs-plugin-datalabels',
-        'chartjs-plugin-zoom',
-        'axios.min.js',
-      ];
-      document.querySelectorAll('script').forEach((script) => {
-        if (scriptSrcsToClean.some((part) => script.src.includes(part))) {
-          script.remove();
-        }
-      });
-    };
   }
+
+  return () => {
+    isMounted = false;
+    const cleanupContainer = document.getElementById('chart-container');
+    if (cleanupContainer) {
+      cleanupContainer.innerHTML = '';
+    }
+
+    // Optionally remove injected chart scripts
+    const scriptSrcsToClean = [
+      'chart.js',
+      'chartjs-adapter-date-fns',
+      'chartjs-plugin-annotation',
+      'chartjs-plugin-datalabels',
+      'chartjs-plugin-zoom',
+      'axios.min.js',
+    ];
+    document.querySelectorAll('script').forEach((script) => {
+      if (scriptSrcsToClean.some((part) => script.src.includes(part))) {
+        script.remove();
+      }
+    });
+  };
 }, [activeTab, chartData]);
+
 
 
   const getContent = () => {
