@@ -79,15 +79,11 @@ useEffect(() => {
 
   // Proper Chart.js cleanup (destroy chart instance if created)
  const canvas = document.getElementById('myChart') as HTMLCanvasElement | null;
-  if (canvas) {
-    const ctx = canvas.getContext('2d');
-    if (ctx && (window as any).myChart instanceof Chart) {
-      (window as any).myChart.destroy();
-    }
-  }    
+    
     const cleanupContainer = document.getElementById('chart-container');
     if (cleanupContainer) {
       cleanupContainer.innerHTML = '';
+      cleanupContainer.removeAttribute('style'); // prevents height overflow
     }
 
     // Optionally remove injected chart scripts
