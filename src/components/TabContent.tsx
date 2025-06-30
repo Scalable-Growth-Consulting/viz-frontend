@@ -75,9 +75,11 @@ useEffect(() => {
 
   return () => {
     isMounted = false;
+  // Proper Chart.js cleanup (destroy chart instance if created)
     const cleanupContainer = document.getElementById('chart-container');
     if (cleanupContainer) {
       cleanupContainer.innerHTML = '';
+      cleanupContainer.removeAttribute('style'); // prevents height overflow
     }
 
     // Optionally remove injected chart scripts
