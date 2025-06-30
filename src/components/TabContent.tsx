@@ -75,11 +75,7 @@ useEffect(() => {
 
   return () => {
     isMounted = false;
-
-
   // Proper Chart.js cleanup (destroy chart instance if created)
- const canvas = document.getElementById('myChart') as HTMLCanvasElement | null;
-    
     const cleanupContainer = document.getElementById('chart-container');
     if (cleanupContainer) {
       cleanupContainer.innerHTML = '';
