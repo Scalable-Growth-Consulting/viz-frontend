@@ -120,10 +120,7 @@ const DataControl = () => {
               <div className="rounded-lg border p-6 flex flex-col items-center justify-center bg-white dark:bg-viz-medium shadow-md">
                 <h3 className="font-semibold mb-2 text-lg">CSV / XLSX Upload</h3>
                 <p className="text-sm text-viz-text-secondary mb-4">Upload your data files</p>
-                <CsvXlsxUploader onFileUpload={(file) => {
-                  // TODO: handle file upload logic
-                  alert(`File uploaded: ${file.name}`);
-                }} />
+                <CsvXlsxUploader/>
               </div>
               <div className="rounded-lg border p-6 flex flex-col items-center justify-center bg-white dark:bg-viz-medium opacity-60 cursor-not-allowed shadow-md">
                 <h3 className="font-semibold mb-2 text-lg">BigQuery</h3>
