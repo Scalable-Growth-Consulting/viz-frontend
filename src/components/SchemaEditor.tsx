@@ -76,7 +76,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ schema, onChange, onSave })
             <TableRow>
               <TableHead className="w-[200px]">Column Name</TableHead>
               <TableHead className="w-[150px]">Data Type</TableHead>
-              <TableHead className="w-[450px]">Description</TableHead>
+              <TableHead className="w-[350px]">Description</TableHead>
               <TableHead>Enum Values</TableHead>
             </TableRow>
           </TableHeader>
@@ -166,7 +166,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ schema, onChange, onSave })
           </TableBody>
         </Table>
       </div>
-      <div className="flex justify-end mt-6">
+      <div className="flex justify-end mt-4">
         <Button onClick={onSave} variant="default">Save</Button>
       </div>
     </div>
