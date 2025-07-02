@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { TableSchema, Column } from '../pages/TableExplorer';
 import { Input } from '@/components/ui/input';
@@ -12,6 +11,7 @@ import { PlusIcon, XIcon, EditIcon } from 'lucide-react';
 interface SchemaEditorProps {
   schema: TableSchema;
   onChange: (schema: TableSchema) => void;
+  onSave: () => void;
 }
 
 const DATA_TYPES = [
@@ -30,11 +30,11 @@ const DATA_TYPES = [
   'JSON'
 ];
 
-const SchemaEditor: React.FC<SchemaEditorProps> = ({ schema, onChange }) => {
+const SchemaEditor: React.FC<SchemaEditorProps> = ({ schema, onChange, onSave }) => {
   const [editingEnums, setEditingEnums] = useState<string | null>(null);
   const [newEnumValue, setNewEnumValue] = useState('');
 
-  const updateColumn = (columnIndex: number, field: keyof Column, value: any) => {
+  const updateColumn = (columnIndex: number, field: keyof Column, value: unknown) => {
     const updatedColumns = [...schema.columns];
     updatedColumns[columnIndex] = {
       ...updatedColumns[columnIndex],
@@ -76,8 +76,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ schema, onChange }) => {
             <TableRow>
               <TableHead className="w-[200px]">Column Name</TableHead>
               <TableHead className="w-[150px]">Data Type</TableHead>
-              <TableHead className="w-[100px]">Required</TableHead>
-              <TableHead className="w-[300px]">Description</TableHead>
+              <TableHead className="w-[450px]">Description</TableHead>
               <TableHead>Enum Values</TableHead>
             </TableRow>
           </TableHeader>
@@ -89,31 +88,9 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ schema, onChange }) => {
                     {column.name}
                   </div>
                 </TableCell>
-                
                 <TableCell>
-                  <Select
-                    value={column.dataType}
-                    onValueChange={(value) => updateColumn(index, 'dataType', value)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DATA_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="text-slate-800 dark:text-slate-200">{column.dataType}</div>
                 </TableCell>
-                
-                <TableCell>
-                  <Badge variant={column.isRequired ? "default" : "secondary"}>
-                    {column.isRequired ? 'Required' : 'Optional'}
-                  </Badge>
-                </TableCell>
-                
                 <TableCell>
                   <Textarea
                     value={column.description || ''}
@@ -122,7 +99,6 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ schema, onChange }) => {
                     className="min-h-[60px] resize-none"
                   />
                 </TableCell>
-                
                 <TableCell>
                   <div className="space-y-2">
                     {column.enumValues && column.enumValues.length > 0 && (
@@ -144,7 +120,6 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ schema, onChange }) => {
                         ))}
                       </div>
                     )}
-                    
                     {editingEnums === column.name ? (
                       <div className="flex gap-2">
                         <Input
@@ -190,6 +165,9 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ schema, onChange }) => {
             ))}
           </TableBody>
         </Table>
+      </div>
+      <div className="flex justify-end mt-6">
+        <Button onClick={onSave} variant="default">Save</Button>
       </div>
     </div>
   );
