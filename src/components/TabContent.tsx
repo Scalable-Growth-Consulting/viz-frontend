@@ -77,10 +77,13 @@ useEffect(() => {
     isMounted = false;
     const cleanupContainer = document.getElementById('chart-container');
     if (cleanupContainer) {
-      cleanupContainer.innerHTML = '';
+      // Remove all children (including canvas and scripts)
+      while (cleanupContainer.firstChild) {
+        cleanupContainer.removeChild(cleanupContainer.firstChild);
+      }
     }
 
-    // Optionally remove injected chart scripts
+    // Remove injected chart scripts
     const scriptSrcsToClean = [
       'chart.js',
       'chartjs-adapter-date-fns',
@@ -94,6 +97,24 @@ useEffect(() => {
         script.remove();
       }
     });
+
+    // Optionally, remove Chart.js global objects if needed
+    const winUnknown = window as unknown as { Chart?: unknown };
+    if (winUnknown.Chart && typeof winUnknown.Chart === 'object' && 'instances' in winUnknown.Chart) {
+      const chartObj = winUnknown.Chart as { instances?: Record<string, unknown> };
+      if (chartObj.instances) {
+        Object.values(chartObj.instances).forEach((instance: unknown) => {
+          if (
+            instance &&
+            typeof instance === 'object' &&
+            'destroy' in instance &&
+            typeof (instance as { destroy: unknown }).destroy === 'function'
+          ) {
+            (instance as { destroy: () => void }).destroy();
+          }
+        });
+      }
+    }
   };
 }, [activeTab, chartData]);
 
