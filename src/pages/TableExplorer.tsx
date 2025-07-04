@@ -6,6 +6,8 @@ import Loader from '../components/ui/loader';
 import { Button } from '@/components/ui/button';
 import { SaveIcon, RefreshCwIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 export interface Table {
   id: string;
@@ -38,6 +40,8 @@ const TableExplorer = () => {
   const [isLoadingSchema, setIsLoadingSchema] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [editedTableName, setEditedTableName] = useState<string>('');
+  const [editedTableDescription, setEditedTableDescription] = useState<string>('');
   const { toast } = useToast();
 
   // Fetch tables on component mount
@@ -50,6 +54,12 @@ const TableExplorer = () => {
     if (selectedTable) {
       fetchTableSchema(selectedTable.id);
     }
+  }, [selectedTable]);
+
+  // When selectedTable changes, reset edited fields
+  useEffect(() => {
+    setEditedTableName(selectedTable?.name || '');
+    setEditedTableDescription(selectedTable?.description || '');
   }, [selectedTable]);
 
   const fetchTables = async () => {
@@ -288,22 +298,42 @@ const TableExplorer = () => {
     setHasChanges(true);
   };
 
+  // Update table name/description handlers
+  const handleTableNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditedTableName(e.target.value);
+    setHasChanges(true);
+  };
+  const handleTableDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setEditedTableDescription(e.target.value);
+    setHasChanges(true);
+  };
+
+  // Update save handler to persist table name/description
   const handleSaveChanges = async () => {
     if (!schema || !hasChanges) return;
-    
     setIsSaving(true);
     try {
       // Mock API call to save changes
       await new Promise(resolve => setTimeout(resolve, 1000));
+      // Update selectedTable and tables state
+      if (selectedTable) {
+        const updatedTable = {
+          ...selectedTable,
+          name: editedTableName,
+          description: editedTableDescription,
+        };
+        setSelectedTable(updatedTable);
+        setTables(prev => prev.map(t => t.id === updatedTable.id ? updatedTable : t));
+      }
       toast({
         title: "Success",
-        description: "Schema changes saved successfully",
+        description: "Schema and table info saved successfully",
       });
       setHasChanges(false);
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to save schema changes",
+        description: "Failed to save schema or table info",
         variant: "destructive"
       });
     } finally {
@@ -381,14 +411,20 @@ const TableExplorer = () => {
               {selectedTable ? (
                 <>
                   <div className="p-4 border-b border-slate-200 dark:border-viz-light/20">
-                    <h2 className="font-semibold text-slate-900 dark:text-white">
-                      {selectedTable.name}
-                    </h2>
-                    {selectedTable.description && (
-                      <p className="text-sm text-slate-600 dark:text-viz-text-secondary mt-1">
-                        {selectedTable.description}
-                      </p>
-                    )}
+                    <Input
+                      className="font-semibold text-2xl text-slate-900 dark:text-white mb-2 bg-transparent border-none focus:ring-0 focus:border-viz-accent px-0"
+                      value={editedTableName}
+                      onChange={handleTableNameChange}
+                      placeholder={selectedTable?.name || 'Table name'}
+                      disabled={isLoadingSchema}
+                    />
+                    <Textarea
+                      className="text-sm text-slate-600 dark:text-viz-text-secondary mt-1 bg-transparent border-none focus:ring-0 focus:border-viz-accent px-0 min-h-[40px]"
+                      value={editedTableDescription}
+                      onChange={handleTableDescriptionChange}
+                      placeholder={selectedTable?.description || 'Table description'}
+                      disabled={isLoadingSchema}
+                    />
                   </div>
                   <div className="flex-1 overflow-auto">
                     {isLoadingSchema ? (
