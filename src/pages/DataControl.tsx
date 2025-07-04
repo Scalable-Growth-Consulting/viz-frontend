@@ -5,6 +5,10 @@ import SchemaEditor from '@/components/SchemaEditor';
 import { TableSchema, Column } from './TableExplorer';
 import { useState } from 'react';
 import Header from '@/components/Header';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+
+
 
 const mockTables: { id: string; name: string }[] = [
   { id: 'orders', name: 'Orders' },
@@ -53,12 +57,89 @@ interface KPI {
 }
 
 const DataControl = () => {
+  const { user } = useAuth();
   const [selectedTableId, setSelectedTableId] = useState<string>(mockTables[0].id);
   const [schemas, setSchemas] = useState<Record<string, TableSchema>>(mockSchemas);
   const [kpis, setKpis] = useState<KPI[]>([]);
   const [editingKpi, setEditingKpi] = useState<KPI | null>(null);
   const [showKpiForm, setShowKpiForm] = useState(false);
   const [formKpi, setFormKpi] = useState<KPI>({ id: '', name: '', definition: '', formula: '', sampleQuery: '' });
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+
+  const handleSave = async () => {
+    try {
+      const payload = {
+        email: user?.email, // use your logged-in user's email
+        tables: Object.entries(schemas).map(([table, schema]) => ({
+          table,
+          columns: schema.columns.map((col) => ({
+            name: col.name,
+            description: col.description || "", // send only name and updated description
+          })),
+        })),
+      };
+
+      const res = await fetch('https://viz-update-schema-description-286070583332.us-central1.run.app', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+      console.log("Update success:", json);
+      toast.success("Schema descriptions saved successfully!");
+    } catch (error) {
+      console.error("Update error:", error);
+      toast.error("Failed to save schema descriptions.");
+    }
+  };
+
+  const fetchRealSchema = async (email: string) => {
+    try {
+      const response = await fetch('https://viz-fetch-schema-286070583332.us-central1.run.app', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const schemaList = await response.json();
+      console.log("✅ Fetched schemaList:", schemaList);
+
+      if (!response.ok) {
+        throw new Error(schemaList.error || 'Failed to fetch schema');
+      }
+
+      const updatedSchemas: Record<string, TableSchema> = {};
+      const tableList: { id: string; name: string }[] = [];
+      console.log("✅ Final updatedSchemas keys:", Object.keys(updatedSchemas));
+      console.log("✅ selectedTableId set to:", tableList[0]?.id);
+
+
+      for (const item of schemaList) {
+        updatedSchemas[item.table] = {
+          tableId: item.table,
+          columns: item.columns.map((col: any) => ({
+            name: col.name,
+            dataType: col.type,
+            description: col.description || '',
+            enumValues: col.enums || [],
+            isRequired: col.mode === 'REQUIRED',
+            mode: col.mode
+          }))
+        };
+        tableList.push({ id: item.table, name: item.table });
+      }
+
+      setSchemas(updatedSchemas);
+      setSelectedTableId(tableList[0]?.id || '');
+
+    } catch (err: any) {
+      console.error("Schema fetch failed:", err);
+      alert(`❌ Failed to fetch schema: ${err.message}`);
+    }
+  };
 
   const handleSchemaChange = (updatedSchema: TableSchema) => {
     setSchemas((prev) => ({ ...prev, [updatedSchema.tableId]: updatedSchema }));
@@ -117,15 +198,40 @@ const DataControl = () => {
           {/* Data Connections Tab */}
           <TabsContent value="connections" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="rounded-lg border p-6 flex flex-col items-center justify-center bg-white dark:bg-viz-medium shadow-md">
+              {/* CSV / XLSX Upload */}
+              <div
+                className={`rounded-lg border p-6 flex flex-col items-center justify-center relative transition bg-white dark:bg-viz-medium shadow-md
+      ${uploadSuccess ? 'border-green-500 ring-2 ring-green-300' : ''}`}
+              >
+                {/* ✅ Success Tick Icon */}
+                {uploadSuccess && (
+                  <div className="absolute top-2 right-2 text-green-600">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                )}
+
                 <h3 className="font-semibold mb-2 text-lg">CSV / XLSX Upload</h3>
                 <p className="text-sm text-viz-text-secondary mb-4">Upload your data files</p>
-                <CsvXlsxUploader/>
+
+                <CsvXlsxUploader
+                  onFileUpload={(file, msg) => {
+                    setUploadSuccess(true); // ✅ Show success
+                    setTimeout(() => setUploadSuccess(false), 4000); // Auto-hide tick
+                    if (user?.email) {
+                      fetchRealSchema(user.email);
+                    }
+                  }}
+                />
               </div>
+
+
               <div className="rounded-lg border p-6 flex flex-col items-center justify-center bg-white dark:bg-viz-medium opacity-60 cursor-not-allowed shadow-md">
                 <h3 className="font-semibold mb-2 text-lg">BigQuery</h3>
                 <p className="text-sm text-viz-text-secondary mb-4">Connect to Google BigQuery</p>
                 <span className="viz-badge-warning">WIP</span>
+
               </div>
               <div className="rounded-lg border p-6 flex flex-col items-center justify-center bg-white dark:bg-viz-medium opacity-60 cursor-not-allowed shadow-md">
                 <h3 className="font-semibold mb-2 text-lg">Redshift</h3>
@@ -148,30 +254,47 @@ const DataControl = () => {
                 View and edit your tables, columns, data types, and descriptions. Edit enum values as needed.
               </p>
               <div className="flex flex-col md:flex-row gap-6">
+                {/* Sidebar: Dynamic Tables */}
                 <div className="md:w-1/4">
                   <div className="font-semibold mb-2">Tables</div>
                   <ul className="space-y-2">
-                    {mockTables.map((table) => (
-                      <li key={table.id}>
+                    {Object.keys(schemas).map((tableId) => (
+                      <li key={tableId} >
                         <button
-                          className={`w-full text-left px-3 py-2 rounded-lg transition font-medium ${selectedTableId === table.id ? 'bg-viz-accent text-white' : 'bg-viz-light/30 dark:bg-viz-dark/30 text-viz-dark dark:text-white hover:bg-viz-accent/20'}`}
-                          onClick={() => setSelectedTableId(table.id)}
+                          className={`w-full text-left px-3 py-2 rounded-lg transition font-medium ${selectedTableId === tableId
+                            ? 'bg-viz-accent text-white'
+                            : 'bg-viz-light/30 dark:bg-viz-dark/30 text-viz-dark dark:text-white hover:bg-viz-accent/20'
+                            }`}
+                          title={tableId} // 👈 shows full name on hover
+                          onClick={() => setSelectedTableId(tableId)}
                         >
-                          {table.name}
+
+
+                          <span className="block truncate">{tableId}</span>
                         </button>
                       </li>
                     ))}
                   </ul>
                 </div>
+
+                {/* Schema Editor Panel */}
                 <div className="md:w-3/4">
-                  <SchemaEditor
-                    schema={schemas[selectedTableId]}
-                    onChange={handleSchemaChange}
-                  />
+                  {schemas[selectedTableId] ? (
+                    <SchemaEditor
+                      schema={schemas[selectedTableId]}
+                      onChange={handleSchemaChange}
+                      onSave={handleSave}
+                    />
+                  ) : (
+                    <div className="text-sm text-viz-text-secondary p-4">
+                      Select a table to view its schema.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </TabsContent>
+
           {/* KPI Tab */}
           <TabsContent value="kpis" className="space-y-6">
             <div className="rounded-lg border p-6 bg-white dark:bg-viz-medium shadow-md">
