@@ -58,8 +58,13 @@ const TableExplorer = () => {
 
   // When selectedTable changes, reset edited fields
   useEffect(() => {
-    setEditedTableName(selectedTable?.name || '');
-    setEditedTableDescription(selectedTable?.description || '');
+    if (selectedTable) {
+      setEditedTableName(selectedTable.name);
+      setEditedTableDescription(selectedTable.description || '');
+    } else {
+      setEditedTableName('');
+      setEditedTableDescription('');
+    }
   }, [selectedTable]);
 
   const fetchTables = async () => {
@@ -411,20 +416,30 @@ const TableExplorer = () => {
               {selectedTable ? (
                 <>
                   <div className="p-4 border-b border-slate-200 dark:border-viz-light/20">
-                    <Input
-                      className="font-semibold text-2xl text-slate-900 dark:text-white mb-2 bg-transparent border-none focus:ring-0 focus:border-viz-accent px-0"
-                      value={editedTableName}
-                      onChange={handleTableNameChange}
-                      placeholder={selectedTable?.name || 'Table name'}
-                      disabled={isLoadingSchema}
-                    />
-                    <Textarea
-                      className="text-sm text-slate-600 dark:text-viz-text-secondary mt-1 bg-transparent border-none focus:ring-0 focus:border-viz-accent px-0 min-h-[40px]"
-                      value={editedTableDescription}
-                      onChange={handleTableDescriptionChange}
-                      placeholder={selectedTable?.description || 'Table description'}
-                      disabled={isLoadingSchema}
-                    />
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        Table Name
+                      </label>
+                      <Input
+                        className="text-lg font-semibold text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 focus:border-viz-accent focus:ring-viz-accent/20"
+                        value={editedTableName}
+                        onChange={handleTableNameChange}
+                        placeholder={selectedTable?.name || "Enter table name..."}
+                        disabled={isLoadingSchema}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        Table Description
+                      </label>
+                      <Textarea
+                        className="text-sm text-slate-600 dark:text-slate-200 min-h-[60px] border-slate-300 dark:border-slate-600 focus:border-viz-accent focus:ring-viz-accent/20"
+                        value={editedTableDescription}
+                        onChange={handleTableDescriptionChange}
+                        placeholder={selectedTable?.description || "Enter table description..."}
+                        disabled={isLoadingSchema}
+                      />
+                    </div>
                   </div>
                   <div className="flex-1 overflow-auto">
                     {isLoadingSchema ? (
@@ -435,6 +450,7 @@ const TableExplorer = () => {
                       <SchemaEditor
                         schema={schema}
                         onChange={handleSchemaChange}
+                        onSave={handleSaveChanges}
                       />
                     ) : (
                       <div className="flex items-center justify-center h-40 text-slate-500 dark:text-viz-text-secondary">
