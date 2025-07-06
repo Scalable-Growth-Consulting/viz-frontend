@@ -116,10 +116,14 @@ const DataControl = () => {
       console.log("✅ Final updatedSchemas keys:", Object.keys(updatedSchemas));
       console.log("✅ selectedTableId set to:", tableList[0]?.id);
 
+      if (!Array.isArray(schemaList.tables)) {
+        throw new Error('Invalid schema format received from backend.');
+      }
+      
 
-      for (const item of schemaList) {
-        updatedSchemas[item.table] = {
-          tableId: item.table,
+      for (const item of schemaList.tables) {
+        updatedSchemas[item.table_name] = {
+          tableId: item.table_name,
           columns: item.columns.map((col: any) => ({
             name: col.name,
             dataType: col.type,
@@ -129,7 +133,7 @@ const DataControl = () => {
             mode: col.mode
           }))
         };
-        tableList.push({ id: item.table, name: item.table });
+        tableList.push({ id: item.table_name, name: item.table_name });
       }
 
       setSchemas(updatedSchemas);
