@@ -281,6 +281,7 @@ const DataControl = () => {
               </p>
               <div className="flex flex-col md:flex-row gap-6">
                 {/* Sidebar: Dynamic Tables */}
+                {!loadingSchema && Object.keys(schemas).length > 0 && (
                 <div className="md:w-1/4">
                   <div className="font-semibold mb-2">Tables</div>
                   <ul className="space-y-2">
@@ -302,7 +303,7 @@ const DataControl = () => {
                     ))}
                   </ul>
                 </div>
-
+                )}
                 {/* Schema Editor Panel */}
                 <div className="md:w-3/4">
                 {loadingSchema ? (
