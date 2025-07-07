@@ -29,6 +29,7 @@ export interface Column {
 
 export interface TableSchema {
   tableId: string;
+  description?: string; 
   columns: Column[];
 }
 

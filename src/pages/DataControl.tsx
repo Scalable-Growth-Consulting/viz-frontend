@@ -1,13 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import CsvXlsxUploader from '@/components/CsvXlsxUploader';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import SchemaEditor from '@/components/SchemaEditor';
-import { TableSchema, Column } from './TableExplorer';
-import { useState } from 'react';
+import { TableSchema } from './TableExplorer';
 import Header from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-
 
 
 const mockTables: { id: string; name: string }[] = [
@@ -57,15 +55,28 @@ interface KPI {
 }
 
 const DataControl = () => {
+
   const { user } = useAuth();
   const [selectedTableId, setSelectedTableId] = useState<string>(mockTables[0].id);
   const [schemas, setSchemas] = useState<Record<string, TableSchema>>(mockSchemas);
+  const [loadingSchema, setLoadingSchema] = useState(false);
   const [kpis, setKpis] = useState<KPI[]>([]);
   const [editingKpi, setEditingKpi] = useState<KPI | null>(null);
   const [showKpiForm, setShowKpiForm] = useState(false);
   const [formKpi, setFormKpi] = useState<KPI>({ id: '', name: '', definition: '', formula: '', sampleQuery: '' });
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [activeTab, setActiveTab] = useState('connections');
 
+
+  useEffect(() => {
+    if (
+      activeTab === 'schema' &&
+      Object.keys(schemas).length === 0 &&
+      user?.email
+    ) {
+      fetchRealSchema(user.email);
+    }
+  }, [activeTab, user?.email]);
   const handleSave = async () => {
     try {
       const payload = {
@@ -97,6 +108,7 @@ const DataControl = () => {
   };
 
   const fetchRealSchema = async (email: string) => {
+    setLoadingSchema(true);
     try {
       const response = await fetch('https://viz-fetch-schema-286070583332.us-central1.run.app', {
         method: 'POST',
@@ -119,7 +131,7 @@ const DataControl = () => {
       if (!Array.isArray(schemaList.tables)) {
         throw new Error('Invalid schema format received from backend.');
       }
-      
+
 
       for (const item of schemaList.tables) {
         updatedSchemas[item.table_name] = {
@@ -142,6 +154,8 @@ const DataControl = () => {
     } catch (err: any) {
       console.error("Schema fetch failed:", err);
       alert(`❌ Failed to fetch schema: ${err.message}`);
+    } finally {
+      setLoadingSchema(false);
     }
   };
 
@@ -193,7 +207,15 @@ const DataControl = () => {
           <h1 className="text-3xl font-bold text-viz-dark dark:text-white mb-2">Data Control Center</h1>
           <p className="text-viz-text-secondary">Manage your data connections, schema, and KPIs</p>
         </div>
-        <Tabs defaultValue="connections" className="space-y-6">
+        <Tabs
+          defaultValue="connections"
+          className="space-y-6"
+          onValueChange={(val) => {
+            if (val === 'schema' && user?.email) {
+              fetchRealSchema(user.email);
+            }
+          }}
+        >
           <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-3 mb-6">
             <TabsTrigger value="connections" className="flex items-center gap-2">Connections</TabsTrigger>
             <TabsTrigger value="schema" className="flex items-center gap-2">Schema Management</TabsTrigger>
@@ -283,7 +305,15 @@ const DataControl = () => {
 
                 {/* Schema Editor Panel */}
                 <div className="md:w-3/4">
-                  {schemas[selectedTableId] ? (
+                {loadingSchema ? (
+                    <div className="flex justify-center items-center h-48">
+                      <div className="animate-spin rounded-full h-10 w-10 border-4 border-viz-accent border-t-transparent" />
+                    </div>
+                  ) : Object.keys(schemas).length === 0 ? (
+                    <div className="text-center text-viz-text-secondary p-6">
+                      No tables found. Please upload a file from the <strong>Connections</strong> tab first.
+                    </div>
+                  ) : schemas[selectedTableId] ? (
                     <SchemaEditor
                       schema={schemas[selectedTableId]}
                       onChange={handleSchemaChange}
@@ -294,6 +324,7 @@ const DataControl = () => {
                       Select a table to view its schema.
                     </div>
                   )}
+
                 </div>
               </div>
             </div>
@@ -403,3 +434,4 @@ const DataControl = () => {
 };
 
 export default DataControl;
+
