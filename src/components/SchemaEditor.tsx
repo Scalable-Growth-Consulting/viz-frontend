@@ -43,9 +43,13 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ schema, onChange, onSave })
     onChange({ ...schema, columns: updatedColumns });
   };
 
+  const updateTableDescription = (value: string) => {
+    onChange({ ...schema, description: value });
+  };
+
   const addEnumValue = (columnIndex: number) => {
     if (!newEnumValue.trim()) return;
-    
+
     const column = schema.columns[columnIndex];
     const updatedEnumValues = [...(column.enumValues || []), newEnumValue.trim()];
     updateColumn(columnIndex, 'enumValues', updatedEnumValues);
@@ -70,6 +74,18 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ schema, onChange, onSave })
 
   return (
     <div className="p-4">
+      {/* ✅ Table-level Description */}
+      <div className="mb-4">
+        <label className="block font-semibold text-sm mb-1">Table Description</label>
+        <Textarea
+          value={schema.description || ''}
+          onChange={(e) => updateTableDescription(e.target.value)}
+          placeholder="Describe the purpose of this table..."
+          className="min-h-[60px] resize-none"
+        />
+      </div>
+
+      {/* Table for columns */}
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
@@ -166,6 +182,7 @@ const SchemaEditor: React.FC<SchemaEditorProps> = ({ schema, onChange, onSave })
           </TableBody>
         </Table>
       </div>
+
       <div className="flex justify-end mt-4">
         <Button onClick={onSave} variant="default">Save</Button>
       </div>
