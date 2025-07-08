@@ -77,36 +77,42 @@ const DataControl = () => {
       fetchRealSchema(user.email);
     }
   }, [activeTab, user?.email]);
-  const handleSave = async () => {
+
+    const handleSave = async () => {
     try {
+      if (!user?.email) return;
+  
       const payload = {
-        email: user?.email, // use your logged-in user's email
-        tables: Object.entries(schemas).map(([table, schema]) => ({
-          table,
+        email: user.email,
+        database_name: "default_database", // You can customize this later
+        description: null, // Optional: description for the whole database
+        tables: Object.entries(schemas).map(([tableId, schema]) => ({
+          table: tableId,
+          description: schema.description || '', // ✅ table-level description
           columns: schema.columns.map((col) => ({
             name: col.name,
-            description: col.description || "", // send only name and updated description
-          })),
-        })),
+            description: col.description || '', // ✅ column-level description
+          }))
+        }))
       };
-
-      const res = await fetch('https://viz-update-schema-description-286070583332.us-central1.run.app', {
+  
+      const res = await fetch('https://viz-update-knowledge-json-286070583332.us-central1.run.app', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
+  
       const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Update failed');
+  
       console.log("Update success:", json);
-      toast.success("Schema descriptions saved successfully!");
-    } catch (error) {
+      toast.success("✅ Table & column descriptions saved to knowledge base!");
+    } catch (error: any) {
       console.error("Update error:", error);
-      toast.error("Failed to save schema descriptions.");
+      toast.error("❌ Failed to save schema to knowledge base.");
     }
   };
-
+  
   const fetchRealSchema = async (email: string) => {
     setLoadingSchema(true);
     try {
