@@ -119,29 +119,33 @@ const DataControl = () => {
       const response = await fetch('https://viz-fetch-schema-286070583332.us-central1.run.app', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email }),
       });
-
+  
       const schemaList = await response.json();
       console.log("✅ Fetched schemaList:", schemaList);
-
+  
       if (!response.ok) {
         throw new Error(schemaList.error || 'Failed to fetch schema');
       }
-
-      const updatedSchemas: Record<string, TableSchema> = {};
-      const tableList: { id: string; name: string }[] = [];
-      console.log("✅ Final updatedSchemas keys:", Object.keys(updatedSchemas));
-      console.log("✅ selectedTableId set to:", tableList[0]?.id);
-
+  
       if (!Array.isArray(schemaList.tables)) {
         throw new Error('Invalid schema format received from backend.');
       }
-
-
+  
+      const updatedSchemas: Record<string, TableSchema> = {};
+      const tableList: { id: string; name: string }[] = [];
+  
       for (const item of schemaList.tables) {
-        updatedSchemas[item.table_name] = {
-          tableId: item.table_name,
+        const tableId = item.table_name || item.table;
+  
+        if (!tableId) {
+          console.warn("❌ Skipping item without valid table identifier:", item);
+          continue;
+        }
+  
+        updatedSchemas[tableId] = {
+          tableId,
           columns: item.columns.map((col: any) => ({
             name: col.name,
             dataType: col.type,
@@ -149,16 +153,25 @@ const DataControl = () => {
             enumValues: col.enums || [],
             isRequired: col.mode === 'REQUIRED',
             mode: col.mode
-          }))
+          })),
+          description: item.description || ''
         };
-        tableList.push({ id: item.table_name, name: item.table_name });
+  
+        tableList.push({ id: tableId, name: tableId });
       }
-
+  
       setSchemas(updatedSchemas);
-      setSelectedTableId(tableList[0]?.id || '');
-
+  
+      // ✅ Only set selectedTableId if it's not already set
+      if (!selectedTableId && tableList.length > 0) {
+        setSelectedTableId(tableList[0].id);
+        console.log("✅ selectedTableId set to:", tableList[0].id);
+      }
+  
+      console.log("✅ Final updatedSchemas keys:", Object.keys(updatedSchemas));
+  
     } catch (err: any) {
-      console.error("Schema fetch failed:", err);
+      console.error("❌ Schema fetch failed:", err);
       alert(`❌ Failed to fetch schema: ${err.message}`);
     } finally {
       setLoadingSchema(false);
