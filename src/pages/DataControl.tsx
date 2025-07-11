@@ -92,6 +92,9 @@ const DataControl = () => {
           columns: schema.columns.map((col) => ({
             name: col.name,
             description: col.description || '', // ✅ column-level description
+            type: col.dataType || '', // type
+            enums: col.enumValues && col.enumValues.length > 0 ? col.enumValues : undefined  // ✅ Saving enums
+
           }))
         }))
       };
@@ -264,9 +267,7 @@ const DataControl = () => {
                   onFileUpload={(file, msg) => {
                     setUploadSuccess(true); // ✅ Show success
                     setTimeout(() => setUploadSuccess(false), 4000); // Auto-hide tick
-                    if (user?.email) {
-                      fetchRealSchema(user.email);
-                    }
+
                   }}
                 />
               </div>
