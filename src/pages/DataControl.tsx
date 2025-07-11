@@ -92,6 +92,9 @@ const DataControl = () => {
           columns: schema.columns.map((col) => ({
             name: col.name,
             description: col.description || '', // ✅ column-level description
+            type: col.dataType || '', // type
+            enums: col.enumValues && col.enumValues.length > 0 ? col.enumValues : undefined  // ✅ Saving enums
+
           }))
         }))
       };
