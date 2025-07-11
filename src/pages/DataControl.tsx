@@ -298,58 +298,58 @@ const DataControl = () => {
               <p className="text-sm text-viz-text-secondary mb-4">
                 View and edit your tables, columns, data types, and descriptions. Edit enum values as needed.
               </p>
-              <div className="flex flex-col md:flex-row gap-6">
-                {/* Sidebar: Dynamic Tables */}
-                {!loadingSchema && Object.keys(schemas).length > 0 && (
-                <div className="md:w-1/4">
-                  <div className="font-semibold mb-2">Tables</div>
-                  <ul className="space-y-2">
-                    {Object.keys(schemas).map((tableId) => (
-                      <li key={tableId} >
-                        <button
-                          className={`w-full text-left px-3 py-2 rounded-lg transition font-medium ${selectedTableId === tableId
-                            ? 'bg-viz-accent text-white'
-                            : 'bg-viz-light/30 dark:bg-viz-dark/30 text-viz-dark dark:text-white hover:bg-viz-accent/20'
-                            }`}
-                          title={tableId} // 👈 shows full name on hover
-                          onClick={() => setSelectedTableId(tableId)}
-                        >
 
-
-                          <span className="block truncate">{tableId}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+              {loadingSchema ? (
+                <div className="flex justify-center items-center min-h-[300px] w-full">
+                  <div className="animate-spin rounded-full h-10 w-10 border-4 border-viz-accent border-t-transparent" />
                 </div>
-                )}
-                {/* Schema Editor Panel */}
-                <div className="md:w-3/4">
-                {loadingSchema ? (
-                    <div className="flex justify-center items-center h-48">
-                      <div className="animate-spin rounded-full h-10 w-10 border-4 border-viz-accent border-t-transparent" />
-                    </div>
-                  ) : Object.keys(schemas).length === 0 ? (
-                    <div className="text-center text-viz-text-secondary p-6">
-                      No tables found. Please upload a file from the <strong>Connections</strong> tab first.
-                    </div>
-                  ) : schemas[selectedTableId] ? (
-                    <SchemaEditor
-                      schema={schemas[selectedTableId]}
-                      onChange={handleSchemaChange}
-                      onSave={handleSave}
-                    />
-                  ) : (
-                    <div className="text-sm text-viz-text-secondary p-4">
-                      Select a table to view its schema.
+              ) : (
+                <div className="flex flex-col md:flex-row gap-6">
+                  {/* Sidebar: Dynamic Tables */}
+                  {Object.keys(schemas).length > 0 && (
+                    <div className="md:w-1/4">
+                      <div className="font-semibold mb-2">Tables</div>
+                      <ul className="space-y-2">
+                        {Object.keys(schemas).map((tableId) => (
+                          <li key={tableId}>
+                            <button
+                              className={`w-full text-left px-3 py-2 rounded-lg transition font-medium ${selectedTableId === tableId
+                                  ? 'bg-viz-accent text-white'
+                                  : 'bg-viz-light/30 dark:bg-viz-dark/30 text-viz-dark dark:text-white hover:bg-viz-accent/20'
+                                }`}
+                              title={tableId}
+                              onClick={() => setSelectedTableId(tableId)}
+                            >
+                              <span className="block truncate">{tableId}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
 
+                  {/* Schema Editor Panel */}
+                  <div className="md:w-3/4">
+                    {Object.keys(schemas).length === 0 ? (
+                      <div className="text-center text-viz-text-secondary p-6">
+                        No tables found. Please upload a file from the <strong>Connections</strong> tab first.
+                      </div>
+                    ) : schemas[selectedTableId] ? (
+                      <SchemaEditor
+                        schema={schemas[selectedTableId]}
+                        onChange={handleSchemaChange}
+                        onSave={handleSave}
+                      />
+                    ) : (
+                      <div className="text-sm text-viz-text-secondary p-4">
+                        Select a table to view its schema.
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </TabsContent>
-
           {/* KPI Tab */}
           <TabsContent value="kpis" className="space-y-6">
             <div className="rounded-lg border p-6 bg-white dark:bg-viz-medium shadow-md">
