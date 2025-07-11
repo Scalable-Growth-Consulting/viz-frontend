@@ -264,9 +264,7 @@ const DataControl = () => {
                   onFileUpload={(file, msg) => {
                     setUploadSuccess(true); // ✅ Show success
                     setTimeout(() => setUploadSuccess(false), 4000); // Auto-hide tick
-                    if (user?.email) {
-                      fetchRealSchema(user.email);
-                    }
+
                   }}
                 />
               </div>
