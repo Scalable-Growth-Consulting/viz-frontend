@@ -74,7 +74,7 @@ const Index = () => {
 
       // Call inference via Supabase Edge Function
       const { data: inferenceResult, error: inferenceError } = await supabase.functions.invoke('inference', {
-        body: { prompt: query }
+        body: { prompt: query, email: user?.email || '' }
       });
 
       if (inferenceError) {
