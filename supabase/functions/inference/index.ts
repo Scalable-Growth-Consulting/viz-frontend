@@ -16,18 +16,19 @@ serve(async (req) => {
 
   try {
     console.log('=== Inference Function Started ===');
-    const { prompt } = await req.json();
+    const { prompt, email } = await req.json();
     console.log('Prompt:', prompt);
+    console.log('Email:', email);
 
     // Create AbortController for timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_DURATION);
 
     try {
-      const text2sqlResponse = await fetch('https://text-sql-v2-286070583332.us-central1.run.app', {
+      const text2sqlResponse = await fetch('https://text2sql-agent-dynamic-286070583332.us-central1.run.app', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: prompt }),
+        body: JSON.stringify({ query: prompt, email }),
         signal: controller.signal
       });
 

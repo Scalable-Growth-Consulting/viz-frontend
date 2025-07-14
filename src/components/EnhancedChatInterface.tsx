@@ -105,7 +105,8 @@ const EnhancedChatInterface: React.FC = () => {
       // Call inference edge function
       const { data: inferenceResult, error: inferenceError } = await supabase.functions.invoke('inference', {
         body: {
-          prompt: prompt.trim()
+          prompt: prompt.trim(),
+          email: user?.email || ''
         }
       });
 
