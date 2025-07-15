@@ -84,16 +84,16 @@ const DataControl = () => {
   
       const payload = {
         email: user.email,
-        database_name: "default_database", // You can customize this later
-        description: null, // Optional: description for the whole database
+        database_name: "ecometriciq",
+        description: null,
         tables: Object.entries(schemas).map(([tableId, schema]) => ({
           table: tableId,
-          description: schema.description || '', // ✅ table-level description
+          description: schema.description || '',
           columns: schema.columns.map((col) => ({
             name: col.name,
-            description: col.description || '', // ✅ column-level description
-            type: col.dataType || '', // type
-            enums: col.enumValues && col.enumValues.length > 0 ? col.enumValues : undefined  // ✅ Saving enums
+            description: col.description || '',
+            type: col.dataType || '',
+            enums: col.enumValues && col.enumValues.length > 0 ? col.enumValues : undefined
 
           }))
         }))
