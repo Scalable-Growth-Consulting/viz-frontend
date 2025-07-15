@@ -66,6 +66,8 @@ const DataControl = () => {
   const [formKpi, setFormKpi] = useState<KPI>({ id: '', name: '', definition: '', formula: '', sampleQuery: '' });
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState('connections');
+  const [databaseName, setDatabaseName] = useState<string>('default_database'); // initial fallback
+
 
 
   useEffect(() => {
@@ -84,16 +86,17 @@ const DataControl = () => {
   
       const payload = {
         email: user.email,
-        database_name: "ecometriciq",
+        database_name: databaseName,
         description: null,
         tables: Object.entries(schemas).map(([tableId, schema]) => ({
-          table: tableId,
+          table_name: tableId,
           description: schema.description || '',
           columns: schema.columns.map((col) => ({
-            name: col.name,
             description: col.description || '',
-            type: col.dataType || '',
-            enums: col.enumValues && col.enumValues.length > 0 ? col.enumValues : undefined
+            enums: col.enumValues && col.enumValues.length > 0 ? col.enumValues : undefined,
+            name: col.name,
+            type: col.dataType || ''
+            
 
           }))
         }))
@@ -126,6 +129,10 @@ const DataControl = () => {
       });
   
       const schemaList = await response.json();
+      // ✅ Store the database_name
+     if (schemaList.database_name) {
+      setDatabaseName(schemaList.database_name);
+      }
       console.log("✅ Fetched schemaList:", schemaList);
   
       if (!response.ok) {
