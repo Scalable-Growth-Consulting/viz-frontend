@@ -58,7 +58,7 @@ const DataControl = () => {
 
   const { user } = useAuth();
   const [selectedTableId, setSelectedTableId] = useState<string>(mockTables[0].id);
-  const [schemas, setSchemas] = useState<Record<string, TableSchema>>(mockSchemas);
+  const [schemas, setSchemas] = useState<Record<string, TableSchema>>({});
   const [loadingSchema, setLoadingSchema] = useState(false);
   const [kpis, setKpis] = useState<KPI[]>([]);
   const [editingKpi, setEditingKpi] = useState<KPI | null>(null);
@@ -180,12 +180,18 @@ const DataControl = () => {
   
       console.log("✅ Final updatedSchemas keys:", Object.keys(updatedSchemas));
   
-    } catch (err: any) {
-      console.error("❌ Schema fetch failed:", err);
-      alert(`❌ Failed to fetch schema: ${err.message}`);
+      } catch (err: any) {
+       console.error("❌ Schema fetch failed:", err);
+       toast.error(
+      "❌ Schema fetch failed. Please upload a data file from the Connections tab first."
+       );
+
+       setSchemas({}); // Ensure no fallback data
+       setSelectedTableId(""); // Clear selected table
     } finally {
       setLoadingSchema(false);
     }
+
   };
 
   const handleSchemaChange = (updatedSchema: TableSchema) => {
@@ -311,38 +317,42 @@ const DataControl = () => {
                 <div className="flex justify-center items-center min-h-[300px] w-full">
                   <div className="animate-spin rounded-full h-10 w-10 border-4 border-viz-accent border-t-transparent" />
                 </div>
+              ) : Object.keys(schemas).length === 0 ? (
+                <div className="flex justify-center items-center min-h-[300px] w-full">
+                  <div className="bg-viz-accent/10 dark:bg-viz-accent/20 border border-viz-accent text-viz-dark dark:text-white rounded-lg p-6 text-center max-w-md w-full">
+                    <h4 className="text-md font-semibold mb-2">No schema found</h4>
+                    <p className="text-sm">
+                      We couldn’t find any schema in your account. Please upload a CSV or XLSX file from the <strong>Connections</strong> tab to get started.
+                    </p>
+                  </div>
+
+                </div>
               ) : (
                 <div className="flex flex-col md:flex-row gap-6">
                   {/* Sidebar: Dynamic Tables */}
-                  {Object.keys(schemas).length > 0 && (
-                    <div className="md:w-1/4">
-                      <div className="font-semibold mb-2">Tables</div>
-                      <ul className="space-y-2">
-                        {Object.keys(schemas).map((tableId) => (
-                          <li key={tableId}>
-                            <button
-                              className={`w-full text-left px-3 py-2 rounded-lg transition font-medium ${selectedTableId === tableId
-                                  ? 'bg-viz-accent text-white'
-                                  : 'bg-viz-light/30 dark:bg-viz-dark/30 text-viz-dark dark:text-white hover:bg-viz-accent/20'
-                                }`}
-                              title={tableId}
-                              onClick={() => setSelectedTableId(tableId)}
-                            >
-                              <span className="block truncate">{tableId}</span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                  <div className="md:w-1/4">
+                    <div className="font-semibold mb-2">Tables</div>
+                    <ul className="space-y-2">
+                      {Object.keys(schemas).map((tableId) => (
+                        <li key={tableId}>
+                          <button
+                            className={`w-full text-left px-3 py-2 rounded-lg transition font-medium ${selectedTableId === tableId
+                              ? 'bg-viz-accent text-white'
+                              : 'bg-viz-light/30 dark:bg-viz-dark/30 text-viz-dark dark:text-white hover:bg-viz-accent/20'
+                              }`}
+                            title={tableId}
+                            onClick={() => setSelectedTableId(tableId)}
+                          >
+                            <span className="block truncate">{tableId}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
                   {/* Schema Editor Panel */}
                   <div className="md:w-3/4">
-                    {Object.keys(schemas).length === 0 ? (
-                      <div className="text-center text-viz-text-secondary p-6">
-                        No tables found. Please upload a file from the <strong>Connections</strong> tab first.
-                      </div>
-                    ) : schemas[selectedTableId] ? (
+                    {schemas[selectedTableId] ? (
                       <SchemaEditor
                         schema={schemas[selectedTableId]}
                         onChange={handleSchemaChange}
