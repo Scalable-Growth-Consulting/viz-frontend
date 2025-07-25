@@ -22,11 +22,6 @@ import {
   Title,
   PointElement
 } from 'chart.js';
-import { invokeWithRetry } from "@/integrations/supabase/client";
-import { showErrorToast } from "@/lib/toastUtils";
-import type { InferenceFunctionResponse, GenerateChartFunctionResponse } from '@/types/data';
-import { debounce } from '@/lib/debounce';
-import { useRef } from 'react';
 
 // Register Chart.js components
 ChartJS.register(
@@ -73,7 +68,6 @@ const EnhancedChatInterface: React.FC = () => {
   
   const { user } = useAuth();
   const { toast } = useToast();
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -97,65 +91,63 @@ const EnhancedChatInterface: React.FC = () => {
   };
 
   const handleSubmitPrompt = async () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+    if (!prompt.trim()) {
+      toast({
+        title: "Empty prompt",
+        description: "Please enter a question or request",
+        variant: "destructive",
+      });
+      return;
     }
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    const requestId = Date.now();
+
     setLoading(true);
-    console.log(`[${requestId}] handleSubmitPrompt started`);
     try {
-      if (!prompt.trim()) {
-        showErrorToast("Empty prompt", "Please enter a question or request");
-        setLoading(false);
-        console.log(`[${requestId}] Empty prompt, exiting early.`);
-        return;
-      }
-      if (!user) {
-        showErrorToast("User not found", "You must be logged in to submit a prompt.");
-        setLoading(false);
-        console.log(`[${requestId}] User not found, exiting early.`);
-        return;
-      }
-      const timeoutId = setTimeout(() => controller.abort(), 240000); // 4 minutes
-      console.log(`[${requestId}] About to call supabase.functions.invoke('inference')`);
-      const { data: inferenceResult, error: inferenceError } = await invokeWithRetry<InferenceFunctionResponse>('inference', {
+      // Call inference edge function
+      const { data: inferenceResult, error: inferenceError } = await supabase.functions.invoke('inference', {
         body: {
           prompt: prompt.trim(),
           email: user?.email || ''
         }
       });
-      clearTimeout(timeoutId);
-      console.log(`[${requestId}] Supabase inference response:`, { inferenceResult, inferenceError });
+
       if (inferenceError) {
         throw new Error(inferenceError.message || 'Failed to process query');
       }
+
       if (!inferenceResult || !inferenceResult.success) {
         throw new Error(inferenceResult?.error || 'Failed to process query');
       }
+
       const inferenceData = inferenceResult.data;
+
       // Log data sent to generate-chart edge function
-      console.log(`[${requestId}] --- Calling generate-chart function ---`);
+      console.log('--- Calling generate-chart function ---');
       const chartRequestBody = {
         sql: inferenceData.sql,
         data: inferenceData.queryData,
         inference: inferenceData.answer,
         User_query: prompt.trim()
       };
-      console.log(`[${requestId}] Data sent to generate-chart:`, chartRequestBody);
+      console.log('Data sent to generate-chart:', chartRequestBody);
+
       // Call generate-chart edge function immediately after inference
-      const chartController = new AbortController();
-      const chartTimeoutId = setTimeout(() => chartController.abort(), 240000); // 4 minutes
-      const { data: chartResult, error: chartError } = await invokeWithRetry<GenerateChartFunctionResponse>('generate-chart', {
+      const { data: chartResult, error: chartError } = await supabase.functions.invoke('generate-chart', {
         body: chartRequestBody
       });
-      clearTimeout(chartTimeoutId);
-      console.log(`[${requestId}] Response from generate-chart:`, { chartResult, chartError });
+
+      // Log response from generate-chart edge function
+      console.log('Response from generate-chart:', { chartResult, chartError });
+
       if (chartError) {
-        console.error(`[${requestId}] Chart generation failed:`, chartError);
-        showErrorToast("Chart Generation Failed", chartError.message || 'Failed to generate chart for the query.');
+        console.error('Chart generation failed:', chartError);
+        // Don't throw error, allow query to proceed without chart
+        toast({
+          title: "Chart Generation Failed",
+          description: chartError.message || 'Failed to generate chart for the query.',
+          variant: 'destructive'
+        });
       }
+
       // Create new chat session with both inference and chart response
       const { data: sessionData, error: sessionError } = await supabase
         .from('chat_sessions')
@@ -175,33 +167,32 @@ const EnhancedChatInterface: React.FC = () => {
         }])
         .select()
         .single();
+
       if (sessionError) {
         throw sessionError;
       }
+
       setCurrentSession({ ...sessionData, metadata: sessionData.metadata as Json | null });
       setPrompt('');
       setActiveTab('answer');
       loadRecentSessions();
+
       toast({
         title: "Success",
         description: "Your query has been processed successfully",
       });
-      console.log(`[${requestId}] handleSubmitPrompt finished successfully.`);
     } catch (error) {
-      if (error.name === 'AbortError') {
-        showErrorToast("Timeout", "The request took too long and was aborted. Please try again.");
-        console.error(`[${requestId}] Request timed out (aborted).`, error);
-      } else {
-        showErrorToast("Error", error.message || "Failed to process your request. Please check the console for more details.");
-        console.error(`[${requestId}] Error submitting prompt:`, error);
-      }
+      console.error('Error submitting prompt:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process your request. Please check the console for more details.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
-      console.log(`[${requestId}] handleSubmitPrompt finished (finally block).`);
+      setChartLoading(false);
     }
   };
-
-  const debouncedHandleSubmitPrompt = debounce(handleSubmitPrompt, 400);
 
   const executeChartScript = (chartCode: string) => {
     try {
@@ -283,12 +274,12 @@ const EnhancedChatInterface: React.FC = () => {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    debouncedHandleSubmitPrompt();
+                    handleSubmitPrompt();
                   }
                 }}
               />
               <Button
-                onClick={debouncedHandleSubmitPrompt}
+                onClick={handleSubmitPrompt}
                 disabled={loading || !prompt.trim()}
                 className="bg-viz-accent hover:bg-viz-accent-light"
               >

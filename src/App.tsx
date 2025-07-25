@@ -2,7 +2,6 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster } from './components/ui/toaster';
-import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import Index from './pages/Index';
 import Auth from './pages/Auth';
 import DataControl from './pages/DataControl';
@@ -35,27 +34,25 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 function App() {
   return (
     <AuthProvider>
-      <ErrorBoundary>
-        <div className="App">
-          <Routes>
-            {/* All routes will be here */}
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="*" element={
-              <ProtectedRoute>
-                <NotFound />
-              </ProtectedRoute>
-            } />
-            {/* Protected routes */}
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-            <Route path="/data-control" element={<ProtectedRoute><DataControl /></ProtectedRoute>} />
-            <Route path="/table-explorer" element={<ProtectedRoute><TableExplorer /></ProtectedRoute>} />
-            <Route path="/tips" element={<ProtectedRoute><Tips /></ProtectedRoute>} />
-            <Route path="/profile" element={<Profile />} />
-          </Routes>
-          <Toaster />
-        </div>
-      </ErrorBoundary>
+      <div className="App">
+        <Routes>
+          {/* All routes will be here */}
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="*" element={
+            <ProtectedRoute>
+              <NotFound />
+            </ProtectedRoute>
+          } />
+          {/* Protected routes */}
+          <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+          <Route path="/data-control" element={<ProtectedRoute><DataControl /></ProtectedRoute>} />
+          <Route path="/table-explorer" element={<ProtectedRoute><TableExplorer /></ProtectedRoute>} />
+          <Route path="/tips" element={<ProtectedRoute><Tips /></ProtectedRoute>} />
+          <Route path="/profile" element={<Profile />} />
+        </Routes>
+        <Toaster />
+      </div>
     </AuthProvider>
   );
 }
