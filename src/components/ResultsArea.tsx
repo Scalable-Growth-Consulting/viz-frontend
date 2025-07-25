@@ -2,7 +2,7 @@ import React from 'react';
 import { FileTextIcon, DatabaseIcon, ChartBarIcon } from 'lucide-react';
 import TabContent from './TabContent';
 import Loader from './ui/loader';
-import { ChartData } from '../pages/Index';
+import { ChartData } from '../types/data';
 
 interface ResultsAreaProps {
   queryResult: string | null;
