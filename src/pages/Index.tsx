@@ -7,7 +7,11 @@ import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
-import { QueryResponse, ChartData } from '../types/data';
+import type { InferenceFunctionResponse, GenerateChartFunctionResponse } from '@/types/data';
+import { invokeWithRetry } from "@/integrations/supabase/client";
+import { showErrorToast } from "@/lib/toastUtils";
+import { debounce } from '@/lib/debounce';
+import { useRef } from 'react';
 
 type APIResponse<T> = { data: T | null; error: Error | null; };
 
@@ -48,6 +52,7 @@ const Index = () => {
   const { user, loading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Show loading spinner while checking auth
   if (loading) {
@@ -66,44 +71,53 @@ const Index = () => {
 
   // Handle user query submission
   const handleQuerySubmit = async (query: string) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const requestId = Date.now();
     setIsQueryLoading(true);
-    
+    console.log(`[${requestId}] handleQuerySubmit started`);
     try {
-      console.log('=== Processing query ===');
-      console.log('Query:', query);
-
-      // Call inference via Supabase Edge Function
-      const { data: inferenceResult, error: inferenceError } = await supabase.functions.invoke('inference', {
+      if (!query.trim()) {
+        showErrorToast("Empty query", "Please enter a question or request");
+        setIsQueryLoading(false);
+        console.log(`[${requestId}] Empty query, exiting early.`);
+        return;
+      }
+      if (!user) {
+        showErrorToast("User not found", "You must be logged in to submit a query.");
+        setIsQueryLoading(false);
+        console.log(`[${requestId}] User not found, exiting early.`);
+        return;
+      }
+      const timeoutId = setTimeout(() => controller.abort(), 240000); // 4 minutes
+      console.log(`[${requestId}] About to call supabase.functions.invoke('inference')`);
+      const { data: inferenceResult, error: inferenceError } = await invokeWithRetry<InferenceFunctionResponse>('inference', {
         body: { prompt: query, email: user?.email || '' }
       });
-
+      clearTimeout(timeoutId);
+      console.log(`[${requestId}] Supabase inference response:`, { inferenceResult, inferenceError });
       if (inferenceError) {
         throw new Error(inferenceError.message || 'Failed to process query');
       }
-
       if (!inferenceResult || !inferenceResult.success) {
-        console.error('Inference unsuccessful:', inferenceResult);
+        console.error(`[${requestId}] Inference unsuccessful:`, inferenceResult);
         throw new Error(inferenceResult?.error || 'Failed to process query');
       }
-
-      // Immediately update UI with inference results and SQL
       setQueryResult(inferenceResult.data.answer);
       setSqlQuery(inferenceResult.data.sql);
-      setIsQueryLoading(false); // Stop the main loading state
-      
-      // If we have query data, start chart generation in parallel
+      setIsQueryLoading(false);
       if (inferenceResult.data.queryData) {
-        console.log('queryData is present. Attempting chart generation...');
+        console.log(`[${requestId}] queryData is present. Attempting chart generation...`);
         let transformedQueryData = inferenceResult.data.queryData;
-        // Check if queryData is a nested array like [[value]] and flatten it
         if (Array.isArray(transformedQueryData) && transformedQueryData.length > 0 && Array.isArray(transformedQueryData[0])) {
-          transformedQueryData = transformedQueryData[0]; // Take the inner array
+          transformedQueryData = transformedQueryData[0];
         }
-
-        setIsChartLoading(true); // Only set chart loading state
+        setIsChartLoading(true);
         (async () => {
           try {
-            // Insert the chat session and get the sessionId
             const { data: sessionData, error: sessionError } = await supabase
               .from('chat_sessions')
               .insert([{
@@ -119,56 +133,58 @@ const Index = () => {
               }])
               .select()
               .single();
-
             if (sessionError) {
               throw sessionError;
             }
-
-            // Now call generate-chart with the sessionId
-            const { data: chartResult, error: chartError } = await supabase.functions.invoke('generate-chart', {
+            const chartController = new AbortController();
+            const chartTimeoutId = setTimeout(() => chartController.abort(), 240000); // 4 minutes
+            console.log(`[${requestId}] About to call supabase.functions.invoke('generate-chart')`);
+            const { data: chartResult, error: chartError } = await invokeWithRetry<GenerateChartFunctionResponse>('generate-chart', {
               body: { sessionId: sessionData.id }
             });
-
+            clearTimeout(chartTimeoutId);
+            console.log(`[${requestId}] Supabase generate-chart response:`, { chartResult, chartError });
             if (chartError) {
               throw new Error(chartError.message || 'Failed to generate chart');
             }
-
             if (chartResult && chartResult.chart_code) {
-              console.log('Chart script received successfully.');
               setChartData({ chartScript: chartResult.chart_code });
-              setActiveTab('charts'); // Automatically switch to charts tab
+              setActiveTab('charts');
             } else {
-              console.warn('Chart generation successful but no script returned.', chartResult);
               setChartData({ chartScript: null });
             }
-
           } catch (chartError) {
-            console.error('Error during chart generation:', chartError);
-            toast({
-              title: "Chart generation failed",
-              description: "There was a problem generating the chart. Please try again.",
-              variant: "destructive",
-            });
+            if (chartError.name === 'AbortError') {
+              showErrorToast("Chart generation timeout", "The chart generation request took too long and was aborted. Please try again.");
+              console.error(`[${requestId}] Chart generation request timed out (aborted).`, chartError);
+            } else {
+              showErrorToast("Chart generation failed", chartError.message || "There was a problem generating the chart. Please try again.");
+              console.error(`[${requestId}] Error during chart generation:`, chartError);
+            }
           } finally {
             setIsChartLoading(false);
+            console.log(`[${requestId}] Chart generation finished (finally block).`);
           }
         })();
       } else {
-        setIsChartLoading(false); // Ensure loader is off if no chart data
+        setIsChartLoading(false);
       }
-
-      console.log('=== Query processed successfully ===');
+      console.log(`[${requestId}] handleQuerySubmit finished successfully.`);
     } catch (error) {
-      console.error('Error processing query:', error);
-      toast({
-        title: "Query failed",
-        description: "There was a problem processing your query. Please try again.",
-        variant: "destructive",
-      });
+      if (error.name === 'AbortError') {
+        showErrorToast("Timeout", "The request took too long and was aborted. Please try again.");
+        console.error(`[${requestId}] Request timed out (aborted).`, error);
+      } else {
+        showErrorToast("Query failed", error.message || "There was a problem processing your query. Please try again.");
+        console.error(`[${requestId}] Error processing query:`, error);
+      }
       setIsQueryLoading(false);
       setIsChartLoading(false);
+      console.log(`[${requestId}] handleQuerySubmit finished (finally block).`);
     }
   };
+
+  const debouncedHandleQuerySubmit = debounce(handleQuerySubmit, 400);
 
   // Handle tab change
   const handleTabChange = (tab: 'answer' | 'sql' | 'charts') => {
@@ -187,7 +203,7 @@ const Index = () => {
           <div className="lg:col-span-1 flex flex-col">
             <div className="bg-white dark:bg-viz-medium backdrop-blur-sm rounded-2xl shadow-lg border border-slate-100 dark:border-viz-light/20 p-5 animate-fade-in">
               <ChatInterface 
-                onQuerySubmit={handleQuerySubmit} 
+                onQuerySubmit={debouncedHandleQuerySubmit} 
                 isLoading={isQueryLoading}
               />
             </div>
