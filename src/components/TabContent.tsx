@@ -19,12 +19,6 @@ useEffect(() => {
 
     const injectScript = (src: string) => {
       return new Promise<void>((resolve, reject) => {
-        // Check if script is already loaded
-        if (document.querySelector(`script[src="${src}"]`)) {
-          resolve();
-          return;
-        }
-        
         const script = document.createElement('script');
         script.src = src;
         script.async = false;
@@ -59,55 +53,22 @@ useEffect(() => {
 
     (async () => {
       try {
-        console.log('Loading chart libraries...');
         for (const lib of chartJsLibs) {
           await injectScript(lib);
         }
-        console.log('Chart libraries loaded successfully');
 
         // Only run script if component is still mounted and container is present
-        if (!isMounted) {
-          console.log('Component unmounted, skipping chart script execution');
-          return;
-        }
+        if (!isMounted) return;
 
         const chartContainer = document.getElementById('chart-container');
         if (chartContainer) {
-          console.log('Executing chart script...');
           const scriptElement = document.createElement('script');
           scriptElement.type = 'text/javascript';
           scriptElement.innerHTML = jsCode;
-          
-          // Add error handling for chart script execution
-          scriptElement.onerror = (error) => {
-            console.error('Error executing chart script:', error);
-            if (chartContainer) {
-              chartContainer.innerHTML = `
-                <div class="flex flex-col items-center justify-center h-full text-center p-4">
-                  <div class="text-red-500 mb-2">⚠️</div>
-                  <p class="text-sm text-gray-600 dark:text-gray-400">
-                    Failed to render chart. Please try regenerating.
-                  </p>
-                </div>
-              `;
-            }
-          };
-          
           chartContainer.appendChild(scriptElement);
-          console.log('Chart script executed successfully');
         }
       } catch (err) {
         console.error('Error loading chart libraries or script:', err);
-        if (container) {
-          container.innerHTML = `
-            <div class="flex flex-col items-center justify-center h-full text-center p-4">
-              <div class="text-yellow-500 mb-2">⚠️</div>
-              <p class="text-sm text-gray-600 dark:text-gray-400">
-                Failed to load chart dependencies. Please check your connection.
-              </p>
-            </div>
-          `;
-        }
       }
     })();
   }
