@@ -20,22 +20,8 @@ export async function inference(prompt: string, maxRetries = 3) {
       });
 
       if (!response.ok) {
-        let errorData;
-        try {
-          const errorText = await response.text();
-          errorData = JSON.parse(errorText);
-        } catch {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        // Check if error is retryable
-        if (errorData.retryable && attempt < maxRetries) {
-          console.log(`Retryable error (${errorData.errorType}), will retry...`);
-          throw new Error(errorData.error);
-        }
-
-        // Non-retryable error or last attempt
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
       }
 
       const data = await response.json();
@@ -48,15 +34,8 @@ export async function inference(prompt: string, maxRetries = 3) {
         throw new Error(`Failed to get inference after ${maxRetries} attempts: ${error.message}`);
       }
       
-      // Dynamic retry delay based on error type
-      let delay = 1000 * Math.pow(2, attempt - 1); // Exponential backoff
-      
-      // Longer delay for service unavailable errors
-      if (error.message.includes('temporarily unavailable')) {
-        delay = Math.min(delay * 2, 20000);
-      }
-      
-      delay = Math.min(delay, 10000);
+      // Wait before retrying (exponential backoff)
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
       console.log(`Retrying in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }

@@ -39,71 +39,11 @@ serve(async (req) => {
 
       if (!text2sqlResponse.ok) {
         console.error('GCP API failed with status:', text2sqlResponse.status);
-        
-        // Check if response is HTML (server error page)
-        if (rawText.includes('<!doctype html>') || rawText.includes('<html')) {
-          console.error('Received HTML error page from GCP');
-          return new Response(
-            JSON.stringify({ 
-              error: 'The AI service is temporarily unavailable. Please try again in a few moments.',
-              errorType: 'service_unavailable',
-              retryable: true
-            }),
-            {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 503 // Service Unavailable
-            }
-          );
-        }
-        
-        return new Response(
-          JSON.stringify({ 
-            error: `AI service error: ${text2sqlResponse.statusText || 'Unknown error'}`,
-            errorType: 'api_error',
-            retryable: text2sqlResponse.status >= 500
-          }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: text2sqlResponse.status
-          }
-        );
+        throw new Error(`GCP API error: ${text2sqlResponse.statusText}`);
       }
 
-      let text2sqlResult;
-      try {
-        text2sqlResult = JSON.parse(rawText);
-      } catch (parseError) {
-        console.error('Failed to parse GCP response:', parseError);
-        return new Response(
-          JSON.stringify({ 
-            error: 'Invalid response from AI service. Please try again.',
-            errorType: 'parse_error',
-            retryable: true
-          }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 502 // Bad Gateway
-          }
-        );
-      }
-
+      const text2sqlResult = JSON.parse(rawText);
       console.log('Parsed result:', text2sqlResult);
-
-      // Validate required fields
-      if (!text2sqlResult.inference && !text2sqlResult.sql) {
-        console.error('Missing required fields in GCP response');
-        return new Response(
-          JSON.stringify({ 
-            error: 'Incomplete response from AI service. Please try again.',
-            errorType: 'incomplete_response',
-            retryable: true
-          }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 502
-          }
-        );
-      }
 
       return new Response(
         JSON.stringify({ 
@@ -123,17 +63,7 @@ serve(async (req) => {
       clearTimeout(timeoutId); // Clear timeout on error
       
       if (fetchError.name === 'AbortError') {
-        return new Response(
-          JSON.stringify({ 
-            error: 'Request timed out. The AI service is taking longer than expected to respond.',
-            errorType: 'timeout',
-            retryable: true
-          }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 504 // Gateway Timeout
-          }
-        );
+        throw new Error('Request timed out after 60 seconds. The GCP function is taking longer than expected to respond.');
       }
       throw fetchError;
     }
