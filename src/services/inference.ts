@@ -25,7 +25,17 @@ export async function inference(prompt: string, maxRetries = 3) {
           const errorText = await response.text();
           errorData = JSON.parse(errorText);
         } catch {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          // Handle 503 and other HTTP errors more gracefully
+          if (response.status === 503) {
+            throw new Error('The AI service is temporarily unavailable. Please try again in a moment.');
+          }
+          throw new Error(`Service error (${response.status}). Please try again.`);
+        }
+
+        // Always retry on service unavailable errors
+        if (response.status === 503 && attempt < maxRetries) {
+          console.log('Service unavailable, will retry...');
+          throw new Error('Service temporarily unavailable');
         }
 
         // Check if error is retryable
@@ -35,7 +45,7 @@ export async function inference(prompt: string, maxRetries = 3) {
         }
 
         // Non-retryable error or last attempt
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(errorData.error || `Service error (${response.status}). Please try again.`);
       }
 
       const data = await response.json();
@@ -45,18 +55,18 @@ export async function inference(prompt: string, maxRetries = 3) {
       console.error(`Inference attempt ${attempt} failed:`, error);
       
       if (attempt === maxRetries) {
-        throw new Error(`Failed to get inference after ${maxRetries} attempts: ${error.message}`);
+        throw new Error(`The AI service is currently experiencing issues. Please try again in a few minutes.`);
       }
       
       // Dynamic retry delay based on error type
       let delay = 1000 * Math.pow(2, attempt - 1); // Exponential backoff
       
       // Longer delay for service unavailable errors
-      if (error.message.includes('temporarily unavailable')) {
-        delay = Math.min(delay * 2, 20000);
+      if (error.message.includes('unavailable') || error.message.includes('503')) {
+        delay = Math.min(delay * 3, 30000); // Longer delay for service issues
       }
       
-      delay = Math.min(delay, 10000);
+      delay = Math.min(delay, 15000);
       console.log(`Retrying in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
