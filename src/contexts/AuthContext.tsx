@@ -3,10 +3,9 @@ import { User, Session, AuthError, Provider } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 
-// Type definitions
-
-type AuthResultData = { user: User | null; session: Session | null; };
-type OAuthResultData = { provider: Provider; url: string | null; };
+// --- Type Definitions ---
+type AuthResultData = { user: User | null; session: Session | null };
+type OAuthResultData = { provider: Provider; url: string | null };
 
 type SupabaseSignInResponse = {
   data: AuthResultData;
@@ -45,52 +44,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session);
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-
-        // Redirect to homepage if signed out
-        if (event === 'SIGNED_OUT') {
-          navigate('/');
-        }
-
-        // Handle OAuth callback for any signed-in event with provider token
-        if (event === 'SIGNED_IN' && session?.provider_token) {
-          await handleBasicOAuthCallback(session);
-        }
-      }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log(`Auth event: ${event}`, session);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-    });
 
-    // Set up interval to refresh session every 60 seconds
-    const interval = setInterval(() => {
-      console.log('Refreshing session...');
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-      });
-    }, 60000); // 60 seconds
+      if (event === 'SIGNED_OUT') {
+        navigate('/');
+      }
+
+      if (event === 'SIGNED_IN' && session?.provider_token) {
+        handleBasicOAuthCallback(session);
+      }
+    });
 
     return () => {
       subscription.unsubscribe();
-      clearInterval(interval);
     };
   }, [navigate]);
 
   const handleBasicOAuthCallback = async (session: Session) => {
     try {
       if (session.provider_token && session.provider_refresh_token) {
-        // Store basic OAuth credentials with 1-day expiration
         const { error } = await supabase
           .from('user_oauth_credentials')
           .upsert({
@@ -98,12 +74,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             provider: 'google',
             access_token_encrypted: session.provider_token,
             refresh_token_encrypted: session.provider_refresh_token,
-            token_expires_at: new Date(Date.now() + 86400000).toISOString(), // 1 day in milliseconds
-            scopes: ['https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile'],
-            is_bigquery_connected: false, // Not connected to BigQuery yet
-            updated_at: new Date().toISOString()
+            token_expires_at: new Date(Date.now() + 86400000).toISOString(),
+            scopes: [
+              'https://www.googleapis.com/auth/userinfo.email',
+              'https://www.googleapis.com/auth/userinfo.profile',
+            ],
+            is_bigquery_connected: false,
+            updated_at: new Date().toISOString(),
           }, {
-            onConflict: 'user_id,provider'
+            onConflict: 'user_id,provider',
           });
 
         if (error) {
@@ -119,20 +98,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-      },
+      options: { data: { full_name: fullName } },
     });
     return { data: { user: data.user, session: data.session }, error };
   };
 
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     return { data: { user: data.user, session: data.session }, error };
   };
 
@@ -142,43 +114,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       options: {
         redirectTo: `${window.location.origin}/`,
         scopes: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid',
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent'
-        }
+        queryParams: { access_type: 'offline', prompt: 'consent' },
       },
     });
     return { data: { provider: data.provider, url: data.url }, error };
   };
 
   const signOut = async () => {
-    console.log('Attempting to sign out...');
-    // Immediately clear local state
-    setUser(null);
-    setSession(null);
-    try {
-      // Clear Supabase session from localStorage/sessionStorage for extra safety
-      localStorage.removeItem('supabase.auth.token');
-      localStorage.removeItem('sb-aemqjpcbtgdnfypgkkhx-auth-token'); // project-specific key
-      sessionStorage.removeItem('supabase.auth.token');
-      sessionStorage.removeItem('sb-aemqjpcbtgdnfypgkkhx-auth-token');
-      // Call Supabase sign out
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Supabase sign out error:', error);
-      } else {
-        console.log('Supabase sign out successful. Redirecting...');
-      }
-    } catch (e) {
-      console.error('Unexpected error during sign out:', e);
-    } finally {
-      // Always redirect after attempting sign out
-      console.log('Executing finally block for sign out. Redirecting...');
-      navigate('/');
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Supabase sign out error:', error);
     }
   };
 
-  const value = {
+  const value: AuthContextType = {
     user,
     session,
     loading,
@@ -188,6 +137,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signOut,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
+
 
