@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Header from '../components/Header';
 import ChatInterface from '../components/ChatInterface';
 import ResultsArea from '../components/ResultsArea';
@@ -17,7 +17,7 @@ const retryFetch = async <T,>(fn: () => Promise<APIResponse<T>>, retries = 3, de
     try {
       const result = await fn();
       if (result.error && result.error.message.includes('Failed to send a request to the Edge Function')) {
-        throw result.error; // Treat network errors as retryable
+        throw result.error;
       }
       return result;
     } catch (error) {
@@ -25,11 +25,11 @@ const retryFetch = async <T,>(fn: () => Promise<APIResponse<T>>, retries = 3, de
         console.warn(`Attempt ${i + 1} failed. Retrying in ${delay / 1000}s...`, error);
         await new Promise(resolve => setTimeout(resolve, delay));
       } else {
-        throw error; // Last attempt, re-throw the error
+        throw error;
       }
     }
   }
-  throw new Error('All retry attempts failed'); // Should not be reached
+  throw new Error('All retry attempts failed');
 };
 
 const Index = () => {
@@ -38,9 +38,11 @@ const Index = () => {
   const [sqlQuery, setSqlQuery] = useState<string | null>(null);
   const [chartData, setChartData] = useState<ChartData | null>(null);
   
-  // Loading states
-  const [isQueryLoading, setIsQueryLoading] = useState(false);
-  const [isChartLoading, setIsChartLoading] = useState(false);
+  // Consolidated loading states
+  const [loadingStates, setLoadingStates] = useState({
+    query: false,
+    chart: false
+  });
   
   // UI states
   const [activeTab, setActiveTab] = useState<'answer' | 'sql' | 'charts'>('answer');
@@ -48,6 +50,22 @@ const Index = () => {
   const { user, loading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  
+  // Ref to track if component is mounted
+  const isMountedRef = useRef(true);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Helper to update loading states safely
+  const updateLoadingState = useCallback((key: keyof typeof loadingStates, value: boolean) => {
+    if (!isMountedRef.current) return;
+    setLoadingStates(prev => ({ ...prev, [key]: value }));
+  }, []);
 
   // Show loading spinner while checking auth
   if (loading) {
@@ -64,18 +82,93 @@ const Index = () => {
     return null;
   }
 
+  // Chart generation function
+  const generateChart = useCallback(async (queryData: any, query: string, answer: string, sql: string) => {
+    if (!isMountedRef.current) return;
+    
+    updateLoadingState('chart', true);
+    
+    try {
+      let transformedQueryData = queryData;
+      // Check if queryData is a nested array and flatten it
+      if (Array.isArray(transformedQueryData) && transformedQueryData.length > 0 && Array.isArray(transformedQueryData[0])) {
+        transformedQueryData = transformedQueryData[0];
+      }
+
+      // Insert the chat session
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('chat_sessions')
+        .insert([{
+          user_id: user?.id,
+          prompt: query,
+          answer: answer,
+          sql_query: sql,
+          metadata: {
+            timestamp: new Date().toISOString(),
+            data: transformedQueryData,
+            user_query: query
+          }
+        }])
+        .select()
+        .single();
+
+      if (sessionError) {
+        throw sessionError;
+      }
+
+      if (!isMountedRef.current) return;
+
+      // Generate chart
+      const { data: chartResult, error: chartError } = await supabase.functions.invoke('generate-chart', {
+        body: { sessionId: sessionData.id }
+      });
+
+      if (chartError) {
+        throw new Error(chartError.message || 'Failed to generate chart');
+      }
+
+      if (!isMountedRef.current) return;
+
+      if (chartResult && chartResult.chart_code) {
+        console.log('Chart script received successfully.');
+        setChartData({ chartScript: chartResult.chart_code });
+        setActiveTab('charts');
+      } else {
+        console.warn('Chart generation successful but no script returned.', chartResult);
+        setChartData({ chartScript: null });
+      }
+
+    } catch (error) {
+      console.error('Error during chart generation:', error);
+      if (isMountedRef.current) {
+        toast({
+          title: "Chart generation failed",
+          description: "There was a problem generating the chart. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      updateLoadingState('chart', false);
+    }
+  }, [user?.id, toast, updateLoadingState]);
+
   // Handle user query submission
   const handleQuerySubmit = async (query: string) => {
-    setIsQueryLoading(true);
+    updateLoadingState('query', true);
     
     try {
       console.log('=== Processing query ===');
       console.log('Query:', query);
 
-      // Call inference via Supabase Edge Function
-      const { data: inferenceResult, error: inferenceError } = await supabase.functions.invoke('inference', {
-        body: { prompt: query, email: user?.email || '' }
-      });
+      // Call inference via Supabase Edge Function with retry
+      const inferenceCall = async () => {
+        const { data, error } = await supabase.functions.invoke('inference', {
+          body: { prompt: query, email: user?.email || '' }
+        });
+        return { data, error };
+      };
+
+      const { data: inferenceResult, error: inferenceError } = await retryFetch(inferenceCall);
 
       if (inferenceError) {
         throw new Error(inferenceError.message || 'Failed to process query');
@@ -86,93 +179,42 @@ const Index = () => {
         throw new Error(inferenceResult?.error || 'Failed to process query');
       }
 
-      // Immediately update UI with inference results and SQL
+      if (!isMountedRef.current) return;
+
+      // Update UI with inference results
       setQueryResult(inferenceResult.data.answer);
       setSqlQuery(inferenceResult.data.sql);
-      setIsQueryLoading(false); // Stop the main loading state
+      updateLoadingState('query', false);
       
-      // If we have query data, start chart generation in parallel
+      // Generate chart if query data exists
       if (inferenceResult.data.queryData) {
         console.log('queryData is present. Attempting chart generation...');
-        let transformedQueryData = inferenceResult.data.queryData;
-        // Check if queryData is a nested array like [[value]] and flatten it
-        if (Array.isArray(transformedQueryData) && transformedQueryData.length > 0 && Array.isArray(transformedQueryData[0])) {
-          transformedQueryData = transformedQueryData[0]; // Take the inner array
-        }
-
-        setIsChartLoading(true); // Only set chart loading state
-        (async () => {
-          try {
-            // Insert the chat session and get the sessionId
-            const { data: sessionData, error: sessionError } = await supabase
-              .from('chat_sessions')
-              .insert([{
-                user_id: user?.id,
-                prompt: query,
-                answer: inferenceResult.data.answer,
-                sql_query: inferenceResult.data.sql,
-                metadata: {
-                  timestamp: new Date().toISOString(),
-                  data: transformedQueryData,
-                  user_query: query
-                }
-              }])
-              .select()
-              .single();
-
-            if (sessionError) {
-              throw sessionError;
-            }
-
-            // Now call generate-chart with the sessionId
-            const { data: chartResult, error: chartError } = await supabase.functions.invoke('generate-chart', {
-              body: { sessionId: sessionData.id }
-            });
-
-            if (chartError) {
-              throw new Error(chartError.message || 'Failed to generate chart');
-            }
-
-            if (chartResult && chartResult.chart_code) {
-              console.log('Chart script received successfully.');
-              setChartData({ chartScript: chartResult.chart_code });
-              setActiveTab('charts'); // Automatically switch to charts tab
-            } else {
-              console.warn('Chart generation successful but no script returned.', chartResult);
-              setChartData({ chartScript: null });
-            }
-
-          } catch (chartError) {
-            console.error('Error during chart generation:', chartError);
-            toast({
-              title: "Chart generation failed",
-              description: "There was a problem generating the chart. Please try again.",
-              variant: "destructive",
-            });
-          } finally {
-            setIsChartLoading(false);
-          }
-        })();
-      } else {
-        setIsChartLoading(false); // Ensure loader is off if no chart data
+        generateChart(
+          inferenceResult.data.queryData,
+          query,
+          inferenceResult.data.answer,
+          inferenceResult.data.sql
+        );
       }
 
       console.log('=== Query processed successfully ===');
     } catch (error) {
       console.error('Error processing query:', error);
-      toast({
-        title: "Query failed",
-        description: "There was a problem processing your query. Please try again.",
-        variant: "destructive",
-      });
-      setIsQueryLoading(false);
-      setIsChartLoading(false);
+      if (isMountedRef.current) {
+        toast({
+          title: "Query failed",
+          description: error instanceof Error ? error.message : "There was a problem processing your query. Please try again.",
+          variant: "destructive",
+        });
+        updateLoadingState('query', false);
+        updateLoadingState('chart', false);
+      }
     }
   };
 
   // Handle tab change
   const handleTabChange = (tab: 'answer' | 'sql' | 'charts') => {
-    if (isQueryLoading) {
+    if (loadingStates.query) {
       // Don't allow tab changes during initial query loading
       return;
     }
@@ -188,7 +230,7 @@ const Index = () => {
             <div className="bg-white dark:bg-viz-medium backdrop-blur-sm rounded-2xl shadow-lg border border-slate-100 dark:border-viz-light/20 p-5 animate-fade-in">
               <ChatInterface 
                 onQuerySubmit={handleQuerySubmit} 
-                isLoading={isQueryLoading}
+                isLoading={loadingStates.query}
               />
             </div>
           </div>
@@ -197,8 +239,8 @@ const Index = () => {
               queryResult={activeTab === 'sql' ? sqlQuery : queryResult} 
               activeTab={activeTab}
               onTabChange={handleTabChange}
-              isLoading={isQueryLoading}
-              isChartLoading={isChartLoading}
+              isLoading={loadingStates.query}
+              isChartLoading={loadingStates.chart}
               chartData={chartData}
             />
           </div>
