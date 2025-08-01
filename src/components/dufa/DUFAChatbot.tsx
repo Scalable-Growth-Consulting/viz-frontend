@@ -343,32 +343,33 @@ Could you be more specific about what aspect you'd like me to explain? I can hel
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         {/* Chat Interface */}
-        <div className="lg:col-span-3">
-          <Card className="h-[600px] flex flex-col">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center space-x-2">
-                <Bot className="w-5 h-5 text-viz-accent" />
-                <span>Forecast Analysis Chat</span>
-                <Badge variant="secondary" className="ml-auto">
+        <div className="xl:col-span-3">
+          <Card className="h-[700px] flex flex-col overflow-hidden">
+            <CardHeader className="pb-3 px-6 pt-6 flex-shrink-0">
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Bot className="w-5 h-5 text-viz-accent" />
+                  <span>Forecast Analysis Chat</span>
+                </div>
+                <Badge variant="secondary" className="text-xs">
                   {messages.length} messages
                 </Badge>
               </CardTitle>
             </CardHeader>
             
-            <CardContent className="flex-1 flex flex-col p-0">
+            <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
               {/* Messages */}
-              <ScrollArea className="flex-1 p-4">
-                <div className="space-y-4">
+              <ScrollArea className="flex-1 px-6 py-2">
+                <div className="space-y-4 pb-4">
                   {messages.map((message) => (
                     <div
                       key={message.id}
-                      className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                      className={`flex w-full ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
-                      <div className={`flex space-x-3 max-w-[80%] ${message.type === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          message.type === 'user' 
+                      <div className={`flex space-x-3 max-w-[85%] ${message.type === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${message.type === 'user' 
                             ? 'bg-viz-accent text-white' 
                             : 'bg-slate-200 dark:bg-viz-light text-slate-600 dark:text-viz-text-secondary'
                         }`}>
@@ -379,16 +380,14 @@ Could you be more specific about what aspect you'd like me to explain? I can hel
                           )}
                         </div>
                         
-                        <div className={`rounded-lg p-3 ${
-                          message.type === 'user'
+                        <div className={`rounded-lg p-3 break-words ${message.type === 'user'
                             ? 'bg-viz-accent text-white'
                             : 'bg-slate-100 dark:bg-viz-medium text-viz-dark dark:text-white'
                         }`}>
-                          <div className="whitespace-pre-wrap text-sm">
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed">
                             {message.content}
                           </div>
-                          <div className={`text-xs mt-2 ${
-                            message.type === 'user' 
+                          <div className={`text-xs mt-2 ${message.type === 'user' 
                               ? 'text-white/70' 
                               : 'text-slate-500 dark:text-viz-text-secondary'
                           }`}>
@@ -407,7 +406,7 @@ Could you be more specific about what aspect you'd like me to explain? I can hel
                                     key={index}
                                     variant="outline"
                                     size="sm"
-                                    className="text-xs h-auto py-1 px-2"
+                                    className="text-xs h-auto py-1 px-2 break-words whitespace-normal text-left"
                                     onClick={() => handleSuggestionClick(suggestion)}
                                   >
                                     {suggestion}
@@ -422,9 +421,9 @@ Could you be more specific about what aspect you'd like me to explain? I can hel
                   ))}
                   
                   {isLoading && (
-                    <div className="flex justify-start">
-                      <div className="flex space-x-3">
-                        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-viz-light flex items-center justify-center">
+                    <div className="flex justify-start w-full">
+                      <div className="flex space-x-3 max-w-[85%]">
+                        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-viz-light flex items-center justify-center flex-shrink-0">
                           <Bot className="w-4 h-4 text-slate-600 dark:text-viz-text-secondary" />
                         </div>
                         <div className="bg-slate-100 dark:bg-viz-medium rounded-lg p-3">
@@ -443,7 +442,7 @@ Could you be more specific about what aspect you'd like me to explain? I can hel
               </ScrollArea>
               
               {/* Input */}
-              <div className="border-t border-slate-200 dark:border-viz-light p-4">
+              <div className="border-t border-slate-200 dark:border-viz-light p-4 flex-shrink-0">
                 <div className="flex space-x-2">
                   <Input
                     value={inputValue}
@@ -456,7 +455,7 @@ Could you be more specific about what aspect you'd like me to explain? I can hel
                   <Button 
                     onClick={handleSendMessage}
                     disabled={!inputValue.trim() || isLoading}
-                    className="bg-viz-accent hover:bg-viz-accent/90"
+                    className="bg-viz-accent hover:bg-viz-accent/90 flex-shrink-0"
                   >
                     <Send className="w-4 h-4" />
                   </Button>
@@ -466,23 +465,23 @@ Could you be more specific about what aspect you'd like me to explain? I can hel
           </Card>
         </div>
 
-        {/* Quick Actions & Context */}
-        <div className="space-y-4">
+        {/* Side Panel */}
+        <div className="xl:col-span-1 space-y-4">
           {/* Quick Questions */}
-          <Card>
+          <Card className="overflow-hidden">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center space-x-2 text-base">
                 <Lightbulb className="w-4 h-4 text-viz-accent" />
                 <span>Quick Questions</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-2 max-h-64 overflow-y-auto">
               {suggestedQuestions.slice(0, 6).map((question, index) => (
                 <Button
                   key={index}
                   variant="ghost"
                   size="sm"
-                  className="w-full text-left justify-start h-auto py-2 px-3 text-xs"
+                  className="w-full text-left justify-start h-auto py-2 px-3 text-xs whitespace-normal break-words"
                   onClick={() => handleSuggestionClick(question)}
                 >
                   {question}
@@ -492,7 +491,7 @@ Could you be more specific about what aspect you'd like me to explain? I can hel
           </Card>
 
           {/* Context Summary */}
-          <Card>
+          <Card className="overflow-hidden">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center space-x-2 text-base">
                 <BarChart3 className="w-4 h-4 text-viz-accent" />
@@ -500,19 +499,19 @@ Could you be more specific about what aspect you'd like me to explain? I can hel
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="text-sm">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-slate-600 dark:text-viz-text-secondary">Best Model</span>
+              <div className="text-sm space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-600 dark:text-viz-text-secondary text-xs">Best Model</span>
                   <Badge className="bg-viz-accent text-xs">{bestModel.model}</Badge>
                 </div>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-slate-600 dark:text-viz-text-secondary">MAPE</span>
-                  <span className="font-medium text-viz-dark dark:text-white">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-600 dark:text-viz-text-secondary text-xs">MAPE</span>
+                  <span className="font-medium text-viz-dark dark:text-white text-xs">
                     {bestModel.metrics.mape.toFixed(2)}%
                   </span>
                 </div>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-slate-600 dark:text-viz-text-secondary">Trend</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-600 dark:text-viz-text-secondary text-xs">Trend</span>
                   <div className="flex items-center space-x-1">
                     {bestModel.insights.growth_rate > 0 ? (
                       <TrendingUp className="w-3 h-3 text-green-500" />
@@ -525,7 +524,7 @@ Could you be more specific about what aspect you'd like me to explain? I can hel
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-600 dark:text-viz-text-secondary">Anomalies</span>
+                  <span className="text-slate-600 dark:text-viz-text-secondary text-xs">Anomalies</span>
                   <div className="flex items-center space-x-1">
                     <AlertTriangle className="w-3 h-3 text-orange-500" />
                     <span className="text-xs font-medium">{bestModel.insights.anomalies}</span>
@@ -536,7 +535,7 @@ Could you be more specific about what aspect you'd like me to explain? I can hel
           </Card>
 
           {/* Chat Stats */}
-          <Card>
+          <Card className="overflow-hidden">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center space-x-2 text-base">
                 <MessageSquare className="w-4 h-4 text-viz-accent" />
@@ -545,19 +544,19 @@ Could you be more specific about what aspect you'd like me to explain? I can hel
             </CardHeader>
             <CardContent>
               <div className="text-sm space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-slate-600 dark:text-viz-text-secondary">Messages</span>
-                  <span className="font-medium text-viz-dark dark:text-white">{messages.length}</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-600 dark:text-viz-text-secondary text-xs">Messages</span>
+                  <span className="font-medium text-viz-dark dark:text-white text-xs">{messages.length}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600 dark:text-viz-text-secondary">Your Questions</span>
-                  <span className="font-medium text-viz-dark dark:text-white">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-600 dark:text-viz-text-secondary text-xs">Your Questions</span>
+                  <span className="font-medium text-viz-dark dark:text-white text-xs">
                     {messages.filter(m => m.type === 'user').length}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600 dark:text-viz-text-secondary">AI Responses</span>
-                  <span className="font-medium text-viz-dark dark:text-white">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-600 dark:text-viz-text-secondary text-xs">AI Responses</span>
+                  <span className="font-medium text-viz-dark dark:text-white text-xs">
                     {messages.filter(m => m.type === 'bot').length}
                   </span>
                 </div>
