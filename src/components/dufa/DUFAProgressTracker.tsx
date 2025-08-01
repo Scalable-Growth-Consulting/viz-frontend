@@ -125,101 +125,64 @@ const DUFAProgressTracker: React.FC<DUFAProgressTrackerProps> = ({
   const progressValue = calculateProgress();
 
   return (
-    <Card className={`bg-white/80 dark:bg-viz-medium/80 backdrop-blur-sm ${className}`}>
+    <Card className={`bg-white/90 dark:bg-viz-medium/90 backdrop-blur-sm border-0 shadow-lg ${className}`}>
       <CardContent className="p-6">
-        {/* Progress Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-viz-dark dark:text-white">
-            DUFA Workflow Progress
-          </h3>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <Badge 
-                  variant={progressValue === 100 ? "default" : "secondary"}
-                  className={progressValue === 100 ? "bg-green-600" : ""}
-                >
-                  {progressValue}% Complete
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="max-w-xs">{getProgressTooltip()}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="mb-6">
-          <Progress 
-            value={progressValue} 
-            className="h-3"
-          />
-          <div className="flex justify-between text-xs text-slate-500 dark:text-viz-text-secondary mt-2">
-            <span>0%</span>
-            <span>50% (Models Complete)</span>
-            <span>75% (Chat Complete)</span>
-            <span>100% (PDF Downloaded)</span>
+        <div className="space-y-6">
+          {/* Progress Header */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-viz-dark dark:text-white">
+              Workflow Progress
+            </h3>
+            <Badge variant="outline" className="text-sm">
+              {calculateProgress()}% Complete
+            </Badge>
           </div>
-        </div>
 
-        {/* Step Indicators */}
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
-          {steps.map((step, index) => {
-            const Icon = step.icon;
-            const status = getStepStatus(step);
-            
-            return (
-              <TooltipProvider key={step.id}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div 
-                      className={`relative p-3 rounded-lg border transition-all duration-200 cursor-pointer ${status.bgColor} ${
-                        status.status === 'current' ? 'ring-2 ring-viz-accent shadow-lg' : ''
-                      } ${
-                        status.status === 'completed' ? 'border-green-200 dark:border-green-800' : 'border-slate-200 dark:border-viz-light'
-                      }`}
-                    >
-                      {/* Step Number/Icon */}
-                      <div className="flex items-center justify-center mb-2">
-                        {status.status === 'completed' ? (
-                          <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                            <CheckCircle className="w-5 h-5 text-white" />
-                          </div>
-                        ) : status.status === 'current' ? (
-                          <div className="w-8 h-8 bg-viz-accent rounded-full flex items-center justify-center animate-pulse">
-                            <Icon className="w-5 h-5 text-white" />
-                          </div>
-                        ) : (
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-                            status.status === 'available' 
-                              ? 'border-slate-300 dark:border-viz-light bg-white dark:bg-viz-medium' 
-                              : 'border-slate-200 dark:border-viz-light/50 bg-slate-50 dark:bg-viz-medium/30'
-                          }`}>
-                            <Icon className={`w-4 h-4 ${status.color}`} />
-                          </div>
-                        )}
-                      </div>
+          {/* Enhanced Progress Bar with Tooltip */}
+          <div className="space-y-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="cursor-help">
+                    <Progress value={calculateProgress()} className="h-3 transition-all duration-300" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <div className="space-y-2">
+                    <p className="font-medium">{getProgressTooltip()}</p>
+                    <div className="text-xs space-y-1">
+                      <div>• 0-50%: Complete data selection and forecast model run</div>
+                      <div>• 50-75%: Ask at least one question in the AI chatbot</div>
+                      <div>• 75-100%: Download your comprehensive PDF report</div>
+                    </div>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <p className="text-sm text-slate-600 dark:text-viz-text-secondary">
+              {getProgressTooltip()}
+            </p>
+          </div>
 
-                      {/* Step Title */}
-                      <h4 className={`text-sm font-medium text-center mb-1 ${
-                        status.status === 'completed' ? 'text-green-700 dark:text-green-300' :
-                        status.status === 'current' ? 'text-viz-accent' :
-                        status.color
-                      }`}>
+          {/* Step Indicators */}
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+            {steps.map((step, index) => {
+              const Icon = step.icon;
+              const status = getStepStatus(step);
+              
+              return (
+                <div key={step.id} className={`p-3 rounded-lg border transition-all duration-200 ${status.bgColor}`}>
+                  <div className="flex items-center space-x-2">
+                    <div className={`p-1.5 rounded-md ${step.completed ? 'bg-green-500' : status.status === 'current' ? 'bg-viz-accent' : 'bg-slate-300 dark:bg-viz-light'}`}>
+                      <Icon className={`w-3 h-3 ${step.completed || status.status === 'current' ? 'text-white' : 'text-slate-600 dark:text-viz-text-secondary'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className={`text-xs font-medium truncate ${status.color}`}>
                         {step.title}
                       </h4>
-
-                      {/* Step Status Badge */}
-                      <div className="flex justify-center">
-                        {status.status === 'completed' && (
-                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs">
-                            Done
-                          </Badge>
-                        )}
-                        {status.status === 'current' && (
-                          <Badge className="bg-viz-accent text-white text-xs animate-pulse">
-                            Active
+                      <p className="text-xs text-slate-500 dark:text-viz-text-secondary truncate">
+                        {step.description}
+                      </p>
                           </Badge>
                         )}
                         {status.status === 'pending' && (
@@ -233,40 +196,17 @@ const DUFAProgressTracker: React.FC<DUFAProgressTrackerProps> = ({
                       {index < steps.length - 1 && (
                         <div className="hidden sm:block absolute top-1/2 -right-6 w-12 h-0.5 bg-slate-200 dark:bg-viz-light transform -translate-y-1/2">
                           <div 
-                            className={`h-full transition-all duration-500 ${
-                              steps[index + 1].completed || currentStep > step.id 
-                                ? 'bg-green-500 w-full' 
-                                : currentStep === step.id 
-                                  ? 'bg-viz-accent w-1/2' 
-                                  : 'w-0'
-                            }`}
-                          />
-                        </div>
-                      )}
                     </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <div className="text-center">
-                      <p className="font-medium">{step.title}</p>
-                      <p className="text-xs text-slate-400">{step.description}</p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            );
-          })}
-        </div>
-
-        {/* Next Steps Hint */}
-        {progressValue < 100 && (
-          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <div className="flex items-start space-x-2">
-              <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-              <div>
-                <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-1">
-                  Next Steps
-                </h4>
-                <p className="text-sm text-blue-700 dark:text-blue-300">
+                    {step.completed && (
+                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    )}
+                    {status.status === 'current' && (
+                      <Clock className="w-4 h-4 text-viz-accent flex-shrink-0 animate-pulse" />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
                   {getProgressTooltip()}
                 </p>
               </div>

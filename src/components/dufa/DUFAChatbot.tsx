@@ -32,6 +32,7 @@ interface DUFAChatbotProps {
   bestModel: ForecastResult | null;
   datasets: Dataset[];
   config: ForecastConfig;
+  onMessagesUpdate?: (messages: Message[]) => void;
 }
 
 const DUFAChatbot: React.FC<DUFAChatbotProps> = ({
