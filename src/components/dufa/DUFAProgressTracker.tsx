@@ -183,19 +183,6 @@ const DUFAProgressTracker: React.FC<DUFAProgressTrackerProps> = ({
                       <p className="text-xs text-slate-500 dark:text-viz-text-secondary truncate">
                         {step.description}
                       </p>
-                          </Badge>
-                        )}
-                        {status.status === 'pending' && (
-                          <Badge variant="outline" className="text-xs">
-                            Pending
-                          </Badge>
-                        )}
-                      </div>
-
-                      {/* Connection Line */}
-                      {index < steps.length - 1 && (
-                        <div className="hidden sm:block absolute top-1/2 -right-6 w-12 h-0.5 bg-slate-200 dark:bg-viz-light transform -translate-y-1/2">
-                          <div 
                     </div>
                     {step.completed && (
                       <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -203,33 +190,34 @@ const DUFAProgressTracker: React.FC<DUFAProgressTrackerProps> = ({
                     {status.status === 'current' && (
                       <Clock className="w-4 h-4 text-viz-accent flex-shrink-0 animate-pulse" />
                     )}
+                    {status.status === 'pending' && (
+                      <Badge variant="outline" className="text-xs">
+                        Pending
+                      </Badge>
+                    )}
                   </div>
                 </div>
               );
             })}
-                  {getProgressTooltip()}
-                </p>
-              </div>
-            </div>
           </div>
-        )}
 
-        {/* Completion Celebration */}
-        {progressValue === 100 && (
-          <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-            <div className="flex items-center space-x-2">
-              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-              <div>
-                <h4 className="font-medium text-green-800 dark:text-green-200">
-                  Workflow Complete! 🎉
-                </h4>
-                <p className="text-sm text-green-700 dark:text-green-300">
-                  You've successfully completed the entire DUFA workflow. Your comprehensive forecast report is ready.
-                </p>
+          {/* Completion Celebration */}
+          {progressValue === 100 && (
+            <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <div>
+                  <h4 className="font-medium text-green-800 dark:text-green-200">
+                    Workflow Complete! 🎉
+                  </h4>
+                  <p className="text-sm text-green-700 dark:text-green-300">
+                    You've successfully completed the entire DUFA workflow. Your comprehensive forecast report is ready.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </CardContent>
     </Card>
   );
