@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import Header from '../components/Header';
-import { useAuth } from '../contexts/AuthContext';
+import { Header } from '@/components/Header';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   TrendingUp, 
   Database, 
@@ -14,14 +14,24 @@ import {
   BarChart3, 
   MessageSquare,
   ChevronRight,
+  ChevronLeft,
+  ChevronDown,
+  Play,
+  Pause,
+  RotateCcw,
   AlertTriangle,
   Download,
-  Loader2
+  Loader2,
+  Sparkles,
+  Target,
+  Zap
 } from 'lucide-react';
 import DUFADatasetSelection from '@/components/dufa/DUFADatasetSelection';
 import DUFAConfiguration from '@/components/dufa/DUFAConfiguration';
 import DUFAAnalysis from '@/components/dufa/DUFAAnalysis';
 import DUFAChatbot from '@/components/dufa/DUFAChatbot';
+import DUFAProgressTracker from '@/components/dufa/DUFAProgressTracker';
+import DUFAPDFGenerator from '@/components/dufa/DUFAPDFGenerator';
 
 export interface Dataset {
   id: string;
@@ -62,6 +72,14 @@ export interface ForecastResult {
   };
 }
 
+export interface ProgressState {
+  dataSelection: boolean;
+  forecastConfiguration: boolean;
+  forecastResults: boolean;
+  chatInteraction: boolean;
+  pdfDownload: boolean;
+}
+
 const DUFA: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -80,20 +98,64 @@ const DUFA: React.FC = () => {
   });
   const [forecastResults, setForecastResults] = useState<ForecastResult[]>([]);
   const [bestModel, setBestModel] = useState<ForecastResult | null>(null);
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
   
   // Loading states
   const [loading, setLoading] = useState({
     datasets: false,
     forecast: false,
-    analysis: false
+    analysis: false,
+    pdfGeneration: false
+  });
+  
+  // Progress tracking
+  const [progress, setProgress] = useState<ProgressState>({
+    dataSelection: false,
+    forecastConfiguration: false,
+    forecastResults: false,
+    chatInteraction: false,
+    pdfDownload: false
   });
 
-  const steps = [
-    { id: 1, title: 'Dataset Selection', icon: Database, description: 'Choose datasets for forecasting' },
-    { id: 2, title: 'Configuration', icon: Settings, description: 'Configure forecasting parameters' },
-    { id: 3, title: 'Analysis', icon: BarChart3, description: 'View forecast results and insights' },
-    { id: 4, title: 'AI Insights', icon: MessageSquare, description: 'Get AI-powered explanations' }
-  ];
+  const [collapsedSections, setCollapsedSections] = useState({
+    datasets: false,
+    configuration: true,
+    results: true,
+    chat: true
+  });
+
+  // Handler functions
+  const handleSectionToggle = (section: keyof typeof collapsedSections) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  const handleChatMessagesUpdate = (messages: any[]) => {
+    setChatMessages(messages);
+  };
+
+  const handlePDFDownloadComplete = () => {
+    setProgress(prev => ({ ...prev, pdfDownload: true }));
+    toast({
+      title: "PDF Downloaded",
+      description: "Your DUFA report has been generated and downloaded successfully.",
+    });
+  };
+
+  // Enhanced progress tracking
+  useEffect(() => {
+    const newProgress = {
+      dataSelection: selectedDatasets.length > 0,
+      forecastConfiguration: forecastConfig.algorithms.length > 0 && forecastConfig.horizon > 0,
+      forecastResults: forecastResults.length > 0 && bestModel !== null,
+      chatInteraction: chatMessages.length > 0,
+      pdfDownload: progress.pdfDownload
+    };
+    
+    setProgress(newProgress);
+  }, [selectedDatasets, forecastConfig, forecastResults, bestModel, chatMessages, progress.pdfDownload]);
 
   const handleStepComplete = (stepId: number) => {
     if (!completedSteps.includes(stepId)) {
@@ -102,7 +164,7 @@ const DUFA: React.FC = () => {
   };
 
   const handleNextStep = () => {
-    if (currentStep < 4) {
+    if (currentStep < 5) {
       handleStepComplete(currentStep);
       setCurrentStep(currentStep + 1);
     }
@@ -122,128 +184,274 @@ const DUFA: React.FC = () => {
         return forecastConfig.algorithms.length > 0 && forecastConfig.horizon > 0;
       case 3:
         return forecastResults.length > 0;
+      case 4:
+        return chatMessages.filter(m => m.type === 'user').length > 0;
       default:
         return true;
     }
   };
 
-  const getStepProgress = () => {
-    return (completedSteps.length / 4) * 100;
+  const handleSectionToggle = (section: keyof typeof collapsedSections) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  const handlePDFDownloadComplete = () => {
+    setProgress(prev => ({ ...prev, pdfDownload: true }));
+    toast({
+      title: "Workflow Complete!",
+      description: "You've successfully completed the entire DUFA analysis workflow.",
+    });
+  };
+
+  const handleChatMessagesUpdate = (messages: any[]) => {
+    setChatMessages(messages);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-viz-dark dark:to-black">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/50 dark:from-viz-dark dark:via-slate-900 dark:to-black">
       <Header />
       
       <div className="container mx-auto px-4 py-6 max-w-7xl">
         {/* Header Section */}
         <div className="mb-8">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="bg-viz-accent p-3 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-4">
+              <div className="bg-gradient-to-br from-viz-accent to-blue-600 p-4 rounded-xl shadow-lg">
+                <TrendingUp className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-viz-accent to-blue-600 bg-clip-text text-transparent">
+                  DUFA
+                </h1>
+                <p className="text-lg text-slate-600 dark:text-viz-text-secondary">
+                  Demand Understanding & Forecasting Agent
+                </p>
+                <p className="text-sm text-slate-500 dark:text-viz-text-secondary flex items-center space-x-2">
+                  <Sparkles className="w-4 h-4" />
+                  <span>AI-powered demand forecasting with advanced analytics</span>
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-viz-dark dark:text-white">
-                DUFA - Demand Understanding & Forecasting Agent
-              </h1>
-              <p className="text-slate-600 dark:text-viz-text-secondary">
-                AI-powered demand forecasting with advanced analytics and insights
-              </p>
+            
+            {/* Quick Stats */}
+            <div className="hidden lg:flex space-x-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-viz-accent">{selectedDatasets.length}</div>
+                <div className="text-xs text-slate-500 dark:text-viz-text-secondary">Datasets</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-viz-accent">{forecastConfig.algorithms.length}</div>
+                <div className="text-xs text-slate-500 dark:text-viz-text-secondary">Algorithms</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-viz-accent">{forecastConfig.horizon}</div>
+                <div className="text-xs text-slate-500 dark:text-viz-text-secondary">Days</div>
+              </div>
             </div>
           </div>
           
-          {/* Progress Bar */}
-          <div className="bg-white/50 dark:bg-viz-medium/50 rounded-lg p-4 mb-6">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-viz-dark dark:text-white">
-                Progress: Step {currentStep} of 4
-              </span>
-              <span className="text-sm text-slate-600 dark:text-viz-text-secondary">
-                {Math.round(getStepProgress())}% Complete
-              </span>
-            </div>
-            <Progress value={getStepProgress()} className="h-2" />
-          </div>
+          {/* Enhanced Progress Tracker */}
+          <DUFAProgressTracker 
+            progress={progress}
+            currentStep={currentStep}
+            className="mb-6"
+          />
 
-          {/* Step Navigation */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            {steps.map((step, index) => {
-              const Icon = step.icon;
-              const isActive = currentStep === step.id;
-              const isCompleted = completedSteps.includes(step.id);
-              
-              return (
-                <Card 
-                  key={step.id}
-                  className={`cursor-pointer transition-all duration-200 ${
-                    isActive 
-                      ? 'ring-2 ring-viz-accent bg-viz-accent/5' 
-                      : isCompleted 
-                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                        : 'hover:bg-slate-50 dark:hover:bg-viz-medium/50'
-                  }`}
-                  onClick={() => {
-                    if (isCompleted || step.id <= currentStep) {
-                      setCurrentStep(step.id);
-                    }
-                  }}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-lg ${
-                        isActive 
-                          ? 'bg-viz-accent text-white' 
-                          : isCompleted 
-                            ? 'bg-green-500 text-white'
-                            : 'bg-slate-200 dark:bg-viz-light text-slate-600 dark:text-viz-text-secondary'
-                      }`}>
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-sm text-viz-dark dark:text-white truncate">
-                          {step.title}
-                        </h3>
-                        <p className="text-xs text-slate-500 dark:text-viz-text-secondary truncate">
-                          {step.description}
-                        </p>
-                      </div>
-                      {isCompleted && (
-                        <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                          ✓
-                        </Badge>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+          {/* Quick Action Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card className="bg-white/80 dark:bg-viz-medium/80 backdrop-blur-sm hover:shadow-lg transition-all duration-200">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Target className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="font-semibold text-viz-dark dark:text-white mb-2">Smart Analysis</h3>
+                <p className="text-sm text-slate-600 dark:text-viz-text-secondary">Advanced AI models for accurate demand forecasting</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-white/80 dark:bg-viz-medium/80 backdrop-blur-sm hover:shadow-lg transition-all duration-200">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Zap className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="font-semibold text-viz-dark dark:text-white mb-2">Real-time Insights</h3>
+                <p className="text-sm text-slate-600 dark:text-viz-text-secondary">Interactive dashboards with anomaly detection</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-white/80 dark:bg-viz-medium/80 backdrop-blur-sm hover:shadow-lg transition-all duration-200">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <MessageSquare className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="font-semibold text-viz-dark dark:text-white mb-2">AI Assistant</h3>
+                <p className="text-sm text-slate-600 dark:text-viz-text-secondary">Chat-based insights and scenario analysis</p>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Main Panel */}
-          <div className="lg:col-span-3">
-            <Card className="bg-white/80 dark:bg-viz-medium/80 backdrop-blur-sm">
-              <CardContent className="p-6">
-                {currentStep === 1 && (
+        {/* Main Content - Enhanced Dashboard Layout */}
+        <div className="space-y-6">
+          {/* Dataset Selection Section */}
+          <Collapsible 
+            open={!collapsedSections.datasets || currentStep === 1}
+            onOpenChange={() => handleSectionToggle('datasets')}
+          >
+            <Card className="bg-white/90 dark:bg-viz-medium/90 backdrop-blur-sm border-0 shadow-lg">
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-slate-50 dark:hover:bg-viz-medium/50 transition-colors">
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className={`p-2 rounded-lg ${
+                        progress.dataSelection 
+                          ? 'bg-green-500 text-white' 
+                          : currentStep === 1 
+                            ? 'bg-viz-accent text-white animate-pulse'
+                            : 'bg-slate-200 dark:bg-viz-light text-slate-600 dark:text-viz-text-secondary'
+                      }`}>
+                        <Database className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-viz-dark dark:text-white">
+                          Step 1: Dataset Selection
+                        </h2>
+                        <p className="text-sm text-slate-600 dark:text-viz-text-secondary">
+                          Choose datasets from your BigQuery tables
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {progress.dataSelection && (
+                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                          ✓ Complete
+                        </Badge>
+                      )}
+                      {collapsedSections.datasets && currentStep !== 1 ? (
+                        <ChevronRight className="w-5 h-5 text-slate-400" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5 text-slate-400" />
+                      )}
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="pt-0">
                   <DUFADatasetSelection
                     selectedDatasets={selectedDatasets}
                     onDatasetsChange={setSelectedDatasets}
                     loading={loading.datasets}
                     onLoadingChange={(isLoading) => setLoading(prev => ({ ...prev, datasets: isLoading }))}
                   />
-                )}
-                
-                {currentStep === 2 && (
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+
+          {/* Configuration Section */}
+          <Collapsible 
+            open={!collapsedSections.configuration || currentStep === 2}
+            onOpenChange={() => handleSectionToggle('configuration')}
+          >
+            <Card className="bg-white/90 dark:bg-viz-medium/90 backdrop-blur-sm border-0 shadow-lg">
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-slate-50 dark:hover:bg-viz-medium/50 transition-colors">
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className={`p-2 rounded-lg ${
+                        progress.forecastConfiguration 
+                          ? 'bg-green-500 text-white' 
+                          : currentStep === 2 
+                            ? 'bg-viz-accent text-white animate-pulse'
+                            : 'bg-slate-200 dark:bg-viz-light text-slate-600 dark:text-viz-text-secondary'
+                      }`}>
+                        <Settings className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-viz-dark dark:text-white">
+                          Step 2: Forecast Configuration
+                        </h2>
+                        <p className="text-sm text-slate-600 dark:text-viz-text-secondary">
+                          Configure algorithms and parameters
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {progress.forecastConfiguration && (
+                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                          ✓ Complete
+                        </Badge>
+                      )}
+                      {collapsedSections.configuration && currentStep !== 2 ? (
+                        <ChevronRight className="w-5 h-5 text-slate-400" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5 text-slate-400" />
+                      )}
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="pt-0">
                   <DUFAConfiguration
                     config={forecastConfig}
                     onConfigChange={setForecastConfig}
                     selectedDatasets={selectedDatasets}
                   />
-                )}
-                
-                {currentStep === 3 && (
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+
+          {/* Analysis Results Section */}
+          <Collapsible 
+            open={!collapsedSections.results || currentStep === 3}
+            onOpenChange={() => handleSectionToggle('results')}
+          >
+            <Card className="bg-white/90 dark:bg-viz-medium/90 backdrop-blur-sm border-0 shadow-lg">
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-slate-50 dark:hover:bg-viz-medium/50 transition-colors">
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className={`p-2 rounded-lg ${
+                        progress.forecastResults 
+                          ? 'bg-green-500 text-white' 
+                          : currentStep === 3 
+                            ? 'bg-viz-accent text-white animate-pulse'
+                            : 'bg-slate-200 dark:bg-viz-light text-slate-600 dark:text-viz-text-secondary'
+                      }`}>
+                        <BarChart3 className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-viz-dark dark:text-white">
+                          Step 3: Forecast Analysis
+                        </h2>
+                        <p className="text-sm text-slate-600 dark:text-viz-text-secondary">
+                          View results, metrics, and insights
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {progress.forecastResults && (
+                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                          ✓ Complete
+                        </Badge>
+                      )}
+                      {collapsedSections.results && currentStep !== 3 ? (
+                        <ChevronRight className="w-5 h-5 text-slate-400" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5 text-slate-400" />
+                      )}
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="pt-0">
                   <DUFAAnalysis
                     results={forecastResults}
                     bestModel={bestModel}
@@ -253,19 +461,76 @@ const DUFA: React.FC = () => {
                     config={forecastConfig}
                     datasets={selectedDatasets}
                   />
-                )}
-                
-                {currentStep === 4 && (
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+
+          {/* AI Chat Section */}
+          <Collapsible 
+            open={!collapsedSections.chat || currentStep === 4}
+            onOpenChange={() => handleSectionToggle('chat')}
+          >
+            <Card className="bg-white/90 dark:bg-viz-medium/90 backdrop-blur-sm border-0 shadow-lg">
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-slate-50 dark:hover:bg-viz-medium/50 transition-colors">
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className={`p-2 rounded-lg ${
+                        progress.chatInteraction 
+                          ? 'bg-green-500 text-white' 
+                          : currentStep === 4 
+                            ? 'bg-viz-accent text-white animate-pulse'
+                            : 'bg-slate-200 dark:bg-viz-light text-slate-600 dark:text-viz-text-secondary'
+                      }`}>
+                        <MessageSquare className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-viz-dark dark:text-white">
+                          Step 4: AI Chat Analysis
+                        </h2>
+                        <p className="text-sm text-slate-600 dark:text-viz-text-secondary">
+                          Get AI-powered insights and explanations
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {progress.chatInteraction && (
+                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                          ✓ Complete
+                        </Badge>
+                      )}
+                      <DUFAPDFGenerator
+                        datasets={selectedDatasets}
+                        config={forecastConfig}
+                        results={forecastResults}
+                        bestModel={bestModel}
+                        chatMessages={chatMessages}
+                        onDownloadComplete={handlePDFDownloadComplete}
+                        isLoading={loading.pdfGeneration}
+                      />
+                      {collapsedSections.chat && currentStep !== 4 ? (
+                        <ChevronRight className="w-5 h-5 text-slate-400" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5 text-slate-400" />
+                      )}
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="pt-0">
                   <DUFAChatbot
                     forecastResults={forecastResults}
                     bestModel={bestModel}
                     datasets={selectedDatasets}
                     config={forecastConfig}
+                    onMessagesUpdate={handleChatMessagesUpdate}
                   />
-                )}
-              </CardContent>
+                </CardContent>
+              </CollapsibleContent>
             </Card>
-          </div>
+          </Collapsible>
 
           {/* Side Panel */}
           <div className="space-y-4">

@@ -17,57 +17,68 @@ const Header: React.FC = () => {
     : user?.email?.substring(0, 2).toUpperCase() || 'U';
 
   return (
-    <header className="bg-white/10 dark:bg-viz-dark/70 backdrop-blur-lg border-b border-slate-200/20 dark:border-viz-light/10 py-3 px-4 md:px-6 flex justify-between items-center shadow-sm">
-      <Link to="/" className="flex items-center space-x-3 group">
-        <div className="bg-black p-2 rounded-lg shadow-md group-hover:shadow-viz-accent/20 transition-all duration-300 group-hover:scale-105">
-          <div className="relative">
-            <span className="text-2xl font-bold tracking-tight text-white">V</span>
-            <BarChartIcon className="absolute -bottom-1 -right-1 text-viz-accent-light w-4 h-4" />
+    <header className="bg-white/10 dark:bg-viz-dark/70 backdrop-blur-lg border-b border-slate-200/20 dark:border-viz-light/10 py-3 px-4 md:px-6 flex items-center shadow-sm">
+      {/* Left Section - Logo */}
+      <div className="flex-1">
+        <Link to="/" className="flex items-center space-x-3 group w-fit">
+          <div className="bg-black p-2 rounded-lg shadow-md group-hover:shadow-viz-accent/20 transition-all duration-300 group-hover:scale-105">
+            <div className="relative">
+              <span className="text-2xl font-bold tracking-tight text-white">V</span>
+              <BarChartIcon className="absolute -bottom-1 -right-1 text-viz-accent-light w-4 h-4" />
+            </div>
           </div>
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-viz-dark dark:text-white">Viz</h1>
-          <p className="text-xs text-slate-500 dark:text-viz-text-secondary">Business Intelligence AI</p>
-        </div>
-      </Link>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-viz-dark dark:text-white">Viz</h1>
+            <p className="text-xs text-slate-500 dark:text-viz-text-secondary">Business Intelligence AI</p>
+          </div>
+        </Link>
+      </div>
       
-      <div className="flex items-center space-x-2 md:space-x-3">
-        <Link to="/data-control" className="flex items-center space-x-1 bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105">
-          <DatabaseIcon className="w-4 h-4 text-viz-accent" />
-          <span className="text-sm font-medium hidden md:inline text-slate-700 dark:text-white">Data</span>
+      {/* Center Section - DUFA Button */}
+      <div className="flex-1 flex justify-center">
+        <Link to="/dufa" className="flex items-center space-x-2 bg-gradient-to-r from-viz-accent to-blue-600 hover:from-viz-accent/90 hover:to-blue-600/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium">
+          <TrendingUp className="w-5 h-5" />
+          <span className="hidden sm:inline">DUFA</span>
+          <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full hidden md:inline">AI</span>
         </Link>
-        <Link to="/tips" className="flex items-center space-x-1 bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105">
-          <LightbulbIcon className="w-4 h-4 text-viz-accent" />
-          <span className="text-sm font-medium hidden md:inline text-slate-700 dark:text-white">Tips</span>
-        </Link>
-        <Link to="/dufa" className="flex items-center space-x-1 bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105">
-          <TrendingUp className="w-4 h-4 text-viz-accent" />
-          <span className="text-sm font-medium hidden md:inline text-slate-700 dark:text-white">DUFA</span>
-        </Link>
+      </div>
+      
+      {/* Right Section - Navigation & User */}
+      <div className="flex-1 flex justify-end">
+        <div className="flex items-center space-x-2 md:space-x-3">
+          <Link to="/data-control" className="flex items-center space-x-1 bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105">
+            <DatabaseIcon className="w-4 h-4 text-viz-accent" />
+            <span className="text-sm font-medium hidden lg:inline text-slate-700 dark:text-white">Data</span>
+          </Link>
+          <Link to="/tips" className="flex items-center space-x-1 bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105">
+            <LightbulbIcon className="w-4 h-4 text-viz-accent" />
+            <span className="text-sm font-medium hidden lg:inline text-slate-700 dark:text-white">Tips</span>
+          </Link>
         
-        {user && (
-          <div className="flex items-center space-x-2">
-            <Link to="/profile" className="flex items-center space-x-2 bg-white/20 dark:bg-viz-medium px-3 py-1.5 rounded-lg hover:bg-white/30 dark:hover:bg-viz-light transition-all shadow-sm hover:shadow md:hover:scale-105">
-              <Avatar className="h-6 w-6">
-                <AvatarFallback className="text-xs bg-viz-accent text-white">
-                  {userInitials}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-sm font-medium text-slate-700 dark:text-white hidden md:inline">
-                {user.user_metadata?.full_name || user.email}
-              </span>
-            </Link>
-            <Button
-              onClick={handleSignOut}
-              variant="ghost"
-              size="sm"
-              className="bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden md:inline ml-2">Sign out</span>
-            </Button>
-          </div>
-        )}
+          {user && (
+            <div className="flex items-center space-x-2">
+              <Link to="/profile" className="flex items-center space-x-2 bg-white/20 dark:bg-viz-medium px-3 py-1.5 rounded-lg hover:bg-white/30 dark:hover:bg-viz-light transition-all shadow-sm hover:shadow md:hover:scale-105">
+                <Avatar className="h-6 w-6">
+                  <AvatarFallback className="text-xs bg-viz-accent text-white">
+                    {userInitials}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-medium text-slate-700 dark:text-white hidden md:inline">
+                  {user.user_metadata?.full_name || user.email}
+                </span>
+              </Link>
+              <Button
+                onClick={handleSignOut}
+                variant="ghost"
+                size="sm"
+                className="bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden md:inline ml-2">Sign out</span>
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
