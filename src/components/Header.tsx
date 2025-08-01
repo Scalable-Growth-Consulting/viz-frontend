@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChartIcon, LightbulbIcon, DatabaseIcon, UserIcon, LogOut } from 'lucide-react';
+import { BarChartIcon, LightbulbIcon, DatabaseIcon, UserIcon, LogOut, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from './ui/button';
@@ -39,6 +39,10 @@ const Header: React.FC = () => {
         <Link to="/tips" className="flex items-center space-x-1 bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105">
           <LightbulbIcon className="w-4 h-4 text-viz-accent" />
           <span className="text-sm font-medium hidden md:inline text-slate-700 dark:text-white">Tips</span>
+        </Link>
+        <Link to="/dufa" className="flex items-center space-x-1 bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105">
+          <TrendingUp className="w-4 h-4 text-viz-accent" />
+          <span className="text-sm font-medium hidden md:inline text-slate-700 dark:text-white">DUFA</span>
         </Link>
         
         {user && (

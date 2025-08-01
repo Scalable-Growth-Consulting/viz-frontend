@@ -11,6 +11,7 @@ import NotFound from './pages/NotFound';
 import AuthCallback from '@/components/AuthCallback';
 import { Loader2 } from 'lucide-react';
 import Profile from './pages/Profile';
+import DUFA from './pages/DUFA';
 import './App.css';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -48,6 +49,7 @@ function App() {
           <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
           <Route path="/data-control" element={<ProtectedRoute><DataControl /></ProtectedRoute>} />
           <Route path="/table-explorer" element={<ProtectedRoute><TableExplorer /></ProtectedRoute>} />
+          <Route path="/dufa" element={<ProtectedRoute><DUFA /></ProtectedRoute>} />
           <Route path="/tips" element={<ProtectedRoute><Tips /></ProtectedRoute>} />
           <Route path="/profile" element={<Profile />} />
         </Routes>
