@@ -1,13 +1,1 @@
-import '@testing-library/jest-dom';
-
-// Mock useAuth context globally for tests
-vi.mock('@/contexts/AuthContext', () => ({
-  useAuth: vi.fn(() => ({ user: null, loading: false }))
-}));
-
-// Mock useToast hook
-vi.mock('@/components/ui/use-toast', () => ({
-  useToast: vi.fn(() => ({
-    toast: vi.fn()
-  }))
-}));
+// This file has been removed as per user request to eliminate all testing code

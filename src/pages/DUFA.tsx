@@ -191,25 +191,6 @@ const DUFA: React.FC = () => {
     }
   };
 
-  const handleSectionToggle = (section: keyof typeof collapsedSections) => {
-    setCollapsedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
-
-  const handlePDFDownloadComplete = () => {
-    setProgress(prev => ({ ...prev, pdfDownload: true }));
-    toast({
-      title: "Workflow Complete!",
-      description: "You've successfully completed the entire DUFA analysis workflow.",
-    });
-  };
-
-  const handleChatMessagesUpdate = (messages: any[]) => {
-    setChatMessages(messages);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/50 dark:from-viz-dark dark:via-slate-900 dark:to-black">
       <Header />
