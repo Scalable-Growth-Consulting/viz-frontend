@@ -1,22 +1,23 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import DUFAAccessGuard from '../DUFAAccessGuard';
 
 // Mock useAuth context
-jest.mock('@/contexts/AuthContext', () => ({
-  useAuth: jest.fn()
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: vi.fn()
 }));
 
-const { useAuth } = require('@/contexts/AuthContext');
+const { useAuth } = await import('@/contexts/AuthContext');
 
 describe('DUFAAccessGuard', () => {
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   it('renders children for admin user', () => {
-    useAuth.mockReturnValue({ user: { email: 'creationvision03@gmail.com' } });
+    vi.mocked(useAuth).mockReturnValue({ user: { email: 'creationvision03@gmail.com' } } as any);
     const { getByText } = render(
       <MemoryRouter>
         <DUFAAccessGuard>
@@ -28,7 +29,7 @@ describe('DUFAAccessGuard', () => {
   });
 
   it('redirects non-admin user to /dufa-coming-soon', () => {
-    useAuth.mockReturnValue({ user: { email: 'notadmin@example.com' } });
+    vi.mocked(useAuth).mockReturnValue({ user: { email: 'notadmin@example.com' } } as any);
     const { container } = render(
       <MemoryRouter initialEntries={['/dufa']}>
         <DUFAAccessGuard>
@@ -41,7 +42,7 @@ describe('DUFAAccessGuard', () => {
   });
 
   it('redirects if no user is present', () => {
-    useAuth.mockReturnValue({ user: null });
+    vi.mocked(useAuth).mockReturnValue({ user: null } as any);
     const { container } = render(
       <MemoryRouter initialEntries={['/dufa']}>
         <DUFAAccessGuard>
