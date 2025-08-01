@@ -5,10 +5,11 @@ import { ChartData } from '../types/data';
 interface TabContentProps {
   activeTab: 'answer' | 'sql' | 'charts';
   queryResult: string | null;
+  sqlQuery: string | null;
   chartData: ChartData | null;
 }
 
-const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult, chartData }) => {
+const TabContent: React.FC<TabContentProps> = ({ activeTab, queryResult, sqlQuery, chartData }) => {
 
 useEffect(() => {
   let isMounted = true;
@@ -121,7 +122,7 @@ useEffect(() => {
 
 
   const getContent = () => {
-    if (!queryResult) {
+    if (!queryResult && !sqlQuery) {
       return (
         <div className="flex flex-col items-center justify-center py-16 text-viz-text-secondary">
           <div className="w-16 h-16 flex items-center justify-center bg-viz-medium/50 rounded-full mb-4">
@@ -135,12 +136,21 @@ useEffect(() => {
       );
     }
 
-    // If we have a query result
+    // If we have results
     if (activeTab === 'answer') {
       return <div className="prose dark:prose-invert max-w-none">{queryResult}</div>;
     }
     
     if (activeTab === 'sql') {
+      if (!sqlQuery) {
+        return (
+          <div className="flex flex-col items-center justify-center py-8">
+            <DatabaseIcon className="w-6 h-6 text-viz-text-secondary mb-2" />
+            <span className="text-viz-text-secondary mb-4">No SQL query available yet.</span>
+          </div>
+        );
+      }
+      
       return (
         <div className="space-y-4">
           <div className="bg-viz-dark p-4 rounded-lg overflow-x-auto text-viz-text">
@@ -149,7 +159,7 @@ useEffect(() => {
               <span>SQL Query</span>
             </div>
             <pre className="whitespace-pre-wrap">
-              <code className="text-viz-accent">{queryResult}</code>
+              <code className="text-viz-accent">{sqlQuery}</code>
             </pre>
           </div>
           <div className="text-sm text-viz-text-secondary px-1">

@@ -2,10 +2,11 @@ import React from 'react';
 import { FileTextIcon, DatabaseIcon, ChartBarIcon } from 'lucide-react';
 import TabContent from './TabContent';
 import Loader from './ui/loader';
-import { ChartData } from '../pages/Index';
+import { ChartData } from '../types/data';
 
 interface ResultsAreaProps {
   queryResult: string | null;
+  sqlQuery: string | null;
   activeTab: 'answer' | 'sql' | 'charts';
   onTabChange: (tab: 'answer' | 'sql' | 'charts') => void;
   isLoading?: boolean;
@@ -14,7 +15,8 @@ interface ResultsAreaProps {
 }
 
 const ResultsArea: React.FC<ResultsAreaProps> = ({ 
-  queryResult, 
+  queryResult,
+  sqlQuery,
   activeTab, 
   onTabChange, 
   isLoading = false,
@@ -60,8 +62,7 @@ const ResultsArea: React.FC<ResultsAreaProps> = ({
           </button>
         </div>
       </div>
-
-      <div className="flex-1 overflow-auto p-5 md:p-6">
+      <div className="flex-1 overflow-hidden">
         {showLoader ? (
           <div className="flex items-center justify-center h-full">
             <Loader 
@@ -70,7 +71,14 @@ const ResultsArea: React.FC<ResultsAreaProps> = ({
             />
           </div>
         ) : (
-          <TabContent activeTab={activeTab} queryResult={queryResult} chartData={chartData} />
+          <div className="h-full overflow-auto p-5 md:p-6">
+            <TabContent 
+              activeTab={activeTab} 
+              queryResult={queryResult}
+              sqlQuery={sqlQuery}
+              chartData={chartData} 
+            />
+          </div>
         )}
       </div>
     </div>

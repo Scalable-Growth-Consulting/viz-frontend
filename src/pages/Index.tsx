@@ -236,7 +236,8 @@ const Index = () => {
           </div>
           <div className="lg:col-span-2 h-[calc(100vh-12rem)] md:h-[calc(100vh-14rem)]">
             <ResultsArea 
-              queryResult={activeTab === 'sql' ? sqlQuery : queryResult} 
+              queryResult={queryResult}
+              sqlQuery={sqlQuery}
               activeTab={activeTab}
               onTabChange={handleTabChange}
               isLoading={loadingStates.query}
@@ -247,7 +248,7 @@ const Index = () => {
         </div>
       </main>
       <footer className="bg-viz-dark text-white text-center py-3 text-sm">
-        <p className="text-viz-text-secondary">© 2025 Viz • Powered by Advanced Business Intelligence AI</p>
+        <p className="text-viz-text-secondary"> 2025 Viz • Powered by Advanced Business Intelligence AI</p>
       </footer>
     </div>
   );
