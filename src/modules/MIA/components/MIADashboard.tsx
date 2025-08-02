@@ -64,58 +64,109 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
     setLoading(true);
     try {
       // In a real implementation, this would fetch from your API/database
-      // For now, we'll use mock data
+      // Impressive demo data for professional showcase
       const mockCampaigns: Campaign[] = [
         {
           id: '1',
-          name: 'Summer Sale - Meta',
+          name: 'Black Friday Mega Sale - Meta',
           platform: 'meta',
           status: 'active',
-          budget: 5000,
-          spend: 3200,
-          impressions: 125000,
-          clicks: 2500,
-          conversions: 85,
-          ctr: 2.0,
-          cpa: 37.65,
-          roas: 265,
+          budget: 25000,
+          spend: 23750,
+          impressions: 2850000,
+          clicks: 142500,
+          conversions: 3420,
+          ctr: 5.0,
+          cpa: 6.94,
+          roas: 485,
           startDate: '2024-01-15T00:00:00Z',
           createdAt: '2024-01-15T00:00:00Z',
           updatedAt: '2024-01-20T00:00:00Z',
         },
         {
           id: '2',
-          name: 'Brand Awareness - Google',
+          name: 'Premium Brand Campaign - Google',
           platform: 'google',
           status: 'active',
-          budget: 3000,
-          spend: 2800,
-          impressions: 95000,
-          clicks: 1900,
-          conversions: 45,
-          ctr: 2.0,
-          cpa: 62.22,
-          roas: 160,
+          budget: 18000,
+          spend: 17250,
+          impressions: 1950000,
+          clicks: 97500,
+          conversions: 2145,
+          ctr: 5.0,
+          cpa: 8.04,
+          roas: 378,
           startDate: '2024-01-10T00:00:00Z',
           createdAt: '2024-01-10T00:00:00Z',
           updatedAt: '2024-01-18T00:00:00Z',
         },
         {
           id: '3',
-          name: 'Product Launch - Meta',
-          platform: 'meta',
-          status: 'paused',
-          budget: 2000,
-          spend: 1850,
-          impressions: 45000,
-          clicks: 450,
-          conversions: 12,
-          ctr: 1.0,
-          cpa: 154.17,
-          roas: 65,
+          name: 'Holiday Collection - LinkedIn',
+          platform: 'linkedin',
+          status: 'active',
+          budget: 12000,
+          spend: 11400,
+          impressions: 850000,
+          clicks: 34000,
+          conversions: 1020,
+          ctr: 4.0,
+          cpa: 11.18,
+          roas: 295,
           startDate: '2024-01-05T00:00:00Z',
           createdAt: '2024-01-05T00:00:00Z',
           updatedAt: '2024-01-15T00:00:00Z',
+        },
+        {
+          id: '4',
+          name: 'Viral Video Campaign - TikTok',
+          platform: 'tiktok',
+          status: 'active',
+          budget: 8500,
+          spend: 8075,
+          impressions: 3200000,
+          clicks: 160000,
+          conversions: 1280,
+          ctr: 5.0,
+          cpa: 6.31,
+          roas: 425,
+          startDate: '2024-01-12T00:00:00Z',
+          createdAt: '2024-01-12T00:00:00Z',
+          updatedAt: '2024-01-22T00:00:00Z',
+        },
+        {
+          id: '5',
+          name: 'Retargeting Masterclass - Meta',
+          platform: 'meta',
+          status: 'active',
+          budget: 15000,
+          spend: 14250,
+          impressions: 1200000,
+          clicks: 84000,
+          conversions: 2520,
+          ctr: 7.0,
+          cpa: 5.65,
+          roas: 520,
+          startDate: '2024-01-08T00:00:00Z',
+          createdAt: '2024-01-08T00:00:00Z',
+          updatedAt: '2024-01-25T00:00:00Z',
+        },
+        {
+          id: '6',
+          name: 'Search Domination - Google',
+          platform: 'google',
+          status: 'active',
+          budget: 22000,
+          spend: 20900,
+          impressions: 1650000,
+          clicks: 115500,
+          conversions: 3465,
+          ctr: 7.0,
+          cpa: 6.03,
+          roas: 445,
+          startDate: '2024-01-03T00:00:00Z',
+          createdAt: '2024-01-03T00:00:00Z',
+          updatedAt: '2024-01-28T00:00:00Z',
         },
       ];
 
@@ -271,35 +322,35 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
 
         {/* Main Dashboard Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <div className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 rounded-xl p-2 shadow-sm">
-            <TabsList className="grid w-full grid-cols-4 bg-transparent gap-1">
+          <div className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 rounded-2xl p-1 shadow-sm">
+            <TabsList className="grid w-full grid-cols-4 bg-slate-50 dark:bg-viz-dark/50 rounded-xl p-1 h-auto">
               <TabsTrigger 
                 value="overview" 
-                className="flex items-center gap-2 text-sm font-medium py-3 px-4 rounded-lg data-[state=active]:bg-viz-accent data-[state=active]:text-white transition-all"
+                className="flex items-center justify-center gap-2 text-sm font-semibold py-4 px-6 rounded-xl data-[state=active]:bg-white data-[state=active]:text-viz-accent data-[state=active]:shadow-sm text-slate-600 dark:text-slate-400 data-[state=active]:dark:bg-viz-medium data-[state=active]:dark:text-viz-accent transition-all duration-200 hover:text-viz-accent"
               >
                 <BarChart3 className="w-4 h-4" />
-                Overview
+                <span className="hidden sm:inline">Overview</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="campaigns" 
-                className="flex items-center gap-2 text-sm font-medium py-3 px-4 rounded-lg data-[state=active]:bg-viz-accent data-[state=active]:text-white transition-all"
+                className="flex items-center justify-center gap-2 text-sm font-semibold py-4 px-6 rounded-xl data-[state=active]:bg-white data-[state=active]:text-viz-accent data-[state=active]:shadow-sm text-slate-600 dark:text-slate-400 data-[state=active]:dark:bg-viz-medium data-[state=active]:dark:text-viz-accent transition-all duration-200 hover:text-viz-accent"
               >
                 <Target className="w-4 h-4" />
-                Campaigns
+                <span className="hidden sm:inline">Campaigns</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="insights" 
-                className="flex items-center gap-2 text-sm font-medium py-3 px-4 rounded-lg data-[state=active]:bg-viz-accent data-[state=active]:text-white transition-all"
+                className="flex items-center justify-center gap-2 text-sm font-semibold py-4 px-6 rounded-xl data-[state=active]:bg-white data-[state=active]:text-viz-accent data-[state=active]:shadow-sm text-slate-600 dark:text-slate-400 data-[state=active]:dark:bg-viz-medium data-[state=active]:dark:text-viz-accent transition-all duration-200 hover:text-viz-accent"
               >
                 <Activity className="w-4 h-4" />
-                Insights
+                <span className="hidden sm:inline">Insights</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="chat" 
-                className="flex items-center gap-2 text-sm font-medium py-3 px-4 rounded-lg data-[state=active]:bg-viz-accent data-[state=active]:text-white transition-all"
+                className="flex items-center justify-center gap-2 text-sm font-semibold py-4 px-6 rounded-xl data-[state=active]:bg-white data-[state=active]:text-viz-accent data-[state=active]:shadow-sm text-slate-600 dark:text-slate-400 data-[state=active]:dark:bg-viz-medium data-[state=active]:dark:text-viz-accent transition-all duration-200 hover:text-viz-accent"
               >
                 <MessageSquare className="w-4 h-4" />
-                AI Chat
+                <span className="hidden sm:inline">AI Chat</span>
               </TabsTrigger>
             </TabsList>
           </div>
