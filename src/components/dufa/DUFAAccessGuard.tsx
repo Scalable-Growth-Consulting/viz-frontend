@@ -10,7 +10,7 @@ const DUFAAccessGuard: React.FC<DUFAAccessGuardProps> = ({ children }) => {
   const { user } = useAuth();
 
   // Check if user has admin access to DUFA
-  const hasAdminAccess = user?.email === 'creationvision03@gmail.com';
+  const hasAdminAccess = user?.email === 'creatorvision03@gmail.com';
 
   if (!hasAdminAccess) {
     return <Navigate to="/dufa-coming-soon" replace />;
