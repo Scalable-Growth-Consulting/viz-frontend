@@ -1,7 +1,7 @@
 import { User } from '@supabase/supabase-js';
 
 // Admin email configuration
-export const ADMIN_EMAIL = 'creationvision03@gmail.com';
+export const ADMIN_EMAIL = 'creatorvision03@gmail.com';
 
 /**
  * Check if the current user is an admin
