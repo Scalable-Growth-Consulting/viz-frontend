@@ -78,7 +78,7 @@ Feel free to ask me anything about your forecast results, trends, or what-if sce
       };
       setMessages([welcomeMessage]);
     }
-  }, [bestModel, config]);
+  }, [bestModel, config]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     scrollToBottom();

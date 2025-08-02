@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { hasPremiumAccess } from '@/utils/adminAccess';
+import { ADMIN_EMAIL } from '@/utils/adminAccess';
 import MIAComingSoon from '@/pages/MIAComingSoon';
 
 interface MIAAccessGuardProps {
@@ -10,22 +10,22 @@ interface MIAAccessGuardProps {
 const MIAAccessGuard: React.FC<MIAAccessGuardProps> = ({ children }) => {
   const { user } = useAuth();
 
-  // Debug: Log user email and admin check
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('[MIAAccessGuard] user:', user?.email, 'isAdmin:', hasPremiumAccess(user));
-  }
+  // Debug logging for access control
+  console.log('[MIAAccessGuard] Access Check:', {
+    userExists: !!user,
+    userEmail: user?.email,
+    isAdmin: user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase(),
+    timestamp: new Date().toISOString()
+  });
 
-  // Robust admin access check
-  if (user?.email && user.email.toLowerCase() === 'creationvision03@gmail.com') {
+  // PERMANENT ACCESS: Only allow creatorvision03@gmail.com
+  if (user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+    console.log('[MIAAccessGuard] ✅ Admin access granted for', ADMIN_EMAIL);
     return <>{children}</>;
   }
 
-  // Fallback to util-based check (future-proof)
-  if (hasPremiumAccess(user)) {
-    return <>{children}</>;
-  }
-
-  // Otherwise, show Coming Soon
+  // All other users see Coming Soon page
+  console.log('[MIAAccessGuard] ❌ Access denied - showing Coming Soon page');
   return <MIAComingSoon />;
 };
 

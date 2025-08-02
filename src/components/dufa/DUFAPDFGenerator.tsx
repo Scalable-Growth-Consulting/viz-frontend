@@ -134,7 +134,11 @@ const DUFAPDFGenerator: React.FC<DUFAPDFGeneratorProps> = ({
   };
 
   const generateRecommendations = (bestModel: ForecastResult | null, results: ForecastResult[], config: ForecastConfig) => {
-    const recommendations = [];
+    const recommendations: Array<{
+      category: string;
+      level: 'success' | 'warning' | 'error';
+      message: string;
+    }> = [];
 
     if (bestModel) {
       // Model performance recommendations
@@ -195,7 +199,62 @@ const DUFAPDFGenerator: React.FC<DUFAPDFGeneratorProps> = ({
     return recommendations;
   };
 
-  const generateHTMLReport = (data: any) => {
+  const generateHTMLReport = (data: {
+    metadata: {
+      title: string;
+      generatedAt: string;
+      user: string;
+    };
+    datasets: {
+      count: number;
+      details: Array<{
+        name: string;
+        table: string;
+        rows: number;
+        columns: number;
+        lastUpdated: string;
+      }>;
+    };
+    configuration: {
+      algorithms: string[];
+      horizon: number;
+      seasonality: string;
+      confidenceInterval: number;
+    };
+    results: {
+      modelsAnalyzed: number;
+      bestModel: {
+        name: string;
+        mape: number;
+        rmse: number;
+        mae: number;
+        trend: string;
+        growthRate: number;
+        anomalies: number;
+      } | null;
+      allModels: Array<{
+        model: string;
+        mape: number;
+        rmse: number;
+        mae: number;
+      }>;
+    };
+    chatSummary: {
+      totalMessages: number;
+      userQuestions: number;
+      aiResponses: number;
+      keyInteractions: Array<{
+        type: string;
+        content: string;
+        timestamp: string;
+      }>;
+    };
+    recommendations: Array<{
+      category: string;
+      level: 'success' | 'warning' | 'error';
+      message: string;
+    }>;
+  }) => {
     return `
     <!DOCTYPE html>
     <html>

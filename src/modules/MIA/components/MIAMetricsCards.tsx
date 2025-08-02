@@ -7,7 +7,6 @@ import {
   DollarSign,
   Target,
   MousePointer,
-  Eye,
   Activity,
 } from 'lucide-react';
 import { Campaign, PlatformMetrics } from '../types';
@@ -61,7 +60,7 @@ const MIAMetricsCards: React.FC<MIAMetricsCardsProps> = ({ campaigns, platformMe
     
     return (
       <div className={`flex items-center gap-1 text-sm ${colorClass}`}>
-        <Icon className="p-4 h-4" />
+        <Icon className="w-4 h-4" />
         {showPercentage ? formatPercentage(Math.abs(trend)) : formatNumber(Math.abs(trend))}
       </div>
     );

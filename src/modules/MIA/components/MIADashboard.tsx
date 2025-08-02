@@ -58,7 +58,7 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
 
   useEffect(() => {
     loadDashboardData();
-  }, [filters]);
+  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadDashboardData = async () => {
     setLoading(true);

@@ -1,7 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { TrendingUp, BarChart3 } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 import { Campaign } from '../types';
 import { AnalyticsService } from '../services/analyticsService';
 import {
@@ -35,14 +34,22 @@ const MIAPerformanceChart: React.FC<MIAPerformanceChartProps> = ({ campaigns }) 
     return `${value.toFixed(1)}%`;
   };
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: {
+    active?: boolean;
+    payload?: Array<{
+      color: string;
+      dataKey: string;
+      value: number;
+    }>;
+    label?: string;
+  }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white dark:bg-viz-medium p-3 border border-slate-200 dark:border-viz-light/20 rounded-lg shadow-sm">
           <p className="font-medium text-sm text-slate-900 dark:text-white mb-1">
             {new Date(label).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </p>
-          {payload.map((entry: any, index: number) => (
+          {payload.map((entry, index: number) => (
             <p key={index} className="text-xs" style={{ color: entry.color }}>
               {entry.dataKey === 'spend' ? 'Spend: ' + formatCurrency(entry.value) :
                 entry.dataKey === 'roas' ? 'ROAS: ' + formatPercentage(entry.value) :

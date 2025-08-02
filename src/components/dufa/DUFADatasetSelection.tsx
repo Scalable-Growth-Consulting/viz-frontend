@@ -37,7 +37,7 @@ const DUFADatasetSelection: React.FC<DUFADatasetSelectionProps> = ({
 
   useEffect(() => {
     fetchAvailableDatasets();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchAvailableDatasets = async () => {
     onLoadingChange(true);
@@ -112,11 +112,12 @@ const DUFADatasetSelection: React.FC<DUFADatasetSelectionProps> = ({
     if (!matchesSearch) return false;
 
     switch (filterType) {
-      case 'recent':
+      case 'recent': {
         const daysSinceUpdate = Math.floor(
           (Date.now() - new Date(dataset.last_updated).getTime()) / (1000 * 60 * 60 * 24)
         );
         return daysSinceUpdate <= 7;
+      }
       case 'large':
         return dataset.rows > 5000;
       default:

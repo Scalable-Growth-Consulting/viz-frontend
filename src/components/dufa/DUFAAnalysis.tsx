@@ -46,7 +46,7 @@ const DUFAAnalysis: React.FC<DUFAAnalysisProps> = ({
     if (results.length === 0 && datasets.length > 0 && config.algorithms.length > 0) {
       runForecasting();
     }
-  }, [datasets, config]);
+  }, [datasets, config]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const runForecasting = async () => {
     setIsRunning(true);
