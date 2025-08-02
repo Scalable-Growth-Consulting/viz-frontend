@@ -177,15 +177,15 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-viz-dark dark:to-black">
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="container mx-auto px-4 py-10 max-w-6xl space-y-10">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-6">
           <div>
             <h1 className="text-3xl font-bold text-viz-dark dark:text-white flex items-center gap-2">
               <Zap className="w-8 h-8 text-viz-accent" />
               Marketing Intelligence Agent
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-base text-slate-600 dark:text-viz-text-secondary mt-1">
               AI-powered marketing analytics and optimization
             </p>
           </div>
@@ -194,12 +194,12 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
               onClick={handleSync}
               disabled={syncing}
               variant="outline"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 border border-slate-200 dark:border-viz-light/20 shadow-none"
             >
               <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
               {syncing ? 'Syncing...' : 'Sync Data'}
             </Button>
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button variant="outline" className="flex items-center gap-2 border border-slate-200 dark:border-viz-light/20 shadow-none">
               <Settings className="w-4 h-4" />
               Settings
             </Button>
@@ -210,9 +210,9 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
         <MIAIntegrationStatus />
 
         {/* Filters */}
-        <Card>
+        <Card className="bg-white dark:bg-viz-medium border border-slate-100 dark:border-viz-light/20 shadow-none">
           <CardContent className="p-4">
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center gap-6">
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium">Platform:</label>
                 <Select
@@ -259,46 +259,46 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
         </Card>
 
         {/* Main Dashboard Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+          <TabsList className="grid w-full grid-cols-4 bg-white dark:bg-viz-medium border border-slate-100 dark:border-viz-light/20 rounded-lg mb-2">
+            <TabsTrigger value="overview" className="flex items-center gap-2 text-base py-2">
               <BarChart3 className="w-4 h-4" />
               Overview
             </TabsTrigger>
-            <TabsTrigger value="campaigns" className="flex items-center gap-2">
+            <TabsTrigger value="campaigns" className="flex items-center gap-2 text-base py-2">
               <Target className="w-4 h-4" />
               Campaigns
             </TabsTrigger>
-            <TabsTrigger value="insights" className="flex items-center gap-2">
+            <TabsTrigger value="insights" className="flex items-center gap-2 text-base py-2">
               <Activity className="w-4 h-4" />
               Insights
             </TabsTrigger>
-            <TabsTrigger value="chat" className="flex items-center gap-2">
+            <TabsTrigger value="chat" className="flex items-center gap-2 text-base py-2">
               <MessageSquare className="w-4 h-4" />
               AI Chat
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="overview" className="space-y-8">
             <MIAMetricsCards 
               campaigns={campaigns} 
               platformMetrics={platformMetrics} 
             />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <MIAPerformanceChart campaigns={campaigns} />
               <MIAInsightsPanel insights={insights.slice(0, 5)} />
             </div>
           </TabsContent>
 
-          <TabsContent value="campaigns" className="space-y-6">
+          <TabsContent value="campaigns" className="space-y-8">
             <MIACampaignTable campaigns={campaigns} />
           </TabsContent>
 
-          <TabsContent value="insights" className="space-y-6">
+          <TabsContent value="insights" className="space-y-8">
             <MIAInsightsPanel insights={insights} showAll />
           </TabsContent>
 
-          <TabsContent value="chat" className="space-y-6">
+          <TabsContent value="chat" className="space-y-8">
             <MIAChatInterface 
               aiChatService={aiChatService} 
               userId={userId} 
