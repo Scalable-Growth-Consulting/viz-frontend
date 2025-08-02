@@ -1,0 +1,313 @@
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DatePickerWithRange } from '@/components/ui/date-range-picker';
+import { useToast } from '@/components/ui/use-toast';
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Target,
+  MousePointer,
+  Eye,
+  RefreshCw,
+  Settings,
+  MessageSquare,
+  BarChart3,
+  PieChart,
+  Activity,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Zap,
+} from 'lucide-react';
+import { Campaign, PlatformMetrics, PerformanceInsight, DashboardFilters } from '../types';
+import { AnalyticsService } from '../services/analyticsService';
+import { AIChatService } from '../services/aiChatService';
+import MIAMetricsCards from './MIAMetricsCards';
+import MIAPerformanceChart from './MIAPerformanceChart';
+import MIACampaignTable from './MIACampaignTable';
+import MIAInsightsPanel from './MIAInsightsPanel';
+import MIAChatInterface from './MIAChatInterface';
+import MIAIntegrationStatus from './MIAIntegrationStatus';
+
+interface MIADashboardProps {
+  userId: string;
+}
+
+const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [platformMetrics, setPlatformMetrics] = useState<PlatformMetrics[]>([]);
+  const [insights, setInsights] = useState<PerformanceInsight[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [filters, setFilters] = useState<DashboardFilters>({
+    platforms: [],
+    dateRange: {
+      start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      end: new Date().toISOString().split('T')[0],
+    },
+  });
+
+  const { toast } = useToast();
+  const aiChatService = new AIChatService(campaigns);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [filters]);
+
+  const loadDashboardData = async () => {
+    setLoading(true);
+    try {
+      // In a real implementation, this would fetch from your API/database
+      // For now, we'll use mock data
+      const mockCampaigns: Campaign[] = [
+        {
+          id: '1',
+          name: 'Summer Sale - Meta',
+          platform: 'meta',
+          status: 'active',
+          budget: 5000,
+          spend: 3200,
+          impressions: 125000,
+          clicks: 2500,
+          conversions: 85,
+          ctr: 2.0,
+          cpa: 37.65,
+          roas: 265,
+          startDate: '2024-01-15T00:00:00Z',
+          createdAt: '2024-01-15T00:00:00Z',
+          updatedAt: '2024-01-20T00:00:00Z',
+        },
+        {
+          id: '2',
+          name: 'Brand Awareness - Google',
+          platform: 'google',
+          status: 'active',
+          budget: 3000,
+          spend: 2800,
+          impressions: 95000,
+          clicks: 1900,
+          conversions: 45,
+          ctr: 2.0,
+          cpa: 62.22,
+          roas: 160,
+          startDate: '2024-01-10T00:00:00Z',
+          createdAt: '2024-01-10T00:00:00Z',
+          updatedAt: '2024-01-18T00:00:00Z',
+        },
+        {
+          id: '3',
+          name: 'Product Launch - Meta',
+          platform: 'meta',
+          status: 'paused',
+          budget: 2000,
+          spend: 1850,
+          impressions: 45000,
+          clicks: 450,
+          conversions: 12,
+          ctr: 1.0,
+          cpa: 154.17,
+          roas: 65,
+          startDate: '2024-01-05T00:00:00Z',
+          createdAt: '2024-01-05T00:00:00Z',
+          updatedAt: '2024-01-15T00:00:00Z',
+        },
+      ];
+
+      const filteredCampaigns = AnalyticsService.filterCampaigns(mockCampaigns, filters);
+      const metrics = AnalyticsService.calculatePlatformMetrics(filteredCampaigns);
+      const generatedInsights = AnalyticsService.generateInsights(filteredCampaigns);
+
+      setCampaigns(filteredCampaigns);
+      setPlatformMetrics(metrics);
+      setInsights(generatedInsights);
+      aiChatService.updateData(filteredCampaigns);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load dashboard data. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      // Simulate sync process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await loadDashboardData();
+      toast({
+        title: 'Sync Complete',
+        description: 'Campaign data has been updated successfully.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Sync Failed',
+        description: 'Failed to sync campaign data. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleFilterChange = (newFilters: Partial<DashboardFilters>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-viz-accent" />
+          <p className="text-muted-foreground">Loading marketing intelligence...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-viz-dark dark:to-black">
+      <div className="container mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-viz-dark dark:text-white flex items-center gap-2">
+              <Zap className="w-8 h-8 text-viz-accent" />
+              Marketing Intelligence Agent
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              AI-powered marketing analytics and optimization
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={handleSync}
+              disabled={syncing}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Syncing...' : 'Sync Data'}
+            </Button>
+            <Button variant="outline" className="flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              Settings
+            </Button>
+          </div>
+        </div>
+
+        {/* Integration Status */}
+        <MIAIntegrationStatus />
+
+        {/* Filters */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium">Platform:</label>
+                <Select
+                  value={filters.platforms[0] || 'all'}
+                  onValueChange={(value) => 
+                    handleFilterChange({ 
+                      platforms: value === 'all' ? [] : [value] 
+                    })
+                  }
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Platforms</SelectItem>
+                    <SelectItem value="meta">Meta</SelectItem>
+                    <SelectItem value="google">Google</SelectItem>
+                    <SelectItem value="linkedin">LinkedIn</SelectItem>
+                    <SelectItem value="tiktok">TikTok</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium">Date Range:</label>
+                <DatePickerWithRange
+                  value={{
+                    from: new Date(filters.dateRange.start),
+                    to: new Date(filters.dateRange.end),
+                  }}
+                  onChange={(range) => {
+                    if (range?.from && range?.to) {
+                      handleFilterChange({
+                        dateRange: {
+                          start: range.from.toISOString().split('T')[0],
+                          end: range.to.toISOString().split('T')[0],
+                        },
+                      });
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Main Dashboard Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overview" className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="campaigns" className="flex items-center gap-2">
+              <Target className="w-4 h-4" />
+              Campaigns
+            </TabsTrigger>
+            <TabsTrigger value="insights" className="flex items-center gap-2">
+              <Activity className="w-4 h-4" />
+              Insights
+            </TabsTrigger>
+            <TabsTrigger value="chat" className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              AI Chat
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
+            <MIAMetricsCards 
+              campaigns={campaigns} 
+              platformMetrics={platformMetrics} 
+            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <MIAPerformanceChart campaigns={campaigns} />
+              <MIAInsightsPanel insights={insights.slice(0, 5)} />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="campaigns" className="space-y-6">
+            <MIACampaignTable campaigns={campaigns} />
+          </TabsContent>
+
+          <TabsContent value="insights" className="space-y-6">
+            <MIAInsightsPanel insights={insights} showAll />
+          </TabsContent>
+
+          <TabsContent value="chat" className="space-y-6">
+            <MIAChatInterface 
+              aiChatService={aiChatService} 
+              userId={userId} 
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+};
+
+export default MIADashboard;

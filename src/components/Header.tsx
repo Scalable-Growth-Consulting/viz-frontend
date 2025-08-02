@@ -34,12 +34,17 @@ const Header: React.FC = () => {
         </Link>
       </div>
       
-      {/* Center Section - DUFA Button */}
-      <div className="flex-1 flex justify-center">
+      {/* Center Section - DUFA & MIA Buttons */}
+      <div className="flex-1 flex justify-center space-x-3">
         <Link to="/dufa" className="flex items-center space-x-2 bg-gradient-to-r from-viz-accent to-blue-600 hover:from-viz-accent/90 hover:to-blue-600/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium">
           <TrendingUp className="w-5 h-5" />
           <span className="hidden sm:inline">DUFA</span>
           <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full hidden md:inline">AI</span>
+        </Link>
+        <Link to="/MIA" className="flex items-center space-x-2 bg-gradient-to-r from-pink-500 to-viz-accent hover:from-pink-400 hover:to-viz-accent/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium">
+          <BarChartIcon className="w-5 h-5" />
+          <span className="hidden sm:inline">MIA</span>
+          <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full hidden md:inline">Beta</span>
         </Link>
       </div>
       

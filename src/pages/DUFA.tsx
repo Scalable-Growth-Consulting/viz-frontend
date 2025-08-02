@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { 
   TrendingUp, 
   Database, 
@@ -32,6 +33,7 @@ import DUFAAnalysis from '@/components/dufa/DUFAAnalysis';
 import DUFAChatbot from '@/components/dufa/DUFAChatbot';
 import DUFAProgressTracker from '@/components/dufa/DUFAProgressTracker';
 import DUFAPDFGenerator from '@/components/dufa/DUFAPDFGenerator';
+import DUFAFloatingNavigation from '@/components/dufa/DUFAFloatingNavigation';
 
 export interface Dataset {
   id: string;
@@ -83,10 +85,12 @@ export interface ProgressState {
 const DUFA: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const containerRef = useRef<HTMLDivElement>(null);
   
   // Step management
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const totalSteps = 5;
   
   // Data states
   const [selectedDatasets, setSelectedDatasets] = useState<Dataset[]>([]);
@@ -144,6 +148,83 @@ const DUFA: React.FC = () => {
     });
   };
 
+  // Navigation functions
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const scrollToStep = (step: number) => {
+    const stepElement = document.getElementById(`dufa-step-${step}`);
+    if (stepElement) {
+      stepElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const goToNextStep = () => {
+    if (currentStep < totalSteps) {
+      const nextStep = currentStep + 1;
+      setCurrentStep(nextStep);
+      
+      // Auto-expand the next section
+      const sectionKeys = ['datasets', 'configuration', 'results', 'chat', 'pdf'] as const;
+      const nextSectionKey = sectionKeys[nextStep - 1];
+      if (nextSectionKey && collapsedSections[nextSectionKey]) {
+        setCollapsedSections(prev => ({ ...prev, [nextSectionKey]: false }));
+      }
+      
+      // Auto-scroll to the next step
+      setTimeout(() => scrollToStep(nextStep), 100);
+      
+      toast({
+        title: `Step ${nextStep}`,
+        description: `Moved to ${['Data Selection', 'Configuration', 'Analysis', 'Chat Interaction', 'PDF Download'][nextStep - 1]}`,
+      });
+    }
+  };
+
+  const goToPreviousStep = () => {
+    if (currentStep > 1) {
+      const prevStep = currentStep - 1;
+      setCurrentStep(prevStep);
+      
+      // Auto-expand the previous section
+      const sectionKeys = ['datasets', 'configuration', 'results', 'chat', 'pdf'] as const;
+      const prevSectionKey = sectionKeys[prevStep - 1];
+      if (prevSectionKey && collapsedSections[prevSectionKey]) {
+        setCollapsedSections(prev => ({ ...prev, [prevSectionKey]: false }));
+      }
+      
+      // Auto-scroll to the previous step
+      setTimeout(() => scrollToStep(prevStep), 100);
+      
+      toast({
+        title: `Step ${prevStep}`,
+        description: `Moved to ${['Data Selection', 'Configuration', 'Analysis', 'Chat Interaction', 'PDF Download'][prevStep - 1]}`,
+      });
+    }
+  };
+
+  // Determine navigation availability
+  const canGoNext = () => {
+    switch (currentStep) {
+      case 1: return selectedDatasets.length > 0;
+      case 2: return progress.forecastConfiguration;
+      case 3: return progress.forecastResults;
+      case 4: return progress.chatInteraction;
+      case 5: return false; // Last step
+      default: return false;
+    }
+  };
+
+  const canGoPrevious = () => currentStep > 1;
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onNext: canGoNext() ? goToNextStep : undefined,
+    onPrevious: canGoPrevious() ? goToPreviousStep : undefined,
+    onEscape: scrollToTop,
+  });
+
   // Enhanced progress tracking
   useEffect(() => {
     const newProgress = {
@@ -192,7 +273,7 @@ const DUFA: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/50 dark:from-viz-dark dark:via-slate-900 dark:to-black">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/50 dark:from-viz-dark dark:via-slate-900 dark:to-black" ref={containerRef}>
       <Header />
       
       <div className="container mx-auto px-4 py-6 max-w-7xl">
@@ -278,143 +359,148 @@ const DUFA: React.FC = () => {
         {/* Main Content - Enhanced Dashboard Layout */}
         <div className="space-y-6">
           {/* Dataset Selection Section */}
-          <Collapsible 
-            open={!collapsedSections.datasets || currentStep === 1}
-            onOpenChange={() => handleSectionToggle('datasets')}
-          >
-            <Card className="bg-white/90 dark:bg-viz-medium/90 backdrop-blur-sm border-0 shadow-lg">
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-slate-50 dark:hover:bg-viz-medium/50 transition-colors">
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-lg ${
-                        progress.dataSelection 
-                          ? 'bg-green-500 text-white' 
-                          : currentStep === 1 
-                            ? 'bg-viz-accent text-white animate-pulse'
-                            : 'bg-slate-200 dark:bg-viz-light text-slate-600 dark:text-viz-text-secondary'
-                      }`}>
-                        <Database className="w-5 h-5" />
+          <div id="dufa-step-1">
+            <Collapsible 
+              open={!collapsedSections.datasets || currentStep === 1}
+              onOpenChange={() => handleSectionToggle('datasets')}
+            >
+              <Card className="bg-white/90 dark:bg-viz-medium/90 backdrop-blur-sm border-0 shadow-lg">
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="cursor-pointer hover:bg-slate-50 dark:hover:bg-viz-medium/50 transition-colors">
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className={`p-2 rounded-lg ${
+                          progress.dataSelection 
+                            ? 'bg-green-500 text-white' 
+                            : currentStep === 1 
+                              ? 'bg-viz-accent text-white animate-pulse'
+                              : 'bg-slate-200 dark:bg-viz-light text-slate-600 dark:text-viz-text-secondary'
+                        }`}>
+                          <Database className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-bold text-viz-dark dark:text-white">
+                            Step 1: Dataset Selection
+                          </h2>
+                          <p className="text-sm text-slate-600 dark:text-viz-text-secondary">
+                            Choose datasets from your BigQuery tables
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-viz-dark dark:text-white">
-                          Step 1: Dataset Selection
-                        </h2>
-                        <p className="text-sm text-slate-600 dark:text-viz-text-secondary">
-                          Choose datasets from your BigQuery tables
-                        </p>
+                      <div className="flex items-center space-x-2">
+                        {progress.dataSelection && (
+                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                            ✓ Complete
+                          </Badge>
+                        )}
+                        {collapsedSections.datasets && currentStep !== 1 ? (
+                          <ChevronRight className="w-5 h-5 text-slate-400" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5 text-slate-400" />
+                        )}
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {progress.dataSelection && (
-                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                          ✓ Complete
-                        </Badge>
-                      )}
-                      {collapsedSections.datasets && currentStep !== 1 ? (
-                        <ChevronRight className="w-5 h-5 text-slate-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-slate-400" />
-                      )}
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent className="pt-0">
-                  <DUFADatasetSelection
-                    selectedDatasets={selectedDatasets}
-                    onDatasetsChange={setSelectedDatasets}
-                    loading={loading.datasets}
-                    onLoadingChange={(isLoading) => setLoading(prev => ({ ...prev, datasets: isLoading }))}
-                  />
-                </CardContent>
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
+                    </CardTitle>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="pt-0">
+                    <DUFADatasetSelection
+                      selectedDatasets={selectedDatasets}
+                      onDatasetsChange={setSelectedDatasets}
+                      loading={loading.datasets}
+                      onLoadingChange={(isLoading) => setLoading(prev => ({ ...prev, datasets: isLoading }))}
+                    />
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          </div>
 
           {/* Configuration Section */}
-          <Collapsible 
-            open={!collapsedSections.configuration || currentStep === 2}
-            onOpenChange={() => handleSectionToggle('configuration')}
-          >
-            <Card className="bg-white/90 dark:bg-viz-medium/90 backdrop-blur-sm border-0 shadow-lg">
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-slate-50 dark:hover:bg-viz-medium/50 transition-colors">
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-lg ${
-                        progress.forecastConfiguration 
-                          ? 'bg-green-500 text-white' 
-                          : currentStep === 2 
-                            ? 'bg-viz-accent text-white animate-pulse'
-                            : 'bg-slate-200 dark:bg-viz-light text-slate-600 dark:text-viz-text-secondary'
-                      }`}>
-                        <Settings className="w-5 h-5" />
+          <div id="dufa-step-2">
+            <Collapsible 
+              open={!collapsedSections.configuration || currentStep === 2}
+              onOpenChange={() => handleSectionToggle('configuration')}
+            >
+              <Card className="bg-white/90 dark:bg-viz-medium/90 backdrop-blur-sm border-0 shadow-lg">
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="cursor-pointer hover:bg-slate-50 dark:hover:bg-viz-medium/50 transition-colors">
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className={`p-2 rounded-lg ${
+                          progress.forecastConfiguration 
+                            ? 'bg-green-500 text-white' 
+                            : currentStep === 2 
+                              ? 'bg-viz-accent text-white animate-pulse'
+                              : 'bg-slate-200 dark:bg-viz-light text-slate-600 dark:text-viz-text-secondary'
+                        }`}>
+                          <Settings className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-bold text-viz-dark dark:text-white">
+                            Step 2: Forecast Configuration
+                          </h2>
+                          <p className="text-sm text-slate-600 dark:text-viz-text-secondary">
+                            Configure algorithms and parameters
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-viz-dark dark:text-white">
-                          Step 2: Forecast Configuration
-                        </h2>
-                        <p className="text-sm text-slate-600 dark:text-viz-text-secondary">
-                          Configure algorithms and parameters
-                        </p>
+                      <div className="flex items-center space-x-2">
+                        {progress.forecastConfiguration && (
+                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                            ✓ Complete
+                          </Badge>
+                        )}
+                        {collapsedSections.configuration && currentStep !== 2 ? (
+                          <ChevronRight className="w-5 h-5 text-slate-400" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5 text-slate-400" />
+                        )}
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {progress.forecastConfiguration && (
-                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                          ✓ Complete
-                        </Badge>
-                      )}
-                      {collapsedSections.configuration && currentStep !== 2 ? (
-                        <ChevronRight className="w-5 h-5 text-slate-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-slate-400" />
-                      )}
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent className="pt-0">
-                  <DUFAConfiguration
-                    config={forecastConfig}
-                    onConfigChange={setForecastConfig}
-                    selectedDatasets={selectedDatasets}
-                  />
-                </CardContent>
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
+                    </CardTitle>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="pt-0">
+                    <DUFAConfiguration
+                      config={forecastConfig}
+                      onConfigChange={setForecastConfig}
+                      selectedDatasets={selectedDatasets}
+                    />
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          </div>
 
-          {/* Analysis Results Section */}
-          <Collapsible 
-            open={!collapsedSections.results || currentStep === 3}
-            onOpenChange={() => handleSectionToggle('results')}
-          >
-            <Card className="bg-white/90 dark:bg-viz-medium/90 backdrop-blur-sm border-0 shadow-lg">
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-slate-50 dark:hover:bg-viz-medium/50 transition-colors">
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-lg ${
-                        progress.forecastResults 
-                          ? 'bg-green-500 text-white' 
-                          : currentStep === 3 
-                            ? 'bg-viz-accent text-white animate-pulse'
-                            : 'bg-slate-200 dark:bg-viz-light text-slate-600 dark:text-viz-text-secondary'
-                      }`}>
-                        <BarChart3 className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-viz-dark dark:text-white">
-                          Step 3: Forecast Analysis
-                        </h2>
-                        <p className="text-sm text-slate-600 dark:text-viz-text-secondary">
-                          View results, metrics, and insights
-                        </p>
-                      </div>
+          {/* Results Section */}
+          <div id="dufa-step-3">
+            <Collapsible 
+              open={!collapsedSections.results || currentStep === 3}
+              onOpenChange={() => handleSectionToggle('results')}
+            >
+              <Card className="bg-white/90 dark:bg-viz-medium/90 backdrop-blur-sm border-0 shadow-lg">
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="cursor-pointer hover:bg-slate-50 dark:hover:bg-viz-medium/50 transition-colors">
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className={`p-2 rounded-lg ${
+                          progress.forecastResults 
+                            ? 'bg-green-500 text-white' 
+                            : currentStep === 3 
+                              ? 'bg-viz-accent text-white animate-pulse'
+                              : 'bg-slate-200 dark:bg-viz-light text-slate-600 dark:text-viz-text-secondary'
+                        }`}>
+                          <BarChart3 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-bold text-viz-dark dark:text-white">
+                            Step 3: Forecast Analysis
+                          </h2>
+                          <p className="text-sm text-slate-600 dark:text-viz-text-secondary">
+                            View results, metrics, and insights
+                          </p>
+                        </div>
                     </div>
                     <div className="flex items-center space-x-2">
                       {progress.forecastResults && (
@@ -446,21 +532,23 @@ const DUFA: React.FC = () => {
               </CollapsibleContent>
             </Card>
           </Collapsible>
+          </div>
 
           {/* AI Chat Section */}
-          <Collapsible 
-            open={!collapsedSections.chat || currentStep === 4}
-            onOpenChange={() => handleSectionToggle('chat')}
-          >
-            <Card className="bg-white/90 dark:bg-viz-medium/90 backdrop-blur-sm border-0 shadow-lg">
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-slate-50 dark:hover:bg-viz-medium/50 transition-colors">
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-lg ${
-                        progress.chatInteraction 
-                          ? 'bg-green-500 text-white' 
-                          : currentStep === 4 
+          <div id="dufa-step-4">
+            <Collapsible 
+              open={!collapsedSections.chat || currentStep === 4}
+              onOpenChange={() => handleSectionToggle('chat')}
+            >
+              <Card className="bg-white/90 dark:bg-viz-medium/90 backdrop-blur-sm border-0 shadow-lg">
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="cursor-pointer hover:bg-slate-50 dark:hover:bg-viz-medium/50 transition-colors">
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className={`p-2 rounded-lg ${
+                          progress.chatInteraction 
+                            ? 'bg-green-500 text-white' 
+                            : currentStep === 4 
                             ? 'bg-viz-accent text-white animate-pulse'
                             : 'bg-slate-200 dark:bg-viz-light text-slate-600 dark:text-viz-text-secondary'
                       }`}>
@@ -512,6 +600,7 @@ const DUFA: React.FC = () => {
               </CollapsibleContent>
             </Card>
           </Collapsible>
+          </div>
 
           {/* Side Panel */}
           <div className="space-y-4">
@@ -576,6 +665,18 @@ const DUFA: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      {/* Floating Navigation */}
+      <DUFAFloatingNavigation
+        currentStep={currentStep}
+        totalSteps={totalSteps}
+        completedSteps={completedSteps}
+        onPrevious={goToPreviousStep}
+        onNext={goToNextStep}
+        onScrollToTop={scrollToTop}
+        canGoPrevious={canGoPrevious()}
+        canGoNext={canGoNext()}
+      />
     </div>
   );
 };
