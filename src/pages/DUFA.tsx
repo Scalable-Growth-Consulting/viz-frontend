@@ -276,22 +276,22 @@ const DUFA: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/50 dark:from-viz-dark dark:via-slate-900 dark:to-black" ref={containerRef}>
       <Header />
       
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
+      <div className="container mx-auto px-4 py-8 max-w-5xl">
         {/* Header Section */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
+        <div className="mb-8 space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div className="flex items-center space-x-4">
-              <div className="bg-gradient-to-br from-viz-accent to-blue-600 p-4 rounded-xl shadow-lg">
+              <div className="bg-viz-accent p-3 rounded-lg flex items-center justify-center">
                 <TrendingUp className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-viz-accent to-blue-600 bg-clip-text text-transparent">
+                <h1 className="text-3xl font-bold text-viz-dark dark:text-white">
                   DUFA
                 </h1>
-                <p className="text-lg text-slate-600 dark:text-viz-text-secondary">
+                <p className="text-base text-slate-600 dark:text-viz-text-secondary">
                   Demand Understanding & Forecasting Agent
                 </p>
-                <p className="text-sm text-slate-500 dark:text-viz-text-secondary flex items-center space-x-2">
+                <p className="text-xs text-slate-500 dark:text-viz-text-secondary flex items-center gap-2 mt-1">
                   <Sparkles className="w-4 h-4" />
                   <span>AI-powered demand forecasting with advanced analytics</span>
                 </p>
@@ -299,7 +299,7 @@ const DUFA: React.FC = () => {
             </div>
             
             {/* Quick Stats */}
-            <div className="hidden lg:flex space-x-4">
+            <div className="flex gap-8 mt-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-viz-accent">{selectedDatasets.length}</div>
                 <div className="text-xs text-slate-500 dark:text-viz-text-secondary">Datasets</div>
@@ -323,8 +323,8 @@ const DUFA: React.FC = () => {
           />
 
           {/* Quick Action Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <Card className="bg-white/80 dark:bg-viz-medium/80 backdrop-blur-sm hover:shadow-lg transition-all duration-200">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <Card className="bg-white/80 dark:bg-viz-medium/80 border border-slate-100 dark:border-viz-light/20 shadow-none transition-all duration-200">
               <CardContent className="p-6 text-center">
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3">
                   <Target className="w-6 h-6 text-white" />
@@ -334,7 +334,7 @@ const DUFA: React.FC = () => {
               </CardContent>
             </Card>
             
-            <Card className="bg-white/80 dark:bg-viz-medium/80 backdrop-blur-sm hover:shadow-lg transition-all duration-200">
+            <Card className="bg-white/80 dark:bg-viz-medium/80 border border-slate-100 dark:border-viz-light/20 shadow-none transition-all duration-200">
               <CardContent className="p-6 text-center">
                 <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-3">
                   <Zap className="w-6 h-6 text-white" />
@@ -344,7 +344,7 @@ const DUFA: React.FC = () => {
               </CardContent>
             </Card>
             
-            <Card className="bg-white/80 dark:bg-viz-medium/80 backdrop-blur-sm hover:shadow-lg transition-all duration-200">
+            <Card className="bg-white/80 dark:bg-viz-medium/80 border border-slate-100 dark:border-viz-light/20 shadow-none transition-all duration-200">
               <CardContent className="p-6 text-center">
                 <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mx-auto mb-3">
                   <MessageSquare className="w-6 h-6 text-white" />
@@ -357,16 +357,16 @@ const DUFA: React.FC = () => {
         </div>
 
         {/* Main Content - Enhanced Dashboard Layout */}
-        <div className="space-y-6">
+        <div className="space-y-8">
           {/* Dataset Selection Section */}
           <div id="dufa-step-1">
             <Collapsible 
               open={!collapsedSections.datasets || currentStep === 1}
               onOpenChange={() => handleSectionToggle('datasets')}
             >
-              <Card className="bg-white/90 dark:bg-viz-medium/90 backdrop-blur-sm border-0 shadow-lg">
+              <Card className="bg-white dark:bg-viz-medium border border-slate-100 dark:border-viz-light/20 shadow-none">
                 <CollapsibleTrigger asChild>
-                  <CardHeader className="cursor-pointer hover:bg-slate-50 dark:hover:bg-viz-medium/50 transition-colors">
+                  <CardHeader className="cursor-pointer hover:bg-slate-100 dark:hover:bg-viz-medium/40 transition-colors">
                     <CardTitle className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <div className={`p-2 rounded-lg ${
@@ -389,7 +389,7 @@ const DUFA: React.FC = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         {progress.dataSelection && (
-                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                          <Badge className="bg-green-50 text-green-700 dark:bg-green-900 dark:text-green-200">
                             ✓ Complete
                           </Badge>
                         )}
@@ -422,9 +422,9 @@ const DUFA: React.FC = () => {
               open={!collapsedSections.configuration || currentStep === 2}
               onOpenChange={() => handleSectionToggle('configuration')}
             >
-              <Card className="bg-white/90 dark:bg-viz-medium/90 backdrop-blur-sm border-0 shadow-lg">
+              <Card className="bg-white dark:bg-viz-medium border border-slate-100 dark:border-viz-light/20 shadow-none">
                 <CollapsibleTrigger asChild>
-                  <CardHeader className="cursor-pointer hover:bg-slate-50 dark:hover:bg-viz-medium/50 transition-colors">
+                  <CardHeader className="cursor-pointer hover:bg-slate-100 dark:hover:bg-viz-medium/40 transition-colors">
                     <CardTitle className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <div className={`p-2 rounded-lg ${
@@ -447,7 +447,7 @@ const DUFA: React.FC = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         {progress.forecastConfiguration && (
-                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                          <Badge className="bg-green-50 text-green-700 dark:bg-green-900 dark:text-green-200">
                             ✓ Complete
                           </Badge>
                         )}
@@ -479,9 +479,9 @@ const DUFA: React.FC = () => {
               open={!collapsedSections.results || currentStep === 3}
               onOpenChange={() => handleSectionToggle('results')}
             >
-              <Card className="bg-white/90 dark:bg-viz-medium/90 backdrop-blur-sm border-0 shadow-lg">
+              <Card className="bg-white dark:bg-viz-medium border border-slate-100 dark:border-viz-light/20 shadow-none">
                 <CollapsibleTrigger asChild>
-                  <CardHeader className="cursor-pointer hover:bg-slate-50 dark:hover:bg-viz-medium/50 transition-colors">
+                  <CardHeader className="cursor-pointer hover:bg-slate-100 dark:hover:bg-viz-medium/40 transition-colors">
                     <CardTitle className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <div className={`p-2 rounded-lg ${
@@ -504,7 +504,7 @@ const DUFA: React.FC = () => {
                     </div>
                     <div className="flex items-center space-x-2">
                       {progress.forecastResults && (
-                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        <Badge className="bg-green-50 text-green-700 dark:bg-green-900 dark:text-green-200">
                           ✓ Complete
                         </Badge>
                       )}
@@ -540,9 +540,9 @@ const DUFA: React.FC = () => {
               open={!collapsedSections.chat || currentStep === 4}
               onOpenChange={() => handleSectionToggle('chat')}
             >
-              <Card className="bg-white/90 dark:bg-viz-medium/90 backdrop-blur-sm border-0 shadow-lg">
+              <Card className="bg-white dark:bg-viz-medium border border-slate-100 dark:border-viz-light/20 shadow-none">
                 <CollapsibleTrigger asChild>
-                  <CardHeader className="cursor-pointer hover:bg-slate-50 dark:hover:bg-viz-medium/50 transition-colors">
+                  <CardHeader className="cursor-pointer hover:bg-slate-100 dark:hover:bg-viz-medium/40 transition-colors">
                     <CardTitle className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <div className={`p-2 rounded-lg ${
@@ -565,7 +565,7 @@ const DUFA: React.FC = () => {
                     </div>
                     <div className="flex items-center space-x-2">
                       {progress.chatInteraction && (
-                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        <Badge className="bg-green-50 text-green-700 dark:bg-green-900 dark:text-green-200">
                           ✓ Complete
                         </Badge>
                       )}
@@ -606,8 +606,8 @@ const DUFA: React.FC = () => {
           <div className="space-y-4">
             {/* Quick Stats */}
             <Card className="bg-white/80 dark:bg-viz-medium/80 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Quick Stats</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold">Quick Stats</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex justify-between items-center">
