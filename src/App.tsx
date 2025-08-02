@@ -14,6 +14,9 @@ import Profile from './pages/Profile';
 import DUFA from './pages/DUFA';
 import DUFAComingSoon from './pages/DUFAComingSoon';
 import DUFAAccessGuard from '@/components/dufa/DUFAAccessGuard';
+import MIA from './pages/MIA';
+import MIAComingSoon from './pages/MIAComingSoon';
+import MIAAccessGuard from '@/components/mia/MIAAccessGuard';
 import './App.css';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -39,14 +42,9 @@ function App() {
     <AuthProvider>
       <div className="App">
         <Routes>
-          {/* All routes will be here */}
+          {/* Public routes */}
           <Route path="/auth" element={<Auth />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
-          <Route path="*" element={
-            <ProtectedRoute>
-              <NotFound />
-            </ProtectedRoute>
-          } />
           {/* Protected routes */}
           <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
           <Route path="/data-control" element={<ProtectedRoute><DataControl /></ProtectedRoute>} />
@@ -55,6 +53,10 @@ function App() {
           <Route path="/dufa-coming-soon" element={<ProtectedRoute><DUFAComingSoon /></ProtectedRoute>} />
           <Route path="/tips" element={<ProtectedRoute><Tips /></ProtectedRoute>} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/MIA" element={<ProtectedRoute><MIAAccessGuard><MIA /></MIAAccessGuard></ProtectedRoute>} />
+          <Route path="/MIA-coming-soon" element={<ProtectedRoute><MIAComingSoon /></ProtectedRoute>} />
+          {/* 404 fallback - shown for all users */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
         <Toaster />
       </div>
