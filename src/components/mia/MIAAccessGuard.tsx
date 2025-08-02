@@ -10,12 +10,23 @@ interface MIAAccessGuardProps {
 const MIAAccessGuard: React.FC<MIAAccessGuardProps> = ({ children }) => {
   const { user } = useAuth();
 
-  // Check if user has access to MIA
-  if (!hasPremiumAccess(user)) {
-    return <MIAComingSoon />;
+  // Debug: Log user email and admin check
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[MIAAccessGuard] user:', user?.email, 'isAdmin:', hasPremiumAccess(user));
   }
 
-  return <>{children}</>;
+  // Robust admin access check
+  if (user?.email && user.email.toLowerCase() === 'creationvision03@gmail.com') {
+    return <>{children}</>;
+  }
+
+  // Fallback to util-based check (future-proof)
+  if (hasPremiumAccess(user)) {
+    return <>{children}</>;
+  }
+
+  // Otherwise, show Coming Soon
+  return <MIAComingSoon />;
 };
 
 export default MIAAccessGuard;
