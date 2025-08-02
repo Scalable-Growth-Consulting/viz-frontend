@@ -177,44 +177,53 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-viz-dark dark:to-black">
-      <div className="container mx-auto px-4 py-10 max-w-6xl space-y-10">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-viz-dark dark:text-white flex items-center gap-2">
-              <Zap className="w-8 h-8 text-viz-accent" />
-              Marketing Intelligence Agent
-            </h1>
-            <p className="text-base text-slate-600 dark:text-viz-text-secondary mt-1">
-              AI-powered marketing analytics and optimization
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={handleSync}
-              disabled={syncing}
-              variant="outline"
-              className="flex items-center gap-2 border border-slate-200 dark:border-viz-light/20 shadow-none"
-            >
-              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? 'Syncing...' : 'Sync Data'}
-            </Button>
-            <Button variant="outline" className="flex items-center gap-2 border border-slate-200 dark:border-viz-light/20 shadow-none">
-              <Settings className="w-4 h-4" />
-              Settings
-            </Button>
+      <div className="container mx-auto px-6 py-8 max-w-7xl">
+        {/* Header Section */}
+        <div className="mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold text-viz-dark dark:text-white flex items-center gap-3">
+                <Zap className="w-9 h-9 text-viz-accent" />
+                Marketing Intelligence Agent
+              </h1>
+              <p className="text-lg text-slate-600 dark:text-viz-text-secondary">
+                AI-powered marketing analytics and optimization platform
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={handleSync}
+                disabled={syncing}
+                variant="outline"
+                className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-viz-light/20 shadow-sm hover:shadow-md transition-shadow"
+              >
+                <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Syncing...' : 'Sync Data'}
+              </Button>
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-viz-light/20 shadow-sm hover:shadow-md transition-shadow"
+              >
+                <Settings className="w-4 h-4" />
+                Settings
+              </Button>
+            </div>
           </div>
         </div>
 
         {/* Integration Status */}
-        <MIAIntegrationStatus />
+        <div className="mb-8">
+          <MIAIntegrationStatus />
+        </div>
 
-        {/* Filters */}
-        <Card className="bg-white dark:bg-viz-medium border border-slate-100 dark:border-viz-light/20 shadow-none">
-          <CardContent className="p-4">
-            <div className="flex flex-wrap items-center gap-6">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium">Platform:</label>
+        {/* Filters Section */}
+        <Card className="mb-8 bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 min-w-[70px]">
+                  Platform:
+                </label>
                 <Select
                   value={filters.platforms[0] || 'all'}
                   onValueChange={(value) => 
@@ -223,7 +232,7 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
                     })
                   }
                 >
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-40 border-slate-200 dark:border-viz-light/20">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -235,8 +244,10 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium">Date Range:</label>
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 min-w-[85px]">
+                  Date Range:
+                </label>
                 <DatePickerWithRange
                   value={{
                     from: new Date(filters.dateRange.start),
@@ -260,45 +271,59 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
 
         {/* Main Dashboard Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsList className="grid w-full grid-cols-4 bg-white dark:bg-viz-medium border border-slate-100 dark:border-viz-light/20 rounded-lg mb-2">
-            <TabsTrigger value="overview" className="flex items-center gap-2 text-base py-2">
-              <BarChart3 className="w-4 h-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="campaigns" className="flex items-center gap-2 text-base py-2">
-              <Target className="w-4 h-4" />
-              Campaigns
-            </TabsTrigger>
-            <TabsTrigger value="insights" className="flex items-center gap-2 text-base py-2">
-              <Activity className="w-4 h-4" />
-              Insights
-            </TabsTrigger>
-            <TabsTrigger value="chat" className="flex items-center gap-2 text-base py-2">
-              <MessageSquare className="w-4 h-4" />
-              AI Chat
-            </TabsTrigger>
-          </TabsList>
+          <div className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 rounded-xl p-2 shadow-sm">
+            <TabsList className="grid w-full grid-cols-4 bg-transparent gap-1">
+              <TabsTrigger 
+                value="overview" 
+                className="flex items-center gap-2 text-sm font-medium py-3 px-4 rounded-lg data-[state=active]:bg-viz-accent data-[state=active]:text-white transition-all"
+              >
+                <BarChart3 className="w-4 h-4" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger 
+                value="campaigns" 
+                className="flex items-center gap-2 text-sm font-medium py-3 px-4 rounded-lg data-[state=active]:bg-viz-accent data-[state=active]:text-white transition-all"
+              >
+                <Target className="w-4 h-4" />
+                Campaigns
+              </TabsTrigger>
+              <TabsTrigger 
+                value="insights" 
+                className="flex items-center gap-2 text-sm font-medium py-3 px-4 rounded-lg data-[state=active]:bg-viz-accent data-[state=active]:text-white transition-all"
+              >
+                <Activity className="w-4 h-4" />
+                Insights
+              </TabsTrigger>
+              <TabsTrigger 
+                value="chat" 
+                className="flex items-center gap-2 text-sm font-medium py-3 px-4 rounded-lg data-[state=active]:bg-viz-accent data-[state=active]:text-white transition-all"
+              >
+                <MessageSquare className="w-4 h-4" />
+                AI Chat
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          <TabsContent value="overview" className="space-y-8">
+          <TabsContent value="overview" className="space-y-8 mt-8">
             <MIAMetricsCards 
               campaigns={campaigns} 
               platformMetrics={platformMetrics} 
             />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
               <MIAPerformanceChart campaigns={campaigns} />
               <MIAInsightsPanel insights={insights.slice(0, 5)} />
             </div>
           </TabsContent>
 
-          <TabsContent value="campaigns" className="space-y-8">
+          <TabsContent value="campaigns" className="space-y-8 mt-8">
             <MIACampaignTable campaigns={campaigns} />
           </TabsContent>
 
-          <TabsContent value="insights" className="space-y-8">
+          <TabsContent value="insights" className="space-y-8 mt-8">
             <MIAInsightsPanel insights={insights} showAll />
           </TabsContent>
 
-          <TabsContent value="chat" className="space-y-8">
+          <TabsContent value="chat" className="space-y-8 mt-8">
             <MIAChatInterface 
               aiChatService={aiChatService} 
               userId={userId} 

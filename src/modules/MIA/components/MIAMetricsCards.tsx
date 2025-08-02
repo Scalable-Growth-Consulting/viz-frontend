@@ -67,22 +67,24 @@ const MIAMetricsCards: React.FC<MIAMetricsCardsProps> = ({ campaigns, platformMe
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
       {/* Total Spend */}
-      <Card className="bg-white dark:bg-viz-medium border border-slate-100 dark:border-viz-light/20 shadow-none">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-slate-600 dark:text-viz-text-secondary">
+      <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm hover:shadow-md transition-shadow">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-sm font-semibold text-slate-600 dark:text-viz-text-secondary">
             Total Spend
           </CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <DollarSign className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-viz-dark dark:text-white">
+        <CardContent className="pt-0">
+          <div className="text-3xl font-bold text-viz-dark dark:text-white mb-4">
             {formatCurrency(totalSpend)}
           </div>
-          <div className="flex items-center justify-between mt-3">
+          <div className="flex items-center justify-between">
             <TrendIndicator trend={spendTrend} />
-            <Badge variant="secondary" className="text-xs">
+            <Badge variant="secondary" className="text-xs px-2 py-1">
               {activeCampaigns} active
             </Badge>
           </div>
@@ -90,22 +92,24 @@ const MIAMetricsCards: React.FC<MIAMetricsCardsProps> = ({ campaigns, platformMe
       </Card>
 
       {/* ROAS */}
-      <Card className="bg-white dark:bg-viz-medium border border-slate-100 dark:border-viz-light/20 shadow-none">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-slate-600 dark:text-viz-text-secondary">
+      <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm hover:shadow-md transition-shadow">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-sm font-semibold text-slate-600 dark:text-viz-text-secondary">
             Average ROAS
           </CardTitle>
-          <Target className="h-4 w-4 text-muted-foreground" />
+          <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <Target className="h-4 w-4 text-green-600 dark:text-green-400" />
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-viz-dark dark:text-white">
+        <CardContent className="pt-0">
+          <div className="text-3xl font-bold text-viz-dark dark:text-white mb-4">
             {formatPercentage(averageROAS, 0)}
           </div>
-          <div className="flex items-center justify-between mt-3">
+          <div className="flex items-center justify-between">
             <TrendIndicator trend={roasTrend} />
             <Badge 
               variant={averageROAS > 200 ? "default" : averageROAS > 150 ? "secondary" : "destructive"}
-              className="text-xs"
+              className="text-xs px-2 py-1"
             >
               {averageROAS > 200 ? 'Excellent' : averageROAS > 150 ? 'Good' : 'Needs Work'}
             </Badge>
@@ -114,20 +118,22 @@ const MIAMetricsCards: React.FC<MIAMetricsCardsProps> = ({ campaigns, platformMe
       </Card>
 
       {/* CTR */}
-      <Card className="bg-white dark:bg-viz-medium border border-slate-100 dark:border-viz-light/20 shadow-none">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-slate-600 dark:text-viz-text-secondary">
+      <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm hover:shadow-md transition-shadow">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-sm font-semibold text-slate-600 dark:text-viz-text-secondary">
             Average CTR
           </CardTitle>
-          <MousePointer className="h-4 w-4 text-muted-foreground" />
+          <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+            <MousePointer className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-viz-dark dark:text-white">
+        <CardContent className="pt-0">
+          <div className="text-3xl font-bold text-viz-dark dark:text-white mb-4">
             {formatPercentage(averageCTR)}
           </div>
-          <div className="flex items-center justify-between mt-3">
+          <div className="flex items-center justify-between">
             <TrendIndicator trend={ctrTrend} />
-            <div className="text-xs text-slate-500 dark:text-viz-text-secondary">
+            <div className="text-xs text-slate-500 dark:text-viz-text-secondary font-medium">
               {formatNumber(totalClicks)} clicks
             </div>
           </div>
@@ -135,20 +141,22 @@ const MIAMetricsCards: React.FC<MIAMetricsCardsProps> = ({ campaigns, platformMe
       </Card>
 
       {/* Conversions */}
-      <Card className="bg-white dark:bg-viz-medium border border-slate-100 dark:border-viz-light/20 shadow-none">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-slate-600 dark:text-viz-text-secondary">
+      <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-sm font-semibold text-slate-600 dark:text-viz-text-secondary">
             Total Conversions
           </CardTitle>
-          <Activity className="h-4 w-4 text-muted-foreground" />
+          <div className="p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+            <Activity className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-viz-dark dark:text-white">
+        <CardContent className="pt-0">
+          <div className="text-3xl font-bold text-viz-dark dark:text-white mb-4">
             {formatNumber(totalConversions)}
           </div>
-          <div className="flex items-center justify-between mt-3">
+          <div className="flex items-center justify-between">
             <TrendIndicator trend={conversionsTrend} showPercentage={false} />
-            <div className="text-xs text-slate-500 dark:text-viz-text-secondary">
+            <div className="text-xs text-slate-500 dark:text-viz-text-secondary font-medium">
               {formatCurrency(averageCPA)} CPA
             </div>
           </div>
