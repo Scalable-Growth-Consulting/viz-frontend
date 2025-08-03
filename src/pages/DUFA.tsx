@@ -109,6 +109,7 @@ const DUFA: React.FC = () => {
     datasets: false,
     forecast: false,
     analysis: false,
+    chat: false,
     pdfGeneration: false
   });
   
@@ -216,7 +217,44 @@ const DUFA: React.FC = () => {
     }
   };
 
-  const canGoPrevious = () => currentStep > 1;
+  const canGoPrevious = () => {
+    return currentStep > 1;
+  };
+
+  // Additional handler functions
+  const handleRunForecast = async () => {
+    setLoading(prev => ({ ...prev, forecast: true }));
+    try {
+      // Forecast logic would go here
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+      setProgress(prev => ({ ...prev, forecastResults: true }));
+    } catch (error) {
+      console.error('Forecast error:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, forecast: false }));
+    }
+  };
+
+  const handleSendMessage = async (message: string) => {
+    setLoading(prev => ({ ...prev, chat: true }));
+    try {
+      const newMessage = { id: Date.now(), content: message, sender: 'user', timestamp: new Date() };
+      setChatMessages(prev => [...prev, newMessage]);
+      
+      // Simulate AI response
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const aiResponse = { id: Date.now() + 1, content: 'AI response to: ' + message, sender: 'ai', timestamp: new Date() };
+      setChatMessages(prev => [...prev, aiResponse]);
+      
+      setProgress(prev => ({ ...prev, chatInteraction: true }));
+    } catch (error) {
+      console.error('Chat error:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, chat: false }));
+    }
+  };
+
+
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -273,322 +311,270 @@ const DUFA: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/50 dark:from-viz-dark dark:via-slate-900 dark:to-black" ref={containerRef}>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-viz-dark dark:to-black">
       <Header />
       
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <div className="container mx-auto px-6 py-8 max-w-7xl">
         {/* Header Section */}
-        <div className="mb-8 space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-            <div className="flex items-center space-x-4">
-              <div className="bg-viz-accent p-3 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-viz-dark dark:text-white">
-                  DUFA
-                </h1>
-                <p className="text-base text-slate-600 dark:text-viz-text-secondary">
-                  Demand Understanding & Forecasting Agent
-                </p>
-                <p className="text-xs text-slate-500 dark:text-viz-text-secondary flex items-center gap-2 mt-1">
-                  <Sparkles className="w-4 h-4" />
-                  <span>AI-powered demand forecasting with advanced analytics</span>
-                </p>
-              </div>
+        <div className="mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold text-viz-dark dark:text-white flex items-center gap-3">
+                <div className="p-2 bg-viz-accent/10 rounded-xl">
+                  <TrendingUp className="w-9 h-9 text-viz-accent" />
+                </div>
+                Demand Understanding & Forecasting Agent
+              </h1>
+              <p className="text-lg text-slate-600 dark:text-viz-text-secondary">
+                Advanced AI-powered demand forecasting and analytics platform for data-driven business insights
+              </p>
             </div>
-            
-            {/* Quick Stats */}
-            <div className="flex gap-8 mt-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-viz-accent">{selectedDatasets.length}</div>
-                <div className="text-xs text-slate-500 dark:text-viz-text-secondary">Datasets</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-viz-accent">{forecastConfig.algorithms.length}</div>
-                <div className="text-xs text-slate-500 dark:text-viz-text-secondary">Algorithms</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-viz-accent">{forecastConfig.horizon}</div>
-                <div className="text-xs text-slate-500 dark:text-viz-text-secondary">Days</div>
-              </div>
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => setCurrentStep(1)}
+                variant="outline"
+                className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-viz-light/20 shadow-sm hover:shadow-md transition-shadow"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Reset
+              </Button>
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-viz-light/20 shadow-sm hover:shadow-md transition-shadow"
+              >
+                <Settings className="w-4 h-4" />
+                Settings
+              </Button>
             </div>
-          </div>
-          
-          {/* Enhanced Progress Tracker */}
-          <DUFAProgressTracker 
-            progress={progress}
-            currentStep={currentStep}
-            className="mb-6"
-          />
-
-          {/* Quick Action Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="bg-white/80 dark:bg-viz-medium/80 border border-slate-100 dark:border-viz-light/20 shadow-none transition-all duration-200">
-              <CardContent className="p-6 text-center">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <Target className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="font-semibold text-viz-dark dark:text-white mb-2">Smart Analysis</h3>
-                <p className="text-sm text-slate-600 dark:text-viz-text-secondary">Advanced AI models for accurate demand forecasting</p>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-white/80 dark:bg-viz-medium/80 border border-slate-100 dark:border-viz-light/20 shadow-none transition-all duration-200">
-              <CardContent className="p-6 text-center">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <Zap className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="font-semibold text-viz-dark dark:text-white mb-2">Real-time Insights</h3>
-                <p className="text-sm text-slate-600 dark:text-viz-text-secondary">Interactive dashboards with anomaly detection</p>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-white/80 dark:bg-viz-medium/80 border border-slate-100 dark:border-viz-light/20 shadow-none transition-all duration-200">
-              <CardContent className="p-6 text-center">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <MessageSquare className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="font-semibold text-viz-dark dark:text-white mb-2">AI Assistant</h3>
-                <p className="text-sm text-slate-600 dark:text-viz-text-secondary">Chat-based insights and scenario analysis</p>
-              </CardContent>
-            </Card>
           </div>
         </div>
 
-        {/* Main Content - Enhanced Dashboard Layout */}
+        {/* Quick Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm hover:shadow-lg transition-all duration-300 relative overflow-hidden group">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
+                  <Database className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="text-3xl font-bold text-viz-dark dark:text-white">{selectedDatasets.length}</div>
+              </div>
+              <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-1">Active Datasets</h3>
+              <p className="text-sm text-slate-500 dark:text-viz-text-secondary">Connected data sources</p>
+            </CardContent>
+            <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-blue-600" />
+          </Card>
+          
+          <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm hover:shadow-lg transition-all duration-300 relative overflow-hidden group">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2.5 bg-green-50 dark:bg-green-900/20 rounded-xl group-hover:bg-green-100 dark:group-hover:bg-green-900/30 transition-colors">
+                  <Zap className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div className="text-3xl font-bold text-viz-dark dark:text-white">{forecastConfig.algorithms.length}</div>
+              </div>
+              <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-1">AI Algorithms</h3>
+              <p className="text-sm text-slate-500 dark:text-viz-text-secondary">Forecasting models</p>
+            </CardContent>
+            <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-green-600" />
+          </Card>
+          
+          <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm hover:shadow-lg transition-all duration-300 relative overflow-hidden group">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded-xl group-hover:bg-purple-100 dark:group-hover:bg-purple-900/30 transition-colors">
+                  <Target className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div className="text-3xl font-bold text-viz-dark dark:text-white">{forecastConfig.horizon}</div>
+              </div>
+              <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-1">Forecast Horizon</h3>
+              <p className="text-sm text-slate-500 dark:text-viz-text-secondary">Days ahead</p>
+            </CardContent>
+            <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-purple-600" />
+          </Card>
+        </div>
+        
+        {/* Enhanced Progress Tracker */}
+        <div className="mb-8">
+          <DUFAProgressTracker 
+            progress={progress}
+            currentStep={currentStep}
+            className=""
+          />
+        </div>
+
+        {/* Main Dashboard Tabs */}
         <div className="space-y-8">
-          {/* Dataset Selection Section */}
-          <div id="dufa-step-1">
-            <Collapsible 
-              open={!collapsedSections.datasets || currentStep === 1}
-              onOpenChange={() => handleSectionToggle('datasets')}
-            >
-              <Card className="bg-white dark:bg-viz-medium border border-slate-100 dark:border-viz-light/20 shadow-none">
-                <CollapsibleTrigger asChild>
-                  <CardHeader className="cursor-pointer hover:bg-slate-100 dark:hover:bg-viz-medium/40 transition-colors">
-                    <CardTitle className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className={`p-2 rounded-lg ${
-                          progress.dataSelection 
-                            ? 'bg-green-500 text-white' 
-                            : currentStep === 1 
-                              ? 'bg-viz-accent text-white animate-pulse'
-                              : 'bg-slate-200 dark:bg-viz-light text-slate-600 dark:text-viz-text-secondary'
-                        }`}>
-                          <Database className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h2 className="text-xl font-bold text-viz-dark dark:text-white">
-                            Step 1: Dataset Selection
-                          </h2>
-                          <p className="text-sm text-slate-600 dark:text-viz-text-secondary">
-                            Choose datasets from your BigQuery tables
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {progress.dataSelection && (
-                          <Badge className="bg-green-50 text-green-700 dark:bg-green-900 dark:text-green-200">
-                            ✓ Complete
-                          </Badge>
-                        )}
-                        {collapsedSections.datasets && currentStep !== 1 ? (
-                          <ChevronRight className="w-5 h-5 text-slate-400" />
-                        ) : (
-                          <ChevronDown className="w-5 h-5 text-slate-400" />
-                        )}
-                      </div>
-                    </CardTitle>
-                  </CardHeader>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <CardContent className="pt-0">
-                    <DUFADatasetSelection
-                      selectedDatasets={selectedDatasets}
-                      onDatasetsChange={setSelectedDatasets}
-                      loading={loading.datasets}
-                      onLoadingChange={(isLoading) => setLoading(prev => ({ ...prev, datasets: isLoading }))}
-                    />
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
+          <div className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 rounded-2xl p-1 shadow-sm">
+            <div className="grid grid-cols-5 bg-slate-50 dark:bg-viz-dark/50 rounded-xl p-1 h-auto">
+              <button 
+                onClick={() => setCurrentStep(1)}
+                className={`flex items-center justify-center gap-2 text-sm font-semibold py-4 px-4 rounded-xl transition-all duration-200 hover:text-viz-accent ${
+                  currentStep === 1 
+                    ? 'bg-white text-viz-accent shadow-sm dark:bg-viz-medium dark:text-viz-accent' 
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                <Database className="w-4 h-4" />
+                <span className="hidden sm:inline">Data</span>
+              </button>
+              <button 
+                onClick={() => setCurrentStep(2)}
+                disabled={!progress.dataSelection}
+                className={`flex items-center justify-center gap-2 text-sm font-semibold py-4 px-4 rounded-xl transition-all duration-200 hover:text-viz-accent disabled:opacity-50 disabled:cursor-not-allowed ${
+                  currentStep === 2 
+                    ? 'bg-white text-viz-accent shadow-sm dark:bg-viz-medium dark:text-viz-accent' 
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                <Settings className="w-4 h-4" />
+                <span className="hidden sm:inline">Config</span>
+              </button>
+              <button 
+                onClick={() => setCurrentStep(3)}
+                disabled={!progress.forecastConfiguration}
+                className={`flex items-center justify-center gap-2 text-sm font-semibold py-4 px-4 rounded-xl transition-all duration-200 hover:text-viz-accent disabled:opacity-50 disabled:cursor-not-allowed ${
+                  currentStep === 3 
+                    ? 'bg-white text-viz-accent shadow-sm dark:bg-viz-medium dark:text-viz-accent' 
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4" />
+                <span className="hidden sm:inline">Results</span>
+              </button>
+              <button 
+                onClick={() => setCurrentStep(4)}
+                disabled={!progress.forecastResults}
+                className={`flex items-center justify-center gap-2 text-sm font-semibold py-4 px-4 rounded-xl transition-all duration-200 hover:text-viz-accent disabled:opacity-50 disabled:cursor-not-allowed ${
+                  currentStep === 4 
+                    ? 'bg-white text-viz-accent shadow-sm dark:bg-viz-medium dark:text-viz-accent' 
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span className="hidden sm:inline">Chat</span>
+              </button>
+              <button 
+                onClick={() => setCurrentStep(5)}
+                disabled={!progress.chatInteraction}
+                className={`flex items-center justify-center gap-2 text-sm font-semibold py-4 px-4 rounded-xl transition-all duration-200 hover:text-viz-accent disabled:opacity-50 disabled:cursor-not-allowed ${
+                  currentStep === 5 
+                    ? 'bg-white text-viz-accent shadow-sm dark:bg-viz-medium dark:text-viz-accent' 
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Export</span>
+              </button>
+            </div>
           </div>
 
-          {/* Configuration Section */}
-          <div id="dufa-step-2">
-            <Collapsible 
-              open={!collapsedSections.configuration || currentStep === 2}
-              onOpenChange={() => handleSectionToggle('configuration')}
-            >
-              <Card className="bg-white dark:bg-viz-medium border border-slate-100 dark:border-viz-light/20 shadow-none">
-                <CollapsibleTrigger asChild>
-                  <CardHeader className="cursor-pointer hover:bg-slate-100 dark:hover:bg-viz-medium/40 transition-colors">
-                    <CardTitle className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className={`p-2 rounded-lg ${
-                          progress.forecastConfiguration 
-                            ? 'bg-green-500 text-white' 
-                            : currentStep === 2 
-                              ? 'bg-viz-accent text-white animate-pulse'
-                              : 'bg-slate-200 dark:bg-viz-light text-slate-600 dark:text-viz-text-secondary'
-                        }`}>
-                          <Settings className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h2 className="text-xl font-bold text-viz-dark dark:text-white">
-                            Step 2: Forecast Configuration
-                          </h2>
-                          <p className="text-sm text-slate-600 dark:text-viz-text-secondary">
-                            Configure algorithms and parameters
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {progress.forecastConfiguration && (
-                          <Badge className="bg-green-50 text-green-700 dark:bg-green-900 dark:text-green-200">
-                            ✓ Complete
-                          </Badge>
-                        )}
-                        {collapsedSections.configuration && currentStep !== 2 ? (
-                          <ChevronRight className="w-5 h-5 text-slate-400" />
-                        ) : (
-                          <ChevronDown className="w-5 h-5 text-slate-400" />
-                        )}
-                      </div>
-                    </CardTitle>
-                  </CardHeader>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <CardContent className="pt-0">
-                    <DUFAConfiguration
-                      config={forecastConfig}
-                      onConfigChange={setForecastConfig}
-                      selectedDatasets={selectedDatasets}
-                    />
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
-          </div>
-
-          {/* Results Section */}
-          <div id="dufa-step-3">
-            <Collapsible 
-              open={!collapsedSections.results || currentStep === 3}
-              onOpenChange={() => handleSectionToggle('results')}
-            >
-              <Card className="bg-white dark:bg-viz-medium border border-slate-100 dark:border-viz-light/20 shadow-none">
-                <CollapsibleTrigger asChild>
-                  <CardHeader className="cursor-pointer hover:bg-slate-100 dark:hover:bg-viz-medium/40 transition-colors">
-                    <CardTitle className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className={`p-2 rounded-lg ${
-                          progress.forecastResults 
-                            ? 'bg-green-500 text-white' 
-                            : currentStep === 3 
-                              ? 'bg-viz-accent text-white animate-pulse'
-                              : 'bg-slate-200 dark:bg-viz-light text-slate-600 dark:text-viz-text-secondary'
-                        }`}>
-                          <BarChart3 className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h2 className="text-xl font-bold text-viz-dark dark:text-white">
-                            Step 3: Forecast Analysis
-                          </h2>
-                          <p className="text-sm text-slate-600 dark:text-viz-text-secondary">
-                            View results, metrics, and insights
-                          </p>
-                        </div>
+          {/* Tab Content */}
+          <div className="space-y-8 mt-8">
+            {currentStep === 1 && (
+              <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-3">
+                    <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                      <Database className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                     </div>
-                    <div className="flex items-center space-x-2">
-                      {progress.forecastResults && (
-                        <Badge className="bg-green-50 text-green-700 dark:bg-green-900 dark:text-green-200">
-                          ✓ Complete
-                        </Badge>
-                      )}
-                      {collapsedSections.results && currentStep !== 3 ? (
-                        <ChevronRight className="w-5 h-5 text-slate-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-slate-400" />
-                      )}
+                    <div>
+                      <h2 className="text-xl font-bold text-viz-dark dark:text-white">
+                        Dataset Selection
+                      </h2>
+                      <p className="text-sm text-slate-600 dark:text-viz-text-secondary font-normal">
+                        Choose your data sources for forecasting analysis
+                      </p>
                     </div>
                   </CardTitle>
                 </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent className="pt-0">
+                <CardContent>
+                  <DUFADatasetSelection
+                    selectedDatasets={selectedDatasets}
+                    onDatasetsChange={setSelectedDatasets}
+                    loading={loading.datasets}
+                    onLoadingChange={(isLoading) => setLoading(prev => ({ ...prev, datasets: isLoading }))}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {currentStep === 2 && (
+              <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-3">
+                    <div className="p-2.5 bg-green-50 dark:bg-green-900/20 rounded-xl">
+                      <Settings className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-viz-dark dark:text-white">
+                        Forecast Configuration
+                      </h2>
+                      <p className="text-sm text-slate-600 dark:text-viz-text-secondary font-normal">
+                        Configure algorithms and parameters for forecasting
+                      </p>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DUFAConfiguration
+                    config={forecastConfig}
+                    onConfigChange={setForecastConfig}
+                    selectedDatasets={selectedDatasets}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {currentStep === 3 && (
+              <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-3">
+                    <div className="p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
+                      <BarChart3 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-viz-dark dark:text-white">
+                        Forecast Analysis
+                      </h2>
+                      <p className="text-sm text-slate-600 dark:text-viz-text-secondary font-normal">
+                        View results and model performance metrics
+                      </p>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
                   <DUFAAnalysis
                     results={forecastResults}
                     bestModel={bestModel}
-                    loading={loading.analysis}
+                    loading={loading.forecast}
+                    config={forecastConfig}
                     onResultsChange={setForecastResults}
                     onBestModelChange={setBestModel}
-                    config={forecastConfig}
                     datasets={selectedDatasets}
                   />
                 </CardContent>
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
-          </div>
+              </Card>
+            )}
 
-          {/* AI Chat Section */}
-          <div id="dufa-step-4">
-            <Collapsible 
-              open={!collapsedSections.chat || currentStep === 4}
-              onOpenChange={() => handleSectionToggle('chat')}
-            >
-              <Card className="bg-white dark:bg-viz-medium border border-slate-100 dark:border-viz-light/20 shadow-none">
-                <CollapsibleTrigger asChild>
-                  <CardHeader className="cursor-pointer hover:bg-slate-100 dark:hover:bg-viz-medium/40 transition-colors">
-                    <CardTitle className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className={`p-2 rounded-lg ${
-                          progress.chatInteraction 
-                            ? 'bg-green-500 text-white' 
-                            : currentStep === 4 
-                            ? 'bg-viz-accent text-white animate-pulse'
-                            : 'bg-slate-200 dark:bg-viz-light text-slate-600 dark:text-viz-text-secondary'
-                      }`}>
-                        <MessageSquare className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-viz-dark dark:text-white">
-                          Step 4: AI Chat Analysis
-                        </h2>
-                        <p className="text-sm text-slate-600 dark:text-viz-text-secondary">
-                          Get AI-powered insights and explanations
-                        </p>
-                      </div>
+            {currentStep === 4 && (
+              <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-3">
+                    <div className="p-2.5 bg-orange-50 dark:bg-orange-900/20 rounded-xl">
+                      <MessageSquare className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                     </div>
-                    <div className="flex items-center space-x-2">
-                      {progress.chatInteraction && (
-                        <Badge className="bg-green-50 text-green-700 dark:bg-green-900 dark:text-green-200">
-                          ✓ Complete
-                        </Badge>
-                      )}
-                      <DUFAPDFGenerator
-                        datasets={selectedDatasets}
-                        config={forecastConfig}
-                        results={forecastResults}
-                        bestModel={bestModel}
-                        chatMessages={chatMessages}
-                        onDownloadComplete={handlePDFDownloadComplete}
-                        isLoading={loading.pdfGeneration}
-                      />
-                      {collapsedSections.chat && currentStep !== 4 ? (
-                        <ChevronRight className="w-5 h-5 text-slate-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-slate-400" />
-                      )}
+                    <div>
+                      <h2 className="text-xl font-bold text-viz-dark dark:text-white">
+                        AI Chat Analysis
+                      </h2>
+                      <p className="text-sm text-slate-600 dark:text-viz-text-secondary font-normal">
+                        Interactive insights and scenario analysis
+                      </p>
                     </div>
                   </CardTitle>
                 </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent className="pt-0">
+                <CardContent>
                   <DUFAChatbot
                     forecastResults={forecastResults}
                     bestModel={bestModel}
@@ -597,71 +583,39 @@ const DUFA: React.FC = () => {
                     onMessagesUpdate={handleChatMessagesUpdate}
                   />
                 </CardContent>
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
-          </div>
+              </Card>
+            )}
 
-          {/* Side Panel */}
-          <div className="space-y-4">
-            {/* Quick Stats */}
-            <Card className="bg-white/80 dark:bg-viz-medium/80 backdrop-blur-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold">Quick Stats</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-600 dark:text-viz-text-secondary">Selected Datasets</span>
-                  <Badge variant="outline">{selectedDatasets.length}</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-600 dark:text-viz-text-secondary">Algorithms</span>
-                  <Badge variant="outline">{forecastConfig.algorithms.length}</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-600 dark:text-viz-text-secondary">Forecast Horizon</span>
-                  <Badge variant="outline">{forecastConfig.horizon} days</Badge>
-                </div>
-                {bestModel && (
-                  <div className="pt-2 border-t border-slate-200 dark:border-viz-light">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-slate-600 dark:text-viz-text-secondary">Best Model</span>
-                      <Badge className="bg-viz-accent">{bestModel.model}</Badge>
+            {currentStep === 5 && (
+              <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-3">
+                    <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
+                      <Download className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                     </div>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-sm text-slate-600 dark:text-viz-text-secondary">MAPE</span>
-                      <span className="text-sm font-medium">{bestModel.metrics.mape.toFixed(2)}%</span>
+                    <div>
+                      <h2 className="text-xl font-bold text-viz-dark dark:text-white">
+                        Export & Download
+                      </h2>
+                      <p className="text-sm text-slate-600 dark:text-viz-text-secondary font-normal">
+                        Generate and download comprehensive reports
+                      </p>
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Navigation */}
-            <Card className="bg-white/80 dark:bg-viz-medium/80 backdrop-blur-sm">
-              <CardContent className="p-4">
-                <div className="flex flex-col space-y-2">
-                  <Button
-                    onClick={handleNextStep}
-                    disabled={!canProceedToNextStep() || currentStep === 4}
-                    className="w-full"
-                  >
-                    {currentStep === 4 ? 'Complete' : 'Next Step'}
-                    <ChevronRight className="w-4 h-4 ml-2" />
-                  </Button>
-                  
-                  {currentStep > 1 && (
-                    <Button
-                      onClick={handlePreviousStep}
-                      variant="outline"
-                      className="w-full"
-                    >
-                      Previous Step
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DUFAPDFGenerator
+                    datasets={selectedDatasets}
+                    config={forecastConfig}
+                    results={forecastResults}
+                    bestModel={bestModel}
+                    chatMessages={chatMessages}
+                    onDownloadComplete={handlePDFDownloadComplete}
+                    isLoading={loading.pdfGeneration}
+                  />
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
@@ -669,7 +623,7 @@ const DUFA: React.FC = () => {
       {/* Floating Navigation */}
       <DUFAFloatingNavigation
         currentStep={currentStep}
-        totalSteps={totalSteps}
+        totalSteps={5}
         completedSteps={completedSteps}
         onPrevious={goToPreviousStep}
         onNext={goToNextStep}
