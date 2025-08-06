@@ -602,60 +602,9 @@ const DUFA: React.FC = () => {
               )}
             </div>
           </div>
-                        AI Chat Analysis
-                      </h2>
-                      <p className="text-sm text-slate-600 dark:text-viz-text-secondary font-normal">
-                        Interactive insights and scenario analysis
-                      </p>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <DUFAChatbot
-                    forecastResults={forecastResults}
-                    bestModel={bestModel}
-                    datasets={selectedDatasets}
-                    config={forecastConfig}
-                    onMessagesUpdate={handleChatMessagesUpdate}
-                  />
-                </CardContent>
-              </Card>
-            )}
-
-            {currentStep === 5 && (
-              <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-3">
-                    <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
-                      <Download className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-viz-dark dark:text-white">
-                        Export & Download
-                      </h2>
-                      <p className="text-sm text-slate-600 dark:text-viz-text-secondary font-normal">
-                        Generate and download comprehensive reports
-                      </p>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <DUFAPDFGenerator
-                    datasets={selectedDatasets}
-                    config={forecastConfig}
-                    results={forecastResults}
-                    bestModel={bestModel}
-                    chatMessages={chatMessages}
-                    onDownloadComplete={handlePDFDownloadComplete}
-                    isLoading={loading.pdfGeneration}
-                  />
-                </CardContent>
-              </Card>
-            )}
-          </div>
         </div>
       </div>
-      
+      </div>
       {/* Floating Navigation */}
       <DUFAFloatingNavigation
         currentStep={currentStep}
@@ -667,8 +616,7 @@ const DUFA: React.FC = () => {
         canGoPrevious={canGoPrevious()}
         canGoNext={canGoNext()}
       />
-    </div>
-  </>);
+    </>
+  );
 };
-
 export default DUFA;
