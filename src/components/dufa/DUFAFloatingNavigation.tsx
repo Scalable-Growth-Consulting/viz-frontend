@@ -37,6 +37,8 @@ const DUFAFloatingNavigation: React.FC<DUFAFloatingNavigationProps> = ({
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [showKeyboardHint, setShowKeyboardHint] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   // Show/hide based on scroll position
   useEffect(() => {
@@ -69,13 +71,52 @@ const DUFAFloatingNavigation: React.FC<DUFAFloatingNavigationProps> = ({
     'PDF Download'
   ];
 
-  if (!isVisible) return null;
+  if (!isVisible && !collapsed) return null;
+
+  // Minimal floating toggle button
+  if (collapsed && !hovered) {
+    return (
+      <div
+        className="fixed bottom-6 right-6 z-50"
+        onMouseEnter={() => setHovered(true)}
+      >
+        <Button
+          variant="default"
+          size="icon"
+          className="rounded-full shadow-xl bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 hover:bg-viz-accent hover:text-white transition-all duration-300"
+          onClick={() => setCollapsed(false)}
+          aria-label="Expand navigation"
+        >
+          <span className="sr-only">Expand Navigation</span>
+          <ChevronRight className="w-6 h-6" />
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <div className={cn(
-      "fixed bottom-6 right-6 z-50 space-y-3 transition-all duration-300",
-      className
-    )}>
+    <div
+      className={cn(
+        "fixed bottom-6 right-6 z-50 space-y-3 transition-all duration-300",
+        collapsed ? "opacity-100" : "",
+        className
+      )}
+      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={() => setHovered(true)}
+    >
+      {/* Collapse Toggle Button */}
+      <div className="flex justify-end">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full text-gray-500 hover:text-viz-accent"
+          onClick={() => setCollapsed(true)}
+          aria-label="Collapse navigation"
+        >
+          <span className="sr-only">Collapse Navigation</span>
+          <ChevronRight className="w-5 h-5 rotate-180" />
+        </Button>
+      </div>
       {/* Keyboard Shortcut Hint */}
       {showKeyboardHint && (
         <Card className="p-3 bg-viz-accent text-white shadow-lg animate-in slide-in-from-bottom-2">

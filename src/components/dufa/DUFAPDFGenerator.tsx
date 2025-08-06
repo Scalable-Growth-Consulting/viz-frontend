@@ -191,7 +191,7 @@ const DUFAPDFGenerator: React.FC<DUFAPDFGeneratorProps> = ({
     if (config.horizon > 90) {
       recommendations.push({
         category: 'Forecast Horizon',
-        level: 'info',
+        level: 'warning',
         message: 'Long-term forecast selected. Consider shorter horizons for operational decisions and regular model retraining.'
       });
     }

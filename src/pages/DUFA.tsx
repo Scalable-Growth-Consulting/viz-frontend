@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Header from '@/components/Header';
+import DUFASettingsModal from '@/components/dufa/DUFASettingsModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from "@/components/ui/use-toast";
@@ -84,6 +85,12 @@ export interface ProgressState {
 
 const DUFA: React.FC = () => {
   const { user } = useAuth();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [dufaVisible, setDufaVisible] = useState(true); // default to visible
+  const [featureFlags, setFeatureFlags] = useState<{ [key: string]: boolean }>({
+    'Beta Chatbot': false,
+    'Advanced Charts': false
+  });
   const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -311,8 +318,20 @@ const DUFA: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-viz-dark dark:to-black">
-      <Header />
+    <>
+      <DUFASettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        isAdmin={user?.email?.toLowerCase() === 'creatorvision03@gmail.com'}
+        initialVisibility={dufaVisible}
+        initialFeatureFlags={featureFlags}
+        onSave={(vis, flags) => {
+          setDufaVisible(vis);
+          setFeatureFlags(flags);
+        }}
+      />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-viz-dark dark:to-black">
+        <Header />
       
       <div className="container mx-auto px-6 py-8 max-w-7xl">
         {/* Header Section */}
@@ -341,6 +360,7 @@ const DUFA: React.FC = () => {
               <Button 
                 variant="outline" 
                 className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-viz-light/20 shadow-sm hover:shadow-md transition-shadow"
+                onClick={() => setSettingsOpen(true)}
               >
                 <Settings className="w-4 h-4" />
                 Settings

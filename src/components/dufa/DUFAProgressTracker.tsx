@@ -40,74 +40,58 @@ const DUFAProgressTracker: React.FC<DUFAProgressTrackerProps> = ({
       icon: Database,
       description: 'Choose datasets for forecasting',
       completed: progress.dataSelection,
-      weight: 20
+      milestone: 25
     },
     {
       id: 2,
-      title: 'Forecast Settings',
+      title: 'Forecast Configuration',
       icon: Settings,
-      description: 'Configure algorithms and parameters',
+      description: 'Configure forecast algorithms and parameters',
       completed: progress.forecastConfiguration,
-      weight: 10
+      milestone: 50
     },
     {
       id: 3,
-      title: 'Forecast Results',
+      title: 'Forecast Results & Chat',
       icon: BarChart3,
-      description: 'Generate and analyze forecasts',
-      completed: progress.forecastResults,
-      weight: 20
+      description: 'View forecast results and interact with AI chat',
+      completed: progress.forecastResults && progress.chatInteraction,
+      milestone: 75
     },
     {
       id: 4,
-      title: 'Chat Analysis',
-      icon: MessageSquare,
-      description: 'Interact with AI assistant',
-      completed: progress.chatInteraction,
-      weight: 25
-    },
-    {
-      id: 5,
       title: 'PDF Download',
       icon: FileDown,
-      description: 'Download comprehensive report',
+      description: 'Download your forecast report',
       completed: progress.pdfDownload,
-      weight: 25
+      milestone: 100
     }
   ];
 
   const calculateProgress = () => {
-    let totalProgress = 0;
-    
-    if (progress.dataSelection && progress.forecastConfiguration && progress.forecastResults) {
-      totalProgress = 50; // Data selection and forecast model run completion
-    }
-    
-    if (progress.chatInteraction) {
-      totalProgress = 75; // At least one question asked in chatbot
-    }
-    
-    if (progress.pdfDownload) {
-      totalProgress = 100; // PDF downloaded
-    }
-    
-    return totalProgress;
+    if (progress.pdfDownload) return 100;
+    if (progress.forecastResults && progress.chatInteraction) return 75;
+    if (progress.dataSelection && progress.forecastConfiguration) return 50;
+    if (progress.dataSelection) return 25;
+    return 0;
   };
 
   const getProgressTooltip = () => {
     const progressValue = calculateProgress();
-    
-    if (progressValue === 0) {
-      return "Start by selecting datasets and configuring your forecast";
-    } else if (progressValue === 50) {
-      return "Great! Now interact with the AI chatbot to get insights";
-    } else if (progressValue === 75) {
-      return "Almost done! Download your PDF report to complete the workflow";
-    } else if (progressValue === 100) {
-      return "Workflow complete! You can start a new analysis or explore more insights";
+    switch (progressValue) {
+      case 0:
+        return "Start by selecting your dataset to begin (25%).";
+      case 25:
+        return "Configure your forecast parameters to reach 50%.";
+      case 50:
+        return "View results and chat with the AI to reach 75%.";
+      case 75:
+        return "Download your PDF report to reach 100%.";
+      case 100:
+        return "All steps complete! You can start a new analysis or review your report.";
+      default:
+        return "Continue with the next step.";
     }
-    
-    return "Continue with the next step";
   };
 
   const getStepStatus = (step: typeof steps[0]) => {
