@@ -651,7 +651,8 @@ const DUFA: React.FC = () => {
         canGoPrevious={canGoPrevious()}
         canGoNext={canGoNext()}
       />
-    </div>
+      </div>
+    </>
   );
 };
 
