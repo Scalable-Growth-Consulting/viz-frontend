@@ -28,9 +28,10 @@ const DUFAPDFGenerator: React.FC<DUFAPDFGeneratorProps> = ({
   bestModel,
   chatMessages,
   onDownloadComplete,
-  isLoading = false
+  isLoading: parentLoading = false
 }) => {
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = React.useState(false);
 
   const generatePDFReport = async () => {
     try {
@@ -130,6 +131,8 @@ const DUFAPDFGenerator: React.FC<DUFAPDFGeneratorProps> = ({
         description: "There was an error generating your report. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -433,10 +436,10 @@ const DUFAPDFGenerator: React.FC<DUFAPDFGeneratorProps> = ({
   return (
     <Button
       onClick={generatePDFReport}
-      disabled={isLoading || !bestModel}
+      disabled={isLoading || parentLoading}
       className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
     >
-      {isLoading ? (
+      {(isLoading || parentLoading) ? (
         <>
           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
           Generating Report...

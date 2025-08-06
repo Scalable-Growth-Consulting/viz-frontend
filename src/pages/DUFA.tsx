@@ -423,129 +423,165 @@ const DUFA: React.FC = () => {
           />
         </div>
 
+        {/* Animated Progress Bar */}
+        <div className="relative mb-4">
+          <div className="w-full h-3 bg-slate-200 dark:bg-viz-dark/40 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-viz-accent to-green-400 dark:from-viz-accent dark:to-green-500 transition-all duration-700"
+              style={{ width: `${Math.round(((currentStep-1) + (progress.pdfDownload ? 1 : 0)) / 5 * 100)}%` }}
+              aria-valuenow={currentStep}
+              aria-valuemax={5}
+              aria-valuemin={1}
+              role="progressbar"
+            />
+          </div>
+          <div className="absolute inset-0 flex justify-between px-2 text-xs text-slate-400 dark:text-slate-500 font-medium pointer-events-none select-none">
+            <span>Start</span>
+            <span>Finish</span>
+          </div>
+        </div>
+
         {/* Main Dashboard Tabs */}
         <div className="space-y-8">
           <div className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 rounded-2xl p-1 shadow-sm">
-            <div className="grid grid-cols-5 bg-slate-50 dark:bg-viz-dark/50 rounded-xl p-1 h-auto">
-              <button 
-                onClick={() => setCurrentStep(1)}
-                className={`flex items-center justify-center gap-2 text-sm font-semibold py-4 px-4 rounded-xl transition-all duration-200 hover:text-viz-accent ${
-                  currentStep === 1 
-                    ? 'bg-white text-viz-accent shadow-sm dark:bg-viz-medium dark:text-viz-accent' 
-                    : 'text-slate-600 dark:text-slate-400'
-                }`}
-              >
-                <Database className="w-4 h-4" />
-                <span className="hidden sm:inline">Data</span>
-              </button>
-              <button 
-                onClick={() => setCurrentStep(2)}
-                disabled={!progress.dataSelection}
-                className={`flex items-center justify-center gap-2 text-sm font-semibold py-4 px-4 rounded-xl transition-all duration-200 hover:text-viz-accent disabled:opacity-50 disabled:cursor-not-allowed ${
-                  currentStep === 2 
-                    ? 'bg-white text-viz-accent shadow-sm dark:bg-viz-medium dark:text-viz-accent' 
-                    : 'text-slate-600 dark:text-slate-400'
-                }`}
-              >
-                <Settings className="w-4 h-4" />
-                <span className="hidden sm:inline">Config</span>
-              </button>
-              <button 
-                onClick={() => setCurrentStep(3)}
-                disabled={!progress.forecastConfiguration}
-                className={`flex items-center justify-center gap-2 text-sm font-semibold py-4 px-4 rounded-xl transition-all duration-200 hover:text-viz-accent disabled:opacity-50 disabled:cursor-not-allowed ${
-                  currentStep === 3 
-                    ? 'bg-white text-viz-accent shadow-sm dark:bg-viz-medium dark:text-viz-accent' 
-                    : 'text-slate-600 dark:text-slate-400'
-                }`}
-              >
-                <BarChart3 className="w-4 h-4" />
-                <span className="hidden sm:inline">Results</span>
-              </button>
-              <button 
-                onClick={() => setCurrentStep(4)}
-                disabled={!progress.forecastResults}
-                className={`flex items-center justify-center gap-2 text-sm font-semibold py-4 px-4 rounded-xl transition-all duration-200 hover:text-viz-accent disabled:opacity-50 disabled:cursor-not-allowed ${
-                  currentStep === 4 
-                    ? 'bg-white text-viz-accent shadow-sm dark:bg-viz-medium dark:text-viz-accent' 
-                    : 'text-slate-600 dark:text-slate-400'
-                }`}
-              >
-                <MessageSquare className="w-4 h-4" />
-                <span className="hidden sm:inline">Chat</span>
-              </button>
-              <button 
-                onClick={() => setCurrentStep(5)}
-                disabled={!progress.chatInteraction}
-                className={`flex items-center justify-center gap-2 text-sm font-semibold py-4 px-4 rounded-xl transition-all duration-200 hover:text-viz-accent disabled:opacity-50 disabled:cursor-not-allowed ${
-                  currentStep === 5 
-                    ? 'bg-white text-viz-accent shadow-sm dark:bg-viz-medium dark:text-viz-accent' 
-                    : 'text-slate-600 dark:text-slate-400'
-                }`}
-              >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Export</span>
-              </button>
-            </div>
+            <div className="grid grid-cols-5 gap-2 bg-gradient-to-r from-viz-accent/10 to-viz-accent/5 dark:from-viz-dark/60 dark:to-viz-dark/40 rounded-2xl p-2 h-auto shadow-md">
+  {[
+    { label: 'Data', icon: <Database className="w-4 h-4" />, enabled: true, complete: progress.dataSelection },
+    { label: 'Config', icon: <Settings className="w-4 h-4" />, enabled: progress.dataSelection, complete: progress.forecastConfiguration },
+    { label: 'Results', icon: <BarChart3 className="w-4 h-4" />, enabled: progress.forecastConfiguration, complete: progress.forecastResults },
+    { label: 'Chat', icon: <MessageSquare className="w-4 h-4" />, enabled: progress.forecastResults, complete: progress.chatInteraction },
+    { label: 'Export', icon: <Download className="w-4 h-4" />, enabled: progress.chatInteraction, complete: progress.pdfDownload },
+  ].map((step, idx) => {
+    const stepIndex = idx + 1;
+    const isActive = currentStep === stepIndex;
+    const isComplete = step.complete;
+    return (
+      <button
+        key={step.label}
+        onClick={() => step.enabled && setCurrentStep(stepIndex)}
+        disabled={!step.enabled}
+        className={`
+          flex flex-col items-center justify-center relative py-3 px-2 sm:px-4 rounded-2xl font-semibold transition-all duration-200
+          focus:outline-none focus:ring-2 focus:ring-viz-accent/60
+          ${isActive ? 'bg-white dark:bg-viz-medium text-viz-accent shadow-lg scale-105 z-10' : 'bg-transparent text-slate-600 dark:text-slate-400'}
+          ${step.enabled ? 'hover:bg-viz-accent/10 dark:hover:bg-viz-accent/10 cursor-pointer' : 'opacity-50 cursor-not-allowed'}
+        `}
+        tabIndex={step.enabled ? 0 : -1}
+        aria-current={isActive ? 'step' : undefined}
+        aria-disabled={!step.enabled}
+      >
+        <div className="flex items-center gap-2">
+          {step.icon}
+          <span className="hidden sm:inline">{step.label}</span>
+        </div>
+        {/* Completion checkmark */}
+        {isComplete && (
+          <span className="absolute top-2 right-2">
+            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+          </span>
+        )}
+        {/* Active accent underline */}
+        {isActive && <span className="block mt-2 h-1 w-8 bg-viz-accent rounded-full"></span>}
+      </button>
+    );
+  })}
+</div>
           </div>
 
-          {/* Tab Content */}
-          <div className="space-y-8 mt-8">
-            {currentStep === 1 && (
-              <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-3">
-                    <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-                      <Database className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-viz-dark dark:text-white">
-                        Dataset Selection
-                      </h2>
-                      <p className="text-sm text-slate-600 dark:text-viz-text-secondary font-normal">
-                        Choose your data sources for forecasting analysis
-                      </p>
-                    </div>
+          {/* Tab Content with Animation */}
+          <div className="space-y-8 mt-8 min-h-[350px] relative">
+            <div
+              key={currentStep}
+              className="animate-fadein-slidein absolute w-full"
+              style={{ position: 'relative' }}
+            >
+              {currentStep === 1 && (
+                <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
+                  <CardHeader className="pb-4">
+                    <CardTitle>Data Selection</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <DUFADatasetSelection
+                      selectedDatasets={selectedDatasets}
+                      onDatasetsChange={setSelectedDatasets}
+                      loading={loading.datasets}
+                      onLoadingChange={(isLoading) => setLoading(prev => ({ ...prev, datasets: isLoading }))}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+              {currentStep === 2 && (
+                <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
+                  <CardHeader className="pb-4">
+                    <CardTitle>Configuration</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <DUFAConfiguration
+                      config={forecastConfig}
+                      onConfigChange={setForecastConfig}
+                      selectedDatasets={selectedDatasets}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+              {currentStep === 3 && (
+                <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
+                  <CardHeader className="pb-4">
+                    <CardTitle>Analysis Results</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <DUFAAnalysis
+                      results={forecastResults}
+                      bestModel={bestModel}
+                      loading={loading.analysis}
+                      config={forecastConfig}
+                      onResultsChange={setForecastResults}
+                      onBestModelChange={setBestModel}
+                      datasets={selectedDatasets}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+              {currentStep === 4 && (
+                <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
+                  <CardHeader className="pb-4">
+                    <CardTitle>Chat Interaction</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <DUFAChatbot
+                      forecastResults={forecastResults}
+                      bestModel={bestModel}
+                      datasets={selectedDatasets}
+                      config={forecastConfig}
+                      onMessagesUpdate={handleChatMessagesUpdate}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+              {currentStep === 5 && (
+                <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
+                  <CardHeader className="pb-4">
+                    <CardTitle>Export Report</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <DUFAPDFGenerator
+                      datasets={selectedDatasets}
+                      config={forecastConfig}
+                      results={forecastResults}
+                      bestModel={bestModel}
+                      chatMessages={chatMessages}
+                      onDownloadComplete={handlePDFDownloadComplete}
+                      isLoading={loading.pdfGeneration}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <DUFADatasetSelection
-                    selectedDatasets={selectedDatasets}
-                    onDatasetsChange={setSelectedDatasets}
-                    loading={loading.datasets}
-                    onLoadingChange={(isLoading) => setLoading(prev => ({ ...prev, datasets: isLoading }))}
-                  />
-                </CardContent>
-              </Card>
-            )}
-
-            {currentStep === 2 && (
-              <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-3">
-                    <div className="p-2.5 bg-green-50 dark:bg-green-900/20 rounded-xl">
-                      <Settings className="h-5 w-5 text-green-600 dark:text-green-400" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-viz-dark dark:text-white">
-                        Forecast Configuration
-                      </h2>
-                      <p className="text-sm text-slate-600 dark:text-viz-text-secondary font-normal">
-                        Configure algorithms and parameters for forecasting
-                      </p>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <DUFAConfiguration
-                    config={forecastConfig}
-                    onConfigChange={setForecastConfig}
-                    selectedDatasets={selectedDatasets}
-                  />
-                </CardContent>
-              </Card>
-            )}
-
             {currentStep === 3 && (
               <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
                 <CardHeader className="pb-4">
@@ -567,7 +603,7 @@ const DUFA: React.FC = () => {
                   <DUFAAnalysis
                     results={forecastResults}
                     bestModel={bestModel}
-                    loading={loading.forecast}
+                    loading={loading.analysis}
                     config={forecastConfig}
                     onResultsChange={setForecastResults}
                     onBestModelChange={setBestModel}
@@ -651,9 +687,8 @@ const DUFA: React.FC = () => {
         canGoPrevious={canGoPrevious()}
         canGoNext={canGoNext()}
       />
-      </div>
-    </>
-  );
+    </div>
+  </>);
 };
 
 export default DUFA;
