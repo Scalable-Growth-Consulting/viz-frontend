@@ -578,46 +578,6 @@ const DUFA: React.FC = () => {
               )}
             </div>
           </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <DUFADatasetSelection
-            {currentStep === 3 && (
-              <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-3">
-                    <div className="p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
-                      <BarChart3 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-viz-dark dark:text-white">
-                        Forecast Analysis
-                      </h2>
-                      <p className="text-sm text-slate-600 dark:text-viz-text-secondary font-normal">
-                        View results and model performance metrics
-                      </p>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <DUFAAnalysis
-                    results={forecastResults}
-                    bestModel={bestModel}
-                    loading={loading.analysis}
-                    config={forecastConfig}
-                    onResultsChange={setForecastResults}
-                    onBestModelChange={setBestModel}
-                    datasets={selectedDatasets}
-                  />
-                </CardContent>
-              </Card>
-            )}
-
-            {currentStep === 4 && (
-              <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-3">
-                    <div className="p-2.5 bg-orange-50 dark:bg-orange-900/20 rounded-xl">
                       <MessageSquare className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                     </div>
                     <div>
