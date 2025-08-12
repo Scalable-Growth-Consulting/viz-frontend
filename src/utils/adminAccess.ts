@@ -2,6 +2,7 @@ import { User } from '@supabase/supabase-js';
 
 // Admin email configuration
 export const ADMIN_EMAIL = 'creatorvision03@gmail.com';
+export const ALLOWED_DOMAIN = '@sgconsultingtech.com';
 
 /**
  * Check if the current user is an admin
@@ -14,13 +15,17 @@ export const isAdmin = (user: User | null): boolean => {
 };
 
 /**
- * Check if user has access to premium features (MIA, DUFA)
- * Currently only admin has access, but this can be extended for other users
+ * Check if user has premium access (admin or @sgconsultingtech.com domain)
  * @param user - The authenticated user object from Supabase
  * @returns boolean indicating if user has premium access
  */
 export const hasPremiumAccess = (user: User | null): boolean => {
-  return isAdmin(user);
+  if (!user?.email) return false;
+  const email = user.email.toLowerCase();
+  return (
+    isAdmin(user) ||
+    email.endsWith(ALLOWED_DOMAIN)
+  );
 };
 
 /**

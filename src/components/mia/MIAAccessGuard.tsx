@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { ADMIN_EMAIL } from '@/utils/adminAccess';
+import { ADMIN_EMAIL, hasPremiumAccess } from '@/utils/adminAccess';
 import MIAComingSoon from '@/pages/MIAComingSoon';
 
 interface MIAAccessGuardProps {
@@ -11,16 +11,16 @@ const MIAAccessGuard: React.FC<MIAAccessGuardProps> = ({ children }) => {
   const { user } = useAuth();
 
   // Debug logging for access control
-  console.log('[MIAAccessGuard] Access Check:', {
+  const access = {
     userExists: !!user,
     userEmail: user?.email,
-    isAdmin: user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase(),
+    hasPremiumAccess: hasPremiumAccess(user),
     timestamp: new Date().toISOString()
-  });
+  };
+  console.log('[MIAAccessGuard] Access Check:', access);
 
-  // PERMANENT ACCESS: Only allow creatorvision03@gmail.com
-  if (user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-    console.log('[MIAAccessGuard] ✅ Admin access granted for', ADMIN_EMAIL);
+  if (hasPremiumAccess(user)) {
+    console.log('[MIAAccessGuard] ✅ Premium access granted for', user?.email);
     return <>{children}</>;
   }
 

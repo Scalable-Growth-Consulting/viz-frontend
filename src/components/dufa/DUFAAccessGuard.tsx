@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
-import { ADMIN_EMAIL } from '@/utils/adminAccess';
+import { ADMIN_EMAIL, hasPremiumAccess } from '@/utils/adminAccess';
 
 interface DUFAAccessGuardProps {
   children: React.ReactNode;
@@ -11,22 +11,20 @@ const DUFAAccessGuard: React.FC<DUFAAccessGuardProps> = ({ children }) => {
   const { user } = useAuth();
 
   // Debug logging for access control
-  console.log('[DUFAAccessGuard] Access Check:', {
+  const access = {
     userExists: !!user,
     userEmail: user?.email,
-    isAdmin: user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase(),
+    hasPremiumAccess: hasPremiumAccess(user),
     timestamp: new Date().toISOString()
-  });
+  };
+  console.log('[DUFAAccessGuard] Access Check:', access);
 
-  // PERMANENT ACCESS: Only allow creatorvision03@gmail.com
-  const hasAdminAccess = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-
-  if (!hasAdminAccess) {
+  if (!hasPremiumAccess(user)) {
     console.log('[DUFAAccessGuard] ❌ Access denied - redirecting to Coming Soon page');
     return <Navigate to="/dufa-coming-soon" replace />;
   }
 
-  console.log('[DUFAAccessGuard] ✅ Admin access granted for', ADMIN_EMAIL);
+  console.log('[DUFAAccessGuard] ✅ Premium access granted for', user?.email);
   return <>{children}</>;
 };
 
