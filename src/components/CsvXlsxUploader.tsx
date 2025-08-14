@@ -4,16 +4,29 @@ import { toast } from 'sonner';
 
 type CsvXlsxUploaderProps = {
   onFileUpload?: (file: File, bucketMessage?: string) => void;
+  onError?: (error: Error) => void;
 };
 
-const CsvXlsxUploader: React.FC<CsvXlsxUploaderProps> = ({ onFileUpload }) => {
+const CsvXlsxUploader: React.FC<CsvXlsxUploaderProps> = ({ onFileUpload, onError }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const { user } = useAuth();
 
   const handleUpload = async (file: File) => {
     if (!user?.email) {
-      toast.error("User email not found");
+      const error = new Error("User email not found");
+      toast.error(error.message);
+      onError?.(error);
+      return;
+    }
+
+    // Validate file type
+    const validTypes = ['.csv', '.xlsx'];
+    const fileExt = file.name.split('.').pop()?.toLowerCase();
+    if (!fileExt || !validTypes.includes(`.${fileExt}`)) {
+      const error = new Error("Invalid file type. Please upload a CSV or XLSX file.");
+      toast.error(error.message);
+      onError?.(error);
       return;
     }
 
@@ -28,17 +41,23 @@ const CsvXlsxUploader: React.FC<CsvXlsxUploaderProps> = ({ onFileUpload }) => {
         body: formData,
       });
 
-      const json = await res.json();
-      if (res.ok) {
-        toast.success("✅ Uploaded to GCS successfully");
-        console.log("Upload response:", json);
-        onFileUpload?.(file, json.message); // call the callback
-      } else {
-        toast.error(json.error || "❌ Upload failed");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const error = new Error(errorData.error || "Upload failed");
+        toast.error(`❌ ${error.message}`);
+        onError?.(error);
+        return;
       }
+
+      const json = await res.json();
+      toast.success("✅ Uploaded to GCS successfully");
+      onFileUpload?.(file, json.message);
+      
     } catch (err) {
-      console.error(err);
-      toast.error("❌ Something went wrong");
+      const error = err instanceof Error ? err : new Error("An unknown error occurred");
+      console.error("Upload error:", error);
+      toast.error(`❌ ${error.message}`);
+      onError?.(error);
     } finally {
       setUploading(false);
     }
@@ -46,7 +65,14 @@ const CsvXlsxUploader: React.FC<CsvXlsxUploaderProps> = ({ onFileUpload }) => {
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) handleUpload(file);
+    if (!file) return;
+    
+    // Reset input value to allow re-uploading the same file
+    if (inputRef.current) {
+      inputRef.current.value = '';
+    }
+    
+    handleUpload(file);
   };
 
   return (
@@ -57,7 +83,14 @@ const CsvXlsxUploader: React.FC<CsvXlsxUploaderProps> = ({ onFileUpload }) => {
       onDrop={(e) => {
         e.preventDefault();
         const file = e.dataTransfer.files?.[0];
-        if (file) handleUpload(file);
+        if (!file) return;
+        
+        // Reset input value to allow re-uploading the same file
+        if (inputRef.current) {
+          inputRef.current.value = '';
+        }
+        
+        handleUpload(file);
       }}
       style={{ minHeight: "140px", width: "100%" }}
     >

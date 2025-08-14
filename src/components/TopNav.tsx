@@ -1,17 +1,19 @@
 import React from 'react';
-import { BarChartIcon, LightbulbIcon, DatabaseIcon, UserIcon, LogOut, TrendingUp } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { BarChart2 as BarChartIcon, DatabaseIcon, LightbulbIcon, LogOut } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 
-interface HeaderProps {
-  showDataSection?: boolean;
+type ZoneType = 'home' | 'biz' | 'riz';
+
+interface TopNavProps {
+  zone: ZoneType;
+  showData?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ showDataSection = true }) => {
+const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
   const { user, signOut } = useAuth();
-  const location = useLocation();
 
   const handleSignOut = async () => {
     await signOut();
@@ -48,62 +50,76 @@ const Header: React.FC<HeaderProps> = ({ showDataSection = true }) => {
         </Link>
       </div>
       
-      {/* Center Section - Contextual Switch between BIZ and RIZ */}
+      {/* Center Section - Zone Navigation */}
       <div className="flex-1 flex justify-center space-x-3">
-        {location.pathname.startsWith('/biz') ? (
-          <Link to="/riz" className="flex items-center space-x-2 bg-gradient-to-r from-viz-accent to-blue-600 hover:from-viz-accent/90 hover:to-blue-600/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium">
-            <BarChartIcon className="w-5 h-5" />
+        {zone === 'biz' && (
+          <Link 
+            to="/riz/dufa" 
+            className="flex items-center space-x-2 bg-gradient-to-r from-viz-accent to-blue-600 hover:from-viz-accent/90 hover:to-blue-600/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium"
+          >
+            <DatabaseIcon className="w-5 h-5" />
             <span className="hidden sm:inline">Switch to RIZ</span>
           </Link>
-        ) : location.pathname.startsWith('/riz') ? (
-          <Link to="/biz" className="flex items-center space-x-2 bg-gradient-to-r from-viz-accent to-blue-600 hover:from-viz-accent/90 hover:to-blue-600/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium">
+        )}
+        {zone === 'riz' && (
+          <Link 
+            to="/biz" 
+            className="flex items-center space-x-2 bg-gradient-to-r from-viz-accent to-blue-600 hover:from-viz-accent/90 hover:to-blue-600/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium"
+          >
             <BarChartIcon className="w-5 h-5" />
             <span className="hidden sm:inline">Switch to BIZ</span>
           </Link>
-        ) : (location.pathname.startsWith('/tips') || location.pathname.startsWith('/data-control')) ? (
-          <>
-            <Link to="/riz" className="flex items-center space-x-2 bg-gradient-to-r from-viz-accent to-blue-600 hover:from-viz-accent/90 hover:to-blue-600/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium">
+        )}
+        {zone === 'home' && (
+          <div className="flex items-center space-x-3">
+            <Link 
+              to="/biz" 
+              className="flex items-center space-x-2 bg-gradient-to-r from-viz-accent to-blue-600 hover:from-viz-accent/90 hover:to-blue-600/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium"
+            >
               <BarChartIcon className="w-5 h-5" />
-              <span className="hidden sm:inline">Switch to RIZ</span>
+              <span>Business Zone</span>
             </Link>
-            <Link to="/biz" className="flex items-center space-x-2 bg-gradient-to-r from-viz-accent to-blue-600 hover:from-viz-accent/90 hover:to-blue-600/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium">
-              <BarChartIcon className="w-5 h-5" />
-              <span className="hidden sm:inline">Switch to BIZ</span>
+            <Link 
+              to="/riz/dufa" 
+              className="flex items-center space-x-2 bg-gradient-to-r from-pink-500 to-viz-accent hover:from-pink-400 hover:to-viz-accent/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium"
+            >
+              <DatabaseIcon className="w-5 h-5" />
+              <span>Retail Zone</span>
             </Link>
-          </>
-        ) : (
-          <>
-            <Link to="/dufa" className="flex items-center space-x-2 bg-gradient-to-r from-viz-accent to-blue-600 hover:from-viz-accent/90 hover:to-blue-600/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium">
-              <TrendingUp className="w-5 h-5" />
-              <span className="hidden sm:inline">DUFA</span>
-              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full hidden md:inline">AI</span>
-            </Link>
-            <Link to="/MIA" className="flex items-center space-x-2 bg-gradient-to-r from-pink-500 to-viz-accent hover:from-pink-400 hover:to-viz-accent/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium">
-              <BarChartIcon className="w-5 h-5" />
-              <span className="hidden sm:inline">MIA</span>
-              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full hidden md:inline">Beta</span>
-            </Link>
-          </>
+          </div>
         )}
       </div>
       
       {/* Right Section - Navigation & User */}
       <div className="flex-1 flex justify-end">
         <div className="flex items-center space-x-2 md:space-x-3">
-          {showDataSection && !location.pathname.startsWith('/tips') && (
-            <Link to="/data-control" className="flex items-center space-x-1 bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105">
+          {showData && (
+            <Link 
+              to={zone === 'biz' ? "/data-control" : "#"}
+              className={`flex items-center space-x-1 ${
+                zone === 'riz' ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/30 dark:hover:bg-viz-light'
+              } bg-white/20 dark:bg-viz-medium px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105`}
+              title={zone === 'riz' ? 'Data management not available in RIZ' : 'Manage Data'}
+            >
               <DatabaseIcon className="w-4 h-4 text-viz-accent" />
               <span className="text-sm font-medium hidden lg:inline text-slate-700 dark:text-white">Data</span>
             </Link>
           )}
-          <Link to="/tips" className="flex items-center space-x-1 bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105">
+          
+          <Link 
+            to="/tips" 
+            className="flex items-center space-x-1 bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105"
+          >
             <LightbulbIcon className="w-4 h-4 text-viz-accent" />
             <span className="text-sm font-medium hidden lg:inline text-slate-700 dark:text-white">Tips</span>
           </Link>
         
           {user && (
             <div className="flex items-center space-x-2">
-              <Link to="/profile" className="flex items-center space-x-2 bg-white/20 dark:bg-viz-medium px-3 py-1.5 rounded-lg hover:bg-white/30 dark:hover:bg-viz-light transition-all shadow-sm hover:shadow md:hover:scale-105">
+              <Link 
+                to="/profile" 
+                className="flex items-center space-x-2 bg-white/20 dark:bg-viz-medium px-3 py-1.5 rounded-lg hover:bg-white/30 dark:hover:bg-viz-light transition-all shadow-sm hover:shadow md:hover:scale-105"
+              >
                 <Avatar className="h-6 w-6">
                   <AvatarFallback className="text-xs bg-viz-accent text-white">
                     {userInitials}
@@ -130,4 +146,4 @@ const Header: React.FC<HeaderProps> = ({ showDataSection = true }) => {
   );
 };
 
-export default Header;
+export default TopNav;

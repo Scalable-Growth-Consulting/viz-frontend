@@ -59,15 +59,42 @@ interface ChatSession {
 type TabType = 'answer' | 'sql' | 'charts';
 
 const EnhancedChatInterface: React.FC = () => {
-  const [prompt, setPrompt] = useState('');
+  const [prompt, setPrompt] = useState("");
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('answer');
   const [loading, setLoading] = useState(false);
-  const [chartLoading, setChartLoading] = useState(false);
+  const [isChartLoading, setIsChartLoading] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
-  
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 2;
+  const REQUEST_TIMEOUT = 30000; // 30 seconds
   const { user } = useAuth();
   const { toast } = useToast();
+
+  // Utility function for retrying failed requests
+  const fetchWithRetry = async <T,>(
+    fn: () => Promise<T>,
+    options: { maxRetries: number; onRetry?: (attempt: number, error: Error) => void } = { maxRetries: 0 }
+  ): Promise<T> => {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt <= options.maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error as Error;
+        if (attempt < options.maxRetries) {
+          options.onRetry?.(attempt + 1, error as Error);
+          // Exponential backoff: 1s, 2s, 4s, etc.
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+        }
+      }
+    }
+    
+    throw lastError || new Error('Unknown error occurred');
+  };
 
   useEffect(() => {
     if (user) {
@@ -91,7 +118,9 @@ const EnhancedChatInterface: React.FC = () => {
   };
 
   const handleSubmitPrompt = async () => {
-    if (!prompt.trim()) {
+    // Input validation
+    const trimmedPrompt = prompt.trim();
+    if (!trimmedPrompt) {
       toast({
         title: "Empty prompt",
         description: "Please enter a question or request",
@@ -100,19 +129,57 @@ const EnhancedChatInterface: React.FC = () => {
       return;
     }
 
-    setLoading(true);
-    try {
-      // Call inference edge function
-      const { data: inferenceResult, error: inferenceError } = await supabase.functions.invoke('inference', {
-        body: {
-          prompt: prompt.trim(),
-          email: user?.email || ''
-        }
-      });
+    // Cancel any ongoing request
+    if (abortController) {
+      abortController.abort();
+    }
 
-      if (inferenceError) {
-        throw new Error(inferenceError.message || 'Failed to process query');
-      }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+    setAbortController(controller);
+
+    setLoading(true);
+    setIsChartLoading(false);
+    setRetryCount(0);
+
+    try {
+      // Call inference edge function with retry logic
+      const inferenceResponse = await fetchWithRetry(
+        async () => {
+          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/inference`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+            },
+            body: JSON.stringify({
+              prompt: trimmedPrompt,
+              email: user?.email || ''
+            }),
+            signal: controller.signal
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error?.message || `Request failed with status ${response.status}`);
+          }
+
+          return response.json();
+        },
+        {
+          maxRetries: MAX_RETRIES,
+          onRetry: (attempt, error) => {
+            console.log(`Retry attempt ${attempt} after error:`, error);
+            toast({
+              title: `Retrying... (${attempt}/${MAX_RETRIES})`,
+              description: error.message,
+              variant: "default",
+            });
+          }
+        }
+      );
+
+      const inferenceResult = inferenceResponse;
 
       if (!inferenceResult || !inferenceResult.success) {
         throw new Error(inferenceResult?.error || 'Failed to process query');
@@ -120,32 +187,60 @@ const EnhancedChatInterface: React.FC = () => {
 
       const inferenceData = inferenceResult.data;
 
-      // Log data sent to generate-chart edge function
-      console.log('--- Calling generate-chart function ---');
-      const chartRequestBody = {
-        sql: inferenceData.sql,
-        data: inferenceData.queryData,
-        inference: inferenceData.answer,
-        User_query: prompt.trim()
-      };
-      console.log('Data sent to generate-chart:', chartRequestBody);
+      // Generate chart if we have SQL and data
+      let chartResult = null;
+      if (inferenceData.sql && inferenceData.queryData) {
+        try {
+          setIsChartLoading(true);
+          
+          const chartResponse = await fetchWithRetry(
+            async () => {
+              const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-chart`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+                },
+                body: JSON.stringify({
+                  sql: inferenceData.sql,
+                  data: inferenceData.queryData,
+                  inference: inferenceData.answer,
+                  User_query: trimmedPrompt
+                }),
+                signal: controller.signal
+              });
 
-      // Call generate-chart edge function immediately after inference
-      const { data: chartResult, error: chartError } = await supabase.functions.invoke('generate-chart', {
-        body: chartRequestBody
-      });
+              if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || `Chart generation failed with status ${response.status}`);
+              }
 
-      // Log response from generate-chart edge function
-      console.log('Response from generate-chart:', { chartResult, chartError });
+              return response.json();
+            },
+            {
+              maxRetries: 1, // Only retry once for chart generation
+              onRetry: (attempt) => {
+                toast({
+                  title: 'Retrying chart generation...',
+                  description: `Attempt ${attempt} of 1`,
+                  variant: 'default',
+                });
+              }
+            }
+          );
 
-      if (chartError) {
-        console.error('Chart generation failed:', chartError);
-        // Don't throw error, allow query to proceed without chart
-        toast({
-          title: "Chart Generation Failed",
-          description: chartError.message || 'Failed to generate chart for the query.',
-          variant: 'destructive'
-        });
+          chartResult = chartResponse;
+          console.log('Chart generation successful:', chartResult);
+        } catch (chartError) {
+          console.error('Chart generation failed:', chartError);
+          toast({
+            title: 'Chart Generation Skipped',
+            description: 'Proceeding without chart visualization.',
+            variant: 'default',
+          });
+        } finally {
+          setIsChartLoading(false);
+        }
       }
 
       // Create new chat session with both inference and chart response
@@ -183,14 +278,27 @@ const EnhancedChatInterface: React.FC = () => {
       });
     } catch (error) {
       console.error('Error submitting prompt:', error);
+      
+      let errorMessage = 'Failed to process your request';
+      let errorTitle = 'Error';
+      
+      if (error.name === 'AbortError') {
+        errorTitle = 'Request Timeout';
+        errorMessage = 'The request took too long to complete. Please try a different query or try again later.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
-        title: "Error",
-        description: error.message || "Failed to process your request. Please check the console for more details.",
-        variant: "destructive",
+        title: errorTitle,
+        description: errorMessage,
+        variant: 'destructive',
       });
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
-      setChartLoading(false);
+      setIsChartLoading(false);
+      setAbortController(null);
     }
   };
 
@@ -374,7 +482,7 @@ const EnhancedChatInterface: React.FC = () => {
 
                 {activeTab === 'charts' && (
                   <div>
-                    {chartLoading ? (
+                    {isChartLoading ? (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="w-6 h-6 animate-spin mr-2" />
                         <span>Generating chart...</span>

@@ -1,0 +1,406 @@
+import React, { useRef, useCallback } from 'react';
+import { useDufaState } from '@/hooks/useDufaState';
+import Header from '@/components/Header';
+import DUFASettingsModal from '@/components/dufa/DUFASettingsModal';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/components/ui/use-toast';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { 
+  TrendingUp, 
+  Database, 
+  Settings, 
+  BarChart3, 
+  MessageSquare,
+  ChevronRight,
+  ChevronLeft,
+  ChevronDown,
+  Play,
+  Pause,
+  RotateCcw,
+  AlertTriangle,
+  Download,
+  Loader2,
+  Sparkles,
+  Target,
+  Zap
+} from 'lucide-react';
+import DUFADatasetSelection from '@/components/dufa/DUFADatasetSelection';
+import CsvXlsxUploader from '@/components/CsvXlsxUploader';
+import DUFAConfiguration from '@/components/dufa/DUFAConfiguration';
+import DUFAAnalysis from '@/components/dufa/DUFAAnalysis';
+import DUFAChatbot from '@/components/dufa/DUFAChatbot';
+import DUFAProgressTracker from '@/components/dufa/DUFAProgressTracker';
+import DUFAPDFGenerator from '@/components/dufa/DUFAPDFGenerator';
+import DUFAFloatingNavigation from '@/components/dufa/DUFAFloatingNavigation';
+
+const DUFA: React.FC = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const totalSteps = 6;
+  
+  // Use the custom hook for all state management
+  const {
+    state,
+    updateState,
+    hasUploadedFile,
+    handleFileUpload,
+    handleUploadError,
+    toggleSection,
+    updateChatMessages,
+  } = useDufaState();
+  
+  // Destructure state for easier access
+  const {
+    currentStep,
+    completedSteps,
+    uploadedDataset,
+    selectedDatasets,
+    forecastConfig,
+    forecastResults,
+    bestModel,
+    chatMessages,
+    loading,
+    progress,
+    settingsOpen,
+    dufaVisible,
+    featureFlags,
+    collapsedSections,
+  } = state;
+
+  // Navigation handlers
+  const handleNext = useCallback(() => {
+    if (currentStep < totalSteps) {
+      updateState({
+        currentStep: currentStep + 1,
+        completedSteps: [...new Set([...completedSteps, currentStep])]
+      });
+    }
+  }, [currentStep, completedSteps, updateState, totalSteps]);
+
+  const handleBack = useCallback(() => {
+    if (currentStep > 1) {
+      updateState({
+        currentStep: currentStep - 1
+      });
+    }
+  }, [currentStep, updateState]);
+
+  const handleStepClick = useCallback((step: number) => {
+    if (step < currentStep || completedSteps.includes(step)) {
+      updateState({ currentStep: step });
+    }
+  }, [currentStep, completedSteps, updateState]);
+
+  const handleDatasetSelect = useCallback((dataset: any) => {
+    const isSelected = selectedDatasets.some((ds: any) => ds.id === dataset.id);
+    updateState({
+      selectedDatasets: isSelected
+        ? selectedDatasets.filter((ds: any) => ds.id !== dataset.id)
+        : [...selectedDatasets, dataset]
+    });
+  }, [selectedDatasets, updateState]);
+
+  const handlePDFDownloadComplete = useCallback(() => {
+    updateState({
+      progress: {
+        ...progress,
+        pdfDownload: true
+      },
+      completedSteps: [...new Set([...completedSteps, 6])]
+    });
+    
+    toast({
+      title: "PDF Downloaded",
+      description: "Your DUFA report has been generated and downloaded successfully.",
+    });
+  }, [progress, completedSteps, updateState, toast]);
+
+  // Navigation helpers
+  const canGoNext = useCallback(() => {
+    switch (currentStep) {
+      case 1: return selectedDatasets.length > 0;
+      case 2: return progress.forecastConfiguration;
+      case 3: return progress.forecastResults;
+      case 4: return progress.chatInteraction;
+      case 5: return false; // Last step
+      default: return false;
+    }
+  }, [currentStep, selectedDatasets, progress]);
+
+  const scrollToStep = useCallback((step: number) => {
+    const element = document.getElementById(`step-${step}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  // Render step content
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Upload Your Dataset</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CsvXlsxUploader
+                  onFileUpload={handleFileUpload}
+                  onError={handleUploadError}
+                  className="min-h-[200px]"
+                />
+              </CardContent>
+            </Card>
+            
+            <Collapsible 
+              open={!collapsedSections.datasets} 
+              onOpenChange={(open) => toggleSection('datasets', open)}
+            >
+              <CollapsibleTrigger className="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Database className="w-5 h-5" />
+                  Available Datasets
+                </h3>
+                <ChevronDown className={`w-5 h-5 transition-transform ${!collapsedSections.datasets ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="mt-2">
+                  <DUFADatasetSelection
+                    selectedDatasets={selectedDatasets}
+                    onDatasetSelect={handleDatasetSelect}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+        );
+      
+      case 2:
+        return (
+          <DUFAConfiguration
+            config={forecastConfig}
+            onConfigChange={(updates) => updateState({ forecastConfig: { ...forecastConfig, ...updates } })}
+            onRunForecast={() => {}}
+            loading={loading.forecast}
+          />
+        );
+      
+      case 3:
+        return (
+          <DUFAAnalysis
+            results={forecastResults}
+            bestModel={bestModel}
+            loading={loading.analysis}
+          />
+        );
+      
+      case 4:
+        return (
+          <DUFAChatbot
+            messages={chatMessages}
+            onSendMessage={() => {}}
+            loading={loading.chat}
+          />
+        );
+      
+      case 5:
+        return (
+          <DUFAPDFGenerator
+            onGenerateComplete={handlePDFDownloadComplete}
+            loading={loading.pdfGeneration}
+          />
+        );
+      
+      default:
+        return <div>Step {currentStep}</div>;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+      <Header />
+      
+      <DUFASettingsModal
+        open={settingsOpen}
+        onClose={() => updateState({ settingsOpen: false })}
+        isAdmin={user?.email?.toLowerCase() === 'creatorvision03@gmail.com'}
+        initialVisibility={dufaVisible}
+        initialFeatureFlags={featureFlags}
+        onSave={(visibility, flags) => {
+          updateState({
+            dufaVisible: visibility,
+            featureFlags: flags,
+            settingsOpen: false
+          });
+        }}
+      />
+
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex flex-col md:flex-row gap-6">
+          {/* Sidebar */}
+          <div className="w-full md:w-64 flex-shrink-0">
+            <Card className="sticky top-4">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">DUFA Assistant</CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => updateState({ settingsOpen: true })}
+                    className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </Button>
+                </div>
+                <Progress value={(currentStep / totalSteps) * 100} className="h-2 mt-2" />
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {[
+                  { step: 1, label: 'Upload Data', icon: <Database className="w-4 h-4" /> },
+                  { step: 2, label: 'Configure', icon: <Settings className="w-4 h-4" /> },
+                  { step: 3, label: 'Analyze', icon: <BarChart3 className="w-4 h-4" /> },
+                  { step: 4, label: 'Chat', icon: <MessageSquare className="w-4 h-4" /> },
+                  { step: 5, label: 'Export', icon: <Download className="w-4 h-4" /> },
+                ].map(({ step, label, icon }) => (
+                  <button
+                    key={step}
+                    onClick={() => handleStepClick(step)}
+                    className={`w-full flex items-center gap-2 p-3 rounded-lg transition-colors ${
+                      currentStep === step
+                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                        : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                      completedSteps.includes(step) 
+                        ? 'bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400'
+                        : currentStep === step
+                          ? 'bg-blue-100 text-blue-600 dark:bg-blue-800 dark:text-blue-300'
+                          : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                    }`}>
+                      {completedSteps.includes(step) ? (
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <span className="text-xs font-medium">{step}</span>
+                      )}
+                    </div>
+                    <span className="text-sm font-medium">{label}</span>
+                    {currentStep === step && (
+                      <div className="ml-auto w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    )}
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1">
+            <div className="space-y-6">
+              {/* Progress Tracker */}
+              <DUFAProgressTracker
+                currentStep={currentStep}
+                completedSteps={completedSteps}
+                onStepClick={handleStepClick}
+              />
+
+              {/* Step Content */}
+              <div ref={containerRef} className="space-y-6">
+                {renderStepContent()}
+              </div>
+
+              {/* Navigation Buttons */}
+              <div className="flex justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
+                <Button
+                  variant="outline"
+                  onClick={handleBack}
+                  disabled={currentStep === 1}
+                  className="gap-2"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Back
+                </Button>
+                
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      // Reset to initial state
+                      updateState({
+                        currentStep: 1,
+                        completedSteps: [],
+                        uploadedDataset: null,
+                        selectedDatasets: [],
+                        forecastResults: [],
+                        bestModel: null,
+                        chatMessages: [],
+                        progress: {
+                          upload: false,
+                          dataSelection: false,
+                          forecastConfiguration: false,
+                          forecastResults: false,
+                          chatInteraction: false,
+                          pdfDownload: false
+                        },
+                        settingsOpen: false,
+                        dufaVisible: true,
+                        featureFlags: {
+                          'Beta Chatbot': false,
+                          'Advanced Charts': false
+                        },
+                        collapsedSections: {
+                          datasets: false,
+                          configuration: true,
+                          results: true,
+                          chat: true
+                        }
+                      });
+                    }}
+                    className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Reset
+                  </Button>
+                  
+                  <Button
+                    onClick={handleNext}
+                    disabled={!canGoNext()}
+                    className="gap-2"
+                  >
+                    {currentStep === totalSteps ? 'Finish' : 'Next'}
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Floating Navigation */}
+      <DUFAFloatingNavigation
+        currentStep={currentStep}
+        totalSteps={totalSteps}
+        onNext={handleNext}
+        onBack={handleBack}
+        canGoNext={canGoNext()}
+        canGoBack={currentStep > 1}
+        onStepClick={handleStepClick}
+      />
+    </div>
+  );
+};
+
+export default DUFA;

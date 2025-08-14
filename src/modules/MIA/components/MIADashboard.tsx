@@ -28,6 +28,7 @@ import { Campaign, PlatformMetrics, PerformanceInsight, DashboardFilters } from 
 import { AnalyticsService } from '../services/analyticsService';
 import { AIChatService } from '../services/aiChatService';
 import MIAMetricsCards from './MIAMetricsCards';
+import MIAUploadData from './MIAUploadData';
 import MIAPerformanceChart from './MIAPerformanceChart';
 import MIACampaignTable from './MIACampaignTable';
 import MIAInsightsPanel from './MIAInsightsPanel';
@@ -39,6 +40,7 @@ interface MIADashboardProps {
 }
 
 const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [platformMetrics, setPlatformMetrics] = useState<PlatformMetrics[]>([]);
   const [insights, setInsights] = useState<PerformanceInsight[]>([]);
@@ -228,8 +230,13 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-viz-dark dark:to-black">
-      <div className="container mx-auto px-6 py-8 max-w-7xl">
-        {/* Header Section */}
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
+        {/* Upload Data Button */}
+        <MIAUploadData onFileUpload={(file) => {
+          setUploadedFile(file);
+          toast({ title: 'Upload Successful', description: `Uploaded: ${file.name}` });
+        }} />
+        {/* Main Dashboard Content */}
         <div className="mb-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="space-y-2">

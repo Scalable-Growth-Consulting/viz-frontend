@@ -16,42 +16,73 @@ serve(async (req) => {
   }
 
   try {
-    const { sessionId } = await req.json()
+    const body = await req.json()
+    const { sessionId } = body as { sessionId?: string }
 
-    // Get auth header
-    const authHeader = req.headers.get('Authorization')!
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    )
+    // Two modes:
+    // 1) Session mode: when sessionId is provided (existing behavior)
+    // 2) Direct mode: when sql/inference/data are provided directly (new fallback)
 
-    // Get user from auth
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      throw new Error('Unauthorized')
+    let sql: string | undefined
+    let inference: string | undefined
+    let dataPayload: unknown
+    let userQuery: string | undefined
+
+    if (sessionId) {
+      // Get auth header
+      const authHeader = req.headers.get('Authorization')!
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        { global: { headers: { Authorization: authHeader } } }
+      )
+
+      // Get user from auth
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) {
+        throw new Error('Unauthorized')
+      }
+
+      console.log('Generating chart for session:', sessionId)
+
+      // Get the session data
+      const { data: session, error: sessionError } = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single()
+
+      if (sessionError || !session) {
+        console.error('Session error:', sessionError)
+        throw new Error('Session not found')
+      }
+
+      // Check if we have the required data from the inference call
+      if (!session.metadata?.data || !session.sql_query) {
+        throw new Error('No data available for chart generation. Please run a query first.')
+      }
+
+      sql = session.sql_query
+      inference = session.answer
+      dataPayload = session.metadata.data
+      userQuery = session.metadata.user_query || session.prompt
+    } else {
+      // Direct mode
+      sql = body.sql
+      inference = body.inference
+      dataPayload = body.data
+      userQuery = body.user_query || body.User_query
+      if (!sql || !inference) {
+        throw new Error('Missing sql or inference in request body')
+      }
     }
 
-    console.log('Generating chart for session:', sessionId)
-
-    // Get the session data
-    const { data: session, error: sessionError } = await supabase
-      .from('chat_sessions')
-      .select('*')
-      .eq('id', sessionId)
-      .single()
-
-    if (sessionError || !session) {
-      console.error('Session error:', sessionError)
-      throw new Error('Session not found')
+    const payloadForAgent = {
+      sql,
+      data: dataPayload,
+      inference,
+      User_query: userQuery
     }
-
-    // Check if we have the required data from the inference call
-    if (!session.metadata?.data || !session.sql_query) {
-      throw new Error('No data available for chart generation. Please run a query first.')
-    }
-
-    console.log('Session data found, calling BIAgent API')
 
     // Create AbortController for timeout
     const controller = new AbortController();
@@ -64,12 +95,7 @@ serve(async (req) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          sql: session.sql_query,
-          data: session.metadata.data,
-          inference: session.answer,
-          User_query: session.metadata.user_query || session.prompt
-        }),
+        body: JSON.stringify(payloadForAgent),
         signal: controller.signal
       })
 
@@ -84,34 +110,52 @@ serve(async (req) => {
       const chartScript = await biAgentResponse.text()
       console.log('Generated chart script successfully')
 
-      // Update the chat session with the chart code
-      const { error: updateError } = await supabase
-        .from('chat_sessions')
-        .update({
-          chart_code: chartScript,
-          metadata: { 
-            ...session.metadata, 
-            chart_generated: true,
-            chart_generated_at: new Date().toISOString()
-          },
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', sessionId)
+      if (sessionId) {
+        // Session mode: update DB and return code
+        const authHeader = req.headers.get('Authorization')!
+        const supabase = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+          { global: { headers: { Authorization: authHeader } } }
+        )
 
-      if (updateError) {
-        console.error('Database update error:', updateError)
-        throw updateError
-      }
+        const { data: session, error: sessionError } = await supabase
+          .from('chat_sessions')
+          .select('*')
+          .eq('id', sessionId)
+          .single()
 
-      console.log('Successfully updated session with chart code')
-
-      return new Response(
-        JSON.stringify({ success: true, chart_code: chartScript }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200 
+        if (!sessionError && session) {
+          const { error: updateError } = await supabase
+            .from('chat_sessions')
+            .update({
+              chart_code: chartScript,
+              metadata: { 
+                ...session.metadata, 
+                chart_generated: true,
+                chart_generated_at: new Date().toISOString()
+              },
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', sessionId)
+          if (updateError) {
+            console.error('Database update error:', updateError)
+          }
         }
-      )
+
+        console.log('Returning chart code (session mode)')
+        return new Response(
+          JSON.stringify({ success: true, chart_code: chartScript }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        )
+      } else {
+        // Direct mode: just return code
+        console.log('Returning chart code (direct mode)')
+        return new Response(
+          JSON.stringify({ success: true, chart_code: chartScript }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        )
+      }
     } catch (fetchError) {
       clearTimeout(timeoutId); // Clear timeout on error
 

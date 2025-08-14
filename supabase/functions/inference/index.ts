@@ -7,7 +7,7 @@ const corsHeaders = {
 }
 
 // Timeout duration in milliseconds (120 seconds)
-const TIMEOUT_DURATION = 1200000;
+const TIMEOUT_DURATION = 120000;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -38,8 +38,16 @@ serve(async (req) => {
       console.log('Raw response from GCP:', rawText);
 
       if (!text2sqlResponse.ok) {
-        console.error('GCP API failed with status:', text2sqlResponse.status);
-        throw new Error(`GCP API error: ${text2sqlResponse.statusText}`);
+        console.error('GCP API failed with status:', text2sqlResponse.status, 'body:', rawText);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Upstream error',
+            details: rawText,
+            status: text2sqlResponse.status
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 502 }
+        );
       }
 
       const text2sqlResult = JSON.parse(rawText);
@@ -72,12 +80,13 @@ serve(async (req) => {
     console.error('Inference Function Error:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
-        errorType: error.name === 'AbortError' ? 'timeout' : 'general'
+        success: false,
+        error: (error as Error).message,
+        errorType: (error as any).name === 'AbortError' ? 'timeout' : 'general'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: error.name === 'AbortError' ? 504 : 400 // Use 504 Gateway Timeout for timeout errors
+        status: (error as any).name === 'AbortError' ? 504 : 400 // Use 504 Gateway Timeout for timeout errors
       }
     );
   }
