@@ -49,13 +49,6 @@ const RIZ: React.FC = () => {
                 <h2 className="text-lg font-semibold text-viz-dark dark:text-white">Retail Intelligence</h2>
                 <p className="text-sm text-slate-600 dark:text-viz-text-secondary">Specialized AI Agents</p>
               </div>
-              <Link 
-                to="/biz" 
-                className="text-sm text-viz-accent hover:text-viz-accent/80 transition-colors"
-                title="Switch to Business Intelligence"
-              >
-                <BarChartIcon className="w-5 h-5" />
-              </Link>
             </div>
           </div>
           

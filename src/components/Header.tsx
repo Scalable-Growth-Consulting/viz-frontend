@@ -1,9 +1,10 @@
 import React from 'react';
-import { BarChartIcon, LightbulbIcon, DatabaseIcon, UserIcon, LogOut, TrendingUp } from 'lucide-react';
+import { BarChartIcon, LightbulbIcon, DatabaseIcon, UserIcon, LogOut, TrendingUp, Menu, HeartPulse } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
+import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from './ui/sheet';
 
 interface HeaderProps {
   showDataSection?: boolean;
@@ -23,8 +24,104 @@ const Header: React.FC<HeaderProps> = ({ showDataSection = true }) => {
 
   return (
     <header className="bg-white/10 dark:bg-viz-dark/70 backdrop-blur-lg border-b border-slate-200/20 dark:border-viz-light/10 py-3 px-4 md:px-6 flex items-center shadow-sm">
-      {/* Left Section - Logo */}
-      <div className="flex-1">
+      {/* Left Section - Hamburger + Logo */}
+      <div className="flex-1 flex items-center gap-2">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="shrink-0">
+              <Menu className="w-5 h-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-80 sm:w-96">
+            <SheetHeader>
+              <SheetTitle className="text-left">Navigation</SheetTitle>
+            </SheetHeader>
+            <div className="mt-4 space-y-6">
+              {/* Zones */}
+              <div>
+                <h3 className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Zones</h3>
+                <div className="grid grid-cols-1 gap-3">
+                  <SheetClose asChild>
+                    <Link 
+                      to="/biz" 
+                      className="flex items-center justify-between bg-gradient-to-r from-viz-accent to-blue-600 text-white px-4 py-3 rounded-lg shadow hover:opacity-90 transition"
+                    >
+                      <div className="flex items-center gap-2">
+                        <BarChartIcon className="w-5 h-5" />
+                        <span className="font-medium">BI Zone</span>
+                      </div>
+                      <span className="opacity-80">→</span>
+                    </Link>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Link 
+                      to="/riz/dufa" 
+                      className="flex items-center justify-between bg-gradient-to-r from-pink-500 to-viz-accent text-white px-4 py-3 rounded-lg shadow hover:opacity-90 transition"
+                    >
+                      <div className="flex items-center gap-2">
+                        <DatabaseIcon className="w-5 h-5" />
+                        <span className="font-medium">Retail Zone</span>
+                      </div>
+                      <span className="opacity-80">→</span>
+                    </Link>
+                  </SheetClose>
+                  <div className="flex items-center justify-between bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-3 rounded-lg shadow opacity-60 cursor-not-allowed">
+                    <div className="flex items-center gap-2">
+                      <BarChartIcon className="w-5 h-5" />
+                      <span className="font-medium">FIZ</span>
+                    </div>
+                    <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">Coming Soon</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-4 py-3 rounded-lg shadow opacity-60 cursor-not-allowed">
+                    <div className="flex items-center gap-2">
+                      <HeartPulse className="w-5 h-5" />
+                      <span className="font-medium">HIZ</span>
+                    </div>
+                    <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">Coming Soon</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Menu */}
+              <div>
+                <h3 className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Menu</h3>
+                <div className="space-y-2">
+                  {showDataSection && !location.pathname.startsWith('/tips') && (
+                    <SheetClose asChild>
+                      <Link to="/data-control" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/20 dark:hover:bg-viz-light">
+                        <DatabaseIcon className="w-4 h-4 text-viz-accent" />
+                        <span className="text-sm">Data</span>
+                      </Link>
+                    </SheetClose>
+                  )}
+                  <SheetClose asChild>
+                    <Link to="/tips" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/20 dark:hover:bg-viz-light">
+                      <LightbulbIcon className="w-4 h-4 text-viz-accent" />
+                      <span className="text-sm">Tips</span>
+                    </Link>
+                  </SheetClose>
+                  {user && (
+                    <>
+                      <SheetClose asChild>
+                        <Link to="/profile" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/20 dark:hover:bg-viz-light">
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback className="text-xs bg-viz-accent text-white">{userInitials}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">{user.user_metadata?.full_name || user.email}</span>
+                        </Link>
+                      </SheetClose>
+                      <SheetClose asChild>
+                        <Button onClick={handleSignOut} variant="ghost" size="sm" className="w-full justify-start">
+                          <LogOut className="w-4 h-4 mr-2" /> Sign out
+                        </Button>
+                      </SheetClose>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
         <Link to="/" className="flex items-center space-x-3 group w-fit">
           <div className="bg-black p-2 rounded-lg shadow-md group-hover:shadow-viz-accent/20 transition-all duration-300 group-hover:scale-105">
             <div className="relative">
@@ -48,48 +145,12 @@ const Header: React.FC<HeaderProps> = ({ showDataSection = true }) => {
         </Link>
       </div>
       
-      {/* Center Section - Contextual Switch between BIZ and RIZ */}
-      <div className="flex-1 flex justify-center space-x-3">
-        {location.pathname.startsWith('/biz') ? (
-          <Link to="/riz" className="flex items-center space-x-2 bg-gradient-to-r from-viz-accent to-blue-600 hover:from-viz-accent/90 hover:to-blue-600/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium">
-            <BarChartIcon className="w-5 h-5" />
-            <span className="hidden sm:inline">Switch to RIZ</span>
-          </Link>
-        ) : location.pathname.startsWith('/riz') ? (
-          <Link to="/biz" className="flex items-center space-x-2 bg-gradient-to-r from-viz-accent to-blue-600 hover:from-viz-accent/90 hover:to-blue-600/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium">
-            <BarChartIcon className="w-5 h-5" />
-            <span className="hidden sm:inline">Switch to BIZ</span>
-          </Link>
-        ) : (location.pathname.startsWith('/tips') || location.pathname.startsWith('/data-control')) ? (
-          <>
-            <Link to="/riz" className="flex items-center space-x-2 bg-gradient-to-r from-viz-accent to-blue-600 hover:from-viz-accent/90 hover:to-blue-600/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium">
-              <BarChartIcon className="w-5 h-5" />
-              <span className="hidden sm:inline">Switch to RIZ</span>
-            </Link>
-            <Link to="/biz" className="flex items-center space-x-2 bg-gradient-to-r from-viz-accent to-blue-600 hover:from-viz-accent/90 hover:to-blue-600/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium">
-              <BarChartIcon className="w-5 h-5" />
-              <span className="hidden sm:inline">Switch to BIZ</span>
-            </Link>
-          </>
-        ) : (
-          <>
-            <Link to="/dufa" className="flex items-center space-x-2 bg-gradient-to-r from-viz-accent to-blue-600 hover:from-viz-accent/90 hover:to-blue-600/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium">
-              <TrendingUp className="w-5 h-5" />
-              <span className="hidden sm:inline">DUFA</span>
-              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full hidden md:inline">AI</span>
-            </Link>
-            <Link to="/MIA" className="flex items-center space-x-2 bg-gradient-to-r from-pink-500 to-viz-accent hover:from-pink-400 hover:to-viz-accent/90 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl hover:scale-105 font-medium">
-              <BarChartIcon className="w-5 h-5" />
-              <span className="hidden sm:inline">MIA</span>
-              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full hidden md:inline">Beta</span>
-            </Link>
-          </>
-        )}
-      </div>
+      {/* Center Section - kept intentionally clean */}
+      <div className="flex-1" />
       
       {/* Right Section - Navigation & User */}
       <div className="flex-1 flex justify-end">
-        <div className="flex items-center space-x-2 md:space-x-3">
+        <div className="hidden lg:flex items-center space-x-2 md:space-x-3">
           {showDataSection && !location.pathname.startsWith('/tips') && (
             <Link to="/data-control" className="flex items-center space-x-1 bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105">
               <DatabaseIcon className="w-4 h-4 text-viz-accent" />

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { BarChartIcon, TrendingUp, Database, MessageSquare, ShoppingCart, Target } from 'lucide-react';
+import { BarChartIcon, TrendingUp, Database, MessageSquare, ShoppingCart, Target, HeartPulse } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import TopNav from '@/components/TopNav';
 
@@ -103,6 +103,54 @@ const Home: React.FC = () => {
               </CardContent>
             </Card>
           </Link>
+
+          {/* FIZ - Financial Intelligence Zone (Coming Soon) */}
+          <div className="group">
+            <Card className="h-full bg-white/60 dark:bg-viz-medium/60 backdrop-blur-sm border-slate-200/40 dark:border-viz-light/10 hover:border-emerald-500/40 transition-all duration-300 group-hover:scale-[1.02] opacity-80">
+              <CardContent className="p-8">
+                <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <BarChartIcon className="w-8 h-8 text-white" />
+                </div>
+
+                <h2 className="text-2xl font-bold text-viz-dark dark:text-white mb-3">
+                  FIZ
+                </h2>
+                <p className="text-sm text-emerald-600 font-medium mb-4">Financial Intelligence Zone</p>
+
+                <p className="text-slate-600 dark:text-viz-text-secondary mb-6 leading-relaxed">
+                  Advanced financial analytics and forecasting tools to power your fiscal decisions.
+                </p>
+
+                <div className="mt-6 inline-flex items-center text-emerald-600 font-medium bg-emerald-600/10 px-3 py-1.5 rounded-full">
+                  <span>Coming Soon</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* HIZ - Healthcare Intelligence Zone (Coming Soon) */}
+          <div className="group">
+            <Card className="h-full bg-white/60 dark:bg-viz-medium/60 backdrop-blur-sm border-slate-200/40 dark:border-viz-light/10 hover:border-indigo-500/40 transition-all duration-300 group-hover:scale-[1.02] opacity-80">
+              <CardContent className="p-8">
+                <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <HeartPulse className="w-8 h-8 text-white" />
+                </div>
+
+                <h2 className="text-2xl font-bold text-viz-dark dark:text-white mb-3">
+                  HIZ
+                </h2>
+                <p className="text-sm text-indigo-600 font-medium mb-4">Healthcare Intelligence Zone</p>
+
+                <p className="text-slate-600 dark:text-viz-text-secondary mb-6 leading-relaxed">
+                  AI-driven insights and analytics tailored for healthcare operations and outcomes.
+                </p>
+
+                <div className="mt-6 inline-flex items-center text-indigo-600 font-medium bg-indigo-600/10 px-3 py-1.5 rounded-full">
+                  <span>Coming Soon</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Footer Info */}
