@@ -20,6 +20,9 @@ const BIZ: React.FC = () => {
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline' | 'error'>('checking');
   const [queryResult, setQueryResult] = useState<string>('');
   const [querySQL, setQuerySQL] = useState<string>('');
+  const [queryData, setQueryData] = useState<any>(null);
+  const [userQuery, setUserQuery] = useState<string>('');
+  const [chartHtml, setChartHtml] = useState<string | null>(null);
   const [chartData, setChartData] = useState<{
     labels: string[];
     datasets: Array<{
@@ -100,7 +103,9 @@ const BIZ: React.FC = () => {
     setIsLoading(true);
     setQueryResult('');
     setQuerySQL('');
+    setQueryData(null);
     setChartData(null);
+    setChartHtml(null);
     setActiveTab('answer');
 
     try {
@@ -126,13 +131,32 @@ const BIZ: React.FC = () => {
 
       if (apiError) throw apiError;
 
-      // Adapt to { success, data: { answer, sql, data } }
-      const payload: any = data;
-      const res = payload?.data ?? payload;
+      // Adapt to possible shapes:
+      // - { success, data: {...} }
+      // - {...}
+      // - stringified JSON of either of the above
+      let payload: any = data;
+      if (typeof payload === 'string') {
+        try { payload = JSON.parse(payload); } catch {}
+      }
+      let res: any = payload?.data ?? payload;
+      if (typeof res === 'string') {
+        try { res = JSON.parse(res); } catch {}
+      }
 
       // Update state with response
       setQueryResult(res?.answer || 'No answer provided.');
       setQuerySQL(res?.sql || '');
+      // Map data from various keys: data, queryData, rows
+      const mappedData = ((): any => {
+        if (!res) return null;
+        if (res.data !== undefined) return res.data;
+        if (res.queryData !== undefined) return res.queryData;
+        if (res.rows !== undefined) return res.rows;
+        return null;
+      })();
+      setQueryData(mappedData);
+      setUserQuery(query);
       
       setHasData(true);
     } catch (error: any) {
@@ -166,11 +190,41 @@ const BIZ: React.FC = () => {
   const handleChartUpdate = (data: any) => {
     if (!data) {
       setChartData(null);
+      setChartHtml(null);
       return;
     }
 
     // Convert API response to chart.js format
     try {
+      // Helper: sanitize potential markdown code fences and quotes
+      const sanitizeChartCode = (input: string): string => {
+        if (!input) return input as any;
+        let s = String(input).trim();
+        // Strip wrapping quotes repeatedly
+        while ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith('\'') && s.endsWith('\''))) {
+          s = s.slice(1, -1).trim();
+        }
+        // Remove any markdown code fences (with optional language), both multiline and inline
+        // Examples handled: ```html\n...\n```  |  ```\n...\n```  |  ```html ... ``` (single line)
+        s = s.replace(/^```[a-zA-Z0-9_-]*\s*\n?/g, '')
+             .replace(/\n?```\s*$/g, '')
+             .replace(/```[a-zA-Z0-9_-]*\s*/g, '')
+             .replace(/```/g, '');
+        // Final trim
+        s = s.trim();
+        return s;
+      };
+
+      // If string with HTML/script, store as chartHtml for iframe rendering
+      if (typeof data === 'string' && /<script[\s\S]*?>[\s\S]*<\/script>/i.test(data)) {
+        setChartHtml(sanitizeChartCode(data));
+        return;
+      }
+      // If object contains html field
+      if (data?.html && typeof data.html === 'string') {
+        setChartHtml(sanitizeChartCode(data.html));
+        return;
+      }
       // Example conversion - adjust based on your actual API response
       const chartData = {
         labels: data.labels || [],
@@ -183,15 +237,23 @@ const BIZ: React.FC = () => {
         }]
       };
       setChartData(chartData);
+      setChartHtml(null);
     } catch (error) {
       console.error('Error formatting chart data:', error);
       setChartData(null);
+      setChartHtml(null);
     }
   };
 
   // Generate chart on demand when user navigates to Chart tab
   const generateChart = useCallback(async () => {
-    if (!querySQL) return;
+    if (!querySQL || !queryResult) {
+      console.warn('[BIZ] Missing core fields for chart generation', {
+        hasSql: !!querySQL,
+        hasInference: !!queryResult,
+      });
+      return;
+    }
     setIsChartLoading(true);
     try {
       const { data: sessionData, error: sessionError } = await fetchWithRetry(
@@ -200,18 +262,102 @@ const BIZ: React.FC = () => {
       if (sessionError) throw sessionError;
       if (!sessionData?.session) throw new Error('No active session');
 
+      // Prepare payload with required keys expected by BI Agent
+      // Normalize data shape if it's an array of [label, value] tuples
+      // For maximum compatibility, send RAW array in `data` and structured also in `data_struct`.
+      let dataForAgent: any = queryData ?? {};
+      let dataStruct: any = undefined;
+      if (Array.isArray(queryData) && queryData.length > 0 && Array.isArray(queryData[0])) {
+        try {
+          const rows = (queryData as any[]).map((r) => ({ label: String(r[0]), value: r[1] }));
+          const columns = ['label', 'value'];
+          dataStruct = { columns, rows };
+          dataForAgent = queryData; // raw tuple array in `data`
+        } catch {
+          // keep original
+        }
+      }
+      const payload = {
+        sql: (querySQL || '').toString(),
+        inference: (queryResult || '').toString(),
+        data: dataForAgent,
+        data_struct: dataStruct,
+        user_query: (userQuery || '').toString(),
+        User_query: (userQuery || '').toString(),
+      };
+      console.debug('[BIZ] generate-chart payload', {
+        hasSql: !!payload.sql,
+        hasInference: !!payload.inference,
+        hasData: payload.data ? true : false,
+        user_query_len: payload.user_query.length,
+        userQueryPascal_len: payload.User_query.length,
+        dataType: typeof payload.data,
+      });
+
       const { data, error: apiError } = await fetchWithRetry(
-        () => supabase.functions.invoke('generate-chart', {
-          body: {
-            sql: querySQL,
-            inference: queryResult,
-          }
-        })
+        () => supabase.functions.invoke('generate-chart', { body: payload })
       );
       if (apiError) throw apiError;
 
-      handleChartUpdate((data as any)?.chartData || (data as any));
+      // Handle possible response shapes: { success, chart_code }, raw HTML string, { html }, or JSON chart spec
+      let resp: any = data;
+      if (typeof resp === 'string') {
+        // If JSON string, try to parse; else treat as HTML
+        try {
+          const maybe = JSON.parse(resp);
+          resp = maybe;
+        } catch {
+          // likely HTML snippet
+          handleChartUpdate(resp);
+          return;
+        }
+      }
+      // If Edge Function returns { success: true, chart_code: "<script>...</script>" }
+      if (resp && typeof resp === 'object' && typeof resp.chart_code === 'string') {
+        handleChartUpdate(resp.chart_code);
+        return;
+      }
+      if (resp?.html || (typeof resp === 'string')) {
+        handleChartUpdate(resp?.html || resp);
+        return;
+      }
+      handleChartUpdate((resp as any)?.chartData || resp);
     } catch (error: any) {
+      // Fallback: if we have a simple tuple array in queryData, render it locally
+      try {
+        if (Array.isArray(queryData) && queryData.length > 0) {
+          const labels: string[] = [];
+          const values: number[] = [];
+          for (const row of queryData) {
+            if (Array.isArray(row) && row.length >= 2) {
+              labels.push(String(row[0]));
+              const num = typeof row[1] === 'number' ? row[1] : Number(row[1]);
+              values.push(Number.isFinite(num) ? num : 0);
+            }
+          }
+          if (labels.length && values.length) {
+            handleChartUpdate({
+              labels,
+              datasets: [
+                {
+                  label: 'Values',
+                  data: values,
+                  backgroundColor: 'rgba(99, 102, 241, 0.5)',
+                  borderColor: 'rgba(99, 102, 241, 1)',
+                  borderWidth: 1,
+                },
+              ],
+            });
+            toast({
+              title: 'Rendered local chart',
+              description: 'Used returned data to render chart while the server request failed.',
+            });
+            return;
+          }
+        }
+      } catch (fallbackErr) {
+        console.warn('Local chart fallback failed:', fallbackErr);
+      }
       let errDetails: string | undefined;
       try {
         const resp = error?.context?.response as Response | undefined;
@@ -234,15 +380,15 @@ const BIZ: React.FC = () => {
     } finally {
       setIsChartLoading(false);
     }
-  }, [querySQL, queryResult, toast]);
+  }, [querySQL, queryResult, queryData, userQuery, toast]);
 
   // Tab change handler to trigger chart lazily
   const handleTabChange = useCallback((tab: 'answer' | 'sql' | 'chart') => {
     setActiveTab(tab);
-    if (tab === 'chart' && querySQL && !chartData) {
+    if (tab === 'chart' && querySQL && !chartData && !chartHtml) {
       generateChart();
     }
-  }, [generateChart, querySQL, chartData]);
+  }, [generateChart, querySQL, chartData, chartHtml]);
 
   // Check data access when user changes
   useEffect(() => {
@@ -355,6 +501,7 @@ const BIZ: React.FC = () => {
             answer={queryResult}
             sql={querySQL}
             chartData={chartData}
+            chartHtml={chartHtml}
             isLoading={isLoading}
             isChartLoading={isChartLoading}
             onChartUpdate={handleChartUpdate}

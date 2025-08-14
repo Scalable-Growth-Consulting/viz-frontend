@@ -73,6 +73,12 @@ serve(async (req) => {
       dataPayload = body.data
       userQuery = body.user_query || body.User_query
       if (!sql || !inference) {
+        console.error('Direct mode missing fields', {
+          hasSql: !!sql,
+          hasInference: !!inference,
+          hasData: !!dataPayload,
+          hasUserQuery: !!userQuery,
+        })
         throw new Error('Missing sql or inference in request body')
       }
     }
@@ -80,6 +86,7 @@ serve(async (req) => {
     const payloadForAgent = {
       sql,
       data: dataPayload,
+      sql_response: dataPayload, // some handlers expect this key
       inference,
       User_query: userQuery
     }
@@ -90,6 +97,12 @@ serve(async (req) => {
 
     try {
       // Call the BIAgent API
+      console.log('Calling BI Agent with presence flags', {
+        hasSql: !!sql,
+        hasInference: !!inference,
+        hasData: !!dataPayload,
+        hasUserQuery: !!userQuery,
+      })
       const biAgentResponse = await fetch('https://bi-agent-286070583332.us-central1.run.app', {
         method: 'POST',
         headers: {

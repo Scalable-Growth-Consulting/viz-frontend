@@ -32,6 +32,7 @@ interface ResultsAreaProps {
   isChartLoading: boolean;
   onChartUpdate?: (data: any) => void;
   className?: string;
+  chartHtml?: string | null;
 }
 
 const ResultsArea: React.FC<ResultsAreaProps> = ({
@@ -44,7 +45,68 @@ const ResultsArea: React.FC<ResultsAreaProps> = ({
   isChartLoading,
   onChartUpdate,
   className,
+  chartHtml,
 }) => {
+  const reactChartWrapperRef = React.useRef<HTMLDivElement | null>(null);
+
+  // Prebuild iframe document when BI Agent returns HTML/JS
+  const iframeDoc = React.useMemo(() => {
+    if (!chartHtml) return null;
+    try {
+      const hasScript = new RegExp('<script[\\s\\S]*?>[\\s\\S]*<\\/script>', 'i').test(chartHtml);
+      const safeSnippet = hasScript
+        ? chartHtml
+        : `<script>(function(){
+  var code = function(){ ${chartHtml.replace(/<\/(script)>/gi, '<\\/$1>')} };
+  function ready(){
+    try {
+      if (!window.Chart) return false;
+      var el = document.getElementById('myChart');
+      if (!el) return false;
+      var ctx = el.getContext && el.getContext('2d');
+      if (!ctx) return false;
+      return true;
+    } catch(e){ return false; }
+  }
+  function run(){
+    try { code(); } catch(e){ console.error('Chart snippet error:', e); }
+  }
+  function startWhenReady(timeoutMs){
+    var start = Date.now();
+    (function tick(){
+      if (ready()) { run(); return; }
+      if (Date.now() - start > timeoutMs) { console.warn('Chart snippet timeout'); return; }
+      setTimeout(tick, 50);
+    })();
+  }
+  if (document.readyState === 'complete') startWhenReady(5000);
+  else window.addEventListener('load', function(){ startWhenReady(5000); });
+})();<\/script>`;
+      const doc = `<!doctype html><html><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>html,body{margin:0;padding:0;height:100%;}#wrap{height:100%;display:flex;flex-direction:column;}#canvas-wrap{flex:1;}</style>
+</head><body>
+<div id="wrap"><div id="canvas-wrap"><canvas id="myChart"></canvas></div></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
+${safeSnippet}
+</body></html>`;
+      return doc;
+    } catch (e) {
+      console.error('Error preparing chart iframe document:', e);
+      return null;
+    }
+  }, [chartHtml]);
+
+  React.useEffect(() => {
+    // If we're rendering via react-chartjs-2, ensure the canvas has id="myChart"
+    if (chartData && !chartHtml && reactChartWrapperRef.current) {
+      const canvas = reactChartWrapperRef.current.querySelector('canvas');
+      if (canvas && !canvas.id) {
+        canvas.id = 'myChart';
+      }
+    }
+  }, [chartData, chartHtml]);
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -86,7 +148,8 @@ const ResultsArea: React.FC<ResultsAreaProps> = ({
       case 'sql':
         return (
           <div className="h-full flex flex-col">
-            <div className="flex justify-end p-2 border-b">
+            <div className="flex justify-between items-center p-2 border-b">
+              <div className="px-2 text-xs text-muted-foreground">SQL Query</div>
               <Button
                 variant="ghost"
                 size="sm"
@@ -104,9 +167,28 @@ const ResultsArea: React.FC<ResultsAreaProps> = ({
               </Button>
             </div>
             <ScrollArea className="flex-1">
-              <pre className="p-4 text-sm bg-muted/5 dark:bg-muted/10 font-mono overflow-auto">
-                <code>{sql || '-- SQL will appear here --'}</code>
-              </pre>
+              {(() => {
+                const src = sql && sql.trim().length > 0 ? sql : '-- SQL will appear here --';
+                const lines = src.split('\n');
+                return (
+                  <div className="p-0">
+                    <div className="rounded-lg border bg-slate-950 text-slate-100">
+                      <div className="flex text-sm font-mono leading-6">
+                        {/* Line numbers */}
+                        <div className="select-none bg-slate-900/70 text-slate-500 px-3 py-3 text-right">
+                          {lines.map((_, i) => (
+                            <div key={i}>{i + 1}</div>
+                          ))}
+                        </div>
+                        {/* Code content */}
+                        <pre className="flex-1 overflow-auto p-3 whitespace-pre">
+                          <code>{src}</code>
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </ScrollArea>
           </div>
         );
@@ -118,8 +200,15 @@ const ResultsArea: React.FC<ResultsAreaProps> = ({
               <p className="text-xs text-muted-foreground">Interactive data visualization</p>
             </div>
             <div className="flex-1 p-4">
-              {chartData ? (
-                <div className="h-full w-full">
+              {chartHtml ? (
+                <iframe
+                  title="BI Agent Chart"
+                  className="w-full h-[520px] border rounded-md bg-white"
+                  sandbox="allow-scripts allow-same-origin"
+                  srcDoc={iframeDoc || undefined}
+                />
+              ) : chartData ? (
+                <div className="h-full w-full" ref={reactChartWrapperRef}>
                   <Bar
                     data={chartData}
                     options={{

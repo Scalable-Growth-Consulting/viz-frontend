@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useMemo, Suspense } from 'react';
+import React, { useCallback, useRef, useMemo, Suspense, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -10,8 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, ArrowLeft, ArrowRight, Database, Download, FileText, Loader2, Play, RotateCcw, Settings, Target, TrendingUp, Upload, X, Zap, ArrowUp } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowRight, Database, Download, FileText, Loader2, Play, RotateCcw, Settings, Target, TrendingUp, Upload, X, Zap, Trash2, Clock } from 'lucide-react';
+import { datasetService, DatasetSummary } from '@/services/datasetService';
 import DUFASettingsModal from '@/components/dufa/DUFASettingsModal';
+import StageTabs from '@/components/dufa/StageTabs';
 
 // Types
 interface Dataset {
@@ -62,7 +64,7 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
-  const totalSteps = 6;
+  const totalSteps = 7;
   const navigate = useNavigate();
   
   // State management with useDufaState
@@ -88,10 +90,14 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
     forecastResults = [],
     chatMessages = [],
     loading = {
+      datasets: false,
       forecast: false,
+      analysis: false,
+      chat: false,
       pdfGeneration: false
     },
     progress = {
+      upload: false,
       dataSelection: false,
       forecastConfiguration: false,
       forecastResults: false,
@@ -105,6 +111,21 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
       datasets: false,
     }
   } = state;
+
+  // Local dataset list state (mocked via datasetService/localStorage)
+  const [datasets, setDatasets] = useState<DatasetSummary[]>([]);
+  const [datasetsLoading, setDatasetsLoading] = useState<boolean>(false);
+
+  const loadDatasets = useCallback(async () => {
+    setDatasetsLoading(true);
+    const list = await datasetService.list(user?.id || '');
+    setDatasets(list);
+    setDatasetsLoading(false);
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadDatasets();
+  }, [loadDatasets]);
   
   // Handle file upload
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,8 +133,19 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
     if (file) {
       handleFileUpload(file);
       updateState({ progress: { ...progress, dataSelection: true } });
+      // Save a summary entry to datasetService for selection in Step 2
+      const name = file.name.replace(/\.[^/.]+$/, '');
+      const summary: DatasetSummary = {
+        id: `${Date.now()}`,
+        name,
+        tableName: name.toLowerCase().replace(/\s+/g, '_'),
+        rows: 0,
+        updatedAt: new Date().toISOString(),
+        columns: [],
+      };
+      datasetService.add(user?.id || '', summary).then(loadDatasets);
     }
-  }, [handleFileUpload, updateState, progress]);
+  }, [handleFileUpload, updateState, progress, user?.id, loadDatasets]);
   
   // Navigation functions
   const goToNextStep = useCallback(() => {
@@ -138,20 +170,19 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
     }
   }, [currentStep, updateState]);
 
-  const scrollToTop = useCallback(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
+  
 
   // Navigation state checks
   const canGoNext = useMemo((): boolean => {
     switch (currentStep) {
-      case 1: return !!uploadedDataset;
-      case 2: return forecastConfig.algorithms.length > 0 && forecastConfig.horizon > 0;
-      case 3: return forecastResults.length > 0;
-      case 4: return chatMessages.filter(m => m.type === 'user').length > 0;
+      case 1: return !!uploadedDataset; // Upload complete
+      case 2: return selectedDatasets.length > 0; // Dataset selected
+      case 3: return forecastConfig.algorithms.length > 0 && forecastConfig.horizon > 0; // Config
+      case 4: return forecastResults.length > 0; // Results available
+      case 5: return chatMessages.filter(m => m.type === 'user').length > 0; // Chat used
       default: return true;
     }
-  }, [currentStep, uploadedDataset, forecastConfig, forecastResults, chatMessages]);
+  }, [currentStep, uploadedDataset, selectedDatasets, forecastConfig, forecastResults, chatMessages]);
   
   const canGoPrevious = currentStep > 1;
 
@@ -172,15 +203,12 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      const mockResults: ForecastResult[] = [{
-        id: `result-${Date.now()}`,
-        status: 'completed',
+      const mockResults = [{
         model: 'prophet',
         metrics: {
           mape: 12.5,
           rmse: 150.2,
           mae: 120.8,
-          mse: 22560.4
         },
         forecast_data: Array.from({ length: 30 }, (_, i) => ({
           date: new Date(Date.now() + i * 86400000).toISOString().split('T')[0],
@@ -188,11 +216,12 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
           lower_bound: 800 + Math.random() * 200,
           upper_bound: 1200 + Math.random() * 300,
         })),
-        insights: [
-          'Strong upward trend detected',
-          'Weekly seasonality pattern observed',
-          '3 potential anomalies identified'
-        ],
+        insights: {
+          trend: 'Strong upward trend detected',
+          seasonality: 'Weekly seasonality pattern observed',
+          anomalies: 3,
+          growth_rate: 0.12,
+        },
       }];
 
       updateState({
@@ -280,10 +309,14 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
       forecastResults: [],
       chatMessages: [],
       loading: {
+        datasets: false,
         forecast: false,
+        analysis: false,
+        chat: false,
         pdfGeneration: false
       },
       progress: {
+        upload: false,
         dataSelection: false,
         forecastConfiguration: false,
         forecastResults: false,
@@ -310,7 +343,7 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
       
       {showTopNav && (
         <Suspense fallback={<div className="h-16 bg-white dark:bg-gray-800" />}>
-          <TopNav zone="dufa" showData={false} />
+          <TopNav zone="riz" showData={false} />
         </Suspense>
       )}
 
@@ -396,6 +429,34 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
           </Card>
         </div>
 
+        {/* Stage Tabs */}
+        {(() => {
+          const maxAllowed = Math.max(currentStep, ...(completedSteps.length ? completedSteps : [1])) + 1;
+          const items = [
+            { step: 1, label: 'Upload', icon: <Upload className="w-4 h-4" /> },
+            { step: 2, label: 'Select Data', icon: <Database className="w-4 h-4" /> },
+            { step: 3, label: 'Configure', icon: <Settings className="w-4 h-4" /> },
+            { step: 4, label: 'Run', icon: <Play className="w-4 h-4" /> },
+            { step: 5, label: 'Results', icon: <TrendingUp className="w-4 h-4" /> },
+            { step: 6, label: 'AI Chat', icon: <Target className="w-4 h-4" /> },
+            { step: 7, label: 'Export', icon: <FileText className="w-4 h-4" /> },
+          ].map((it) => ({
+            ...it,
+            disabled: it.step > maxAllowed,
+            completed: completedSteps.includes(it.step),
+          }));
+          return (
+            <div className="mb-6 sticky top-16 z-30">
+              <StageTabs
+                items={items}
+                currentStep={currentStep}
+                onSelect={(step) => updateState({ currentStep: step })}
+                className="shadow-sm"
+              />
+            </div>
+          );
+        })()}
+
         {/* Step Content */}
         <Card className="bg-white dark:bg-gray-800">
           {currentStep === 1 && (
@@ -440,6 +501,96 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
                   onClick={goToNextStep}
                   disabled={!uploadedDataset}
                 >
+                  Next: Select Dataset
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {/* Step 2: Select Dataset(s) from library */}
+          {currentStep === 2 && (
+            <div className="p-6 space-y-6">
+              <h2 className="text-xl font-semibold">Select Dataset</h2>
+              <p className="text-gray-600 dark:text-gray-300">Choose one or more datasets for processing. You can also delete datasets from your library.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {datasetsLoading && (
+                  <div className="col-span-full text-center text-gray-500">Loading datasets...</div>
+                )}
+                {!datasetsLoading && datasets.length === 0 && (
+                  <div className="col-span-full text-center text-gray-500">No datasets yet. Upload a file to add one.</div>
+                )}
+                {datasets.map(ds => {
+                  const selected = selectedDatasets.some(s => s.id === ds.id);
+                  return (
+                    <div key={ds.id} className="border rounded-xl p-4 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-sm hover:shadow transition">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{ds.name}</h3>
+                          <div className="text-sm text-gray-500">{ds.tableName}</div>
+                        </div>
+                        <button
+                          className="p-2 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600"
+                          onClick={async () => { await datasetService.remove(user?.id || '', ds.id); await loadDatasets(); updateState({ selectedDatasets: selectedDatasets.filter(s => s.id !== ds.id) }); }}
+                          aria-label="Delete dataset"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        <div className="flex items-center gap-1"><Database className="w-4 h-4" /> {ds.rows.toLocaleString()} rows</div>
+                        <div className="flex items-center gap-1"><Clock className="w-4 h-4" /> {new Date(ds.updatedAt).toLocaleDateString()}</div>
+                      </div>
+                      {ds.columns?.length > 0 && (
+                        <div className="mt-3">
+                          <div className="text-sm text-gray-500 mb-1">Columns ({ds.columns.length >= 4 ? 4 : ds.columns.length}):</div>
+                          <div className="flex flex-wrap gap-2">
+                            {ds.columns.slice(0,3).map(col => (
+                              <span key={col} className="text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-slate-300">{col}</span>
+                            ))}
+                            {ds.columns.length > 3 && (
+                              <span className="text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-slate-300">+{ds.columns.length - 3} more</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      <div className="mt-4 flex items-center justify-between">
+                        <label className="inline-flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={(e) => {
+                              const isChecked = e.target.checked;
+                              const next = isChecked
+                                ? [
+                                    ...selectedDatasets,
+                                    {
+                                      id: ds.id,
+                                      name: ds.name,
+                                      table_name: ds.tableName,
+                                      rows: ds.rows,
+                                      columns: ds.columns || [],
+                                      last_updated: ds.updatedAt,
+                                    } as any,
+                                  ]
+                                : selectedDatasets.filter(s => s.id !== ds.id);
+                              updateState({ selectedDatasets: next });
+                            }}
+                          />
+                          Select for processing
+                        </label>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                <Button variant="outline" onClick={goToPreviousStep}>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
+                <Button onClick={goToNextStep} disabled={selectedDatasets.length === 0}>
                   Next: Configure Forecast
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -447,7 +598,7 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
             </div>
           )}
           
-          {currentStep === 2 && (
+          {currentStep === 3 && (
             <div className="p-6 space-y-6">
               <h2 className="text-xl font-semibold">Configure Forecast</h2>
               
@@ -569,24 +720,24 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
             </div>
           )}
           
-          {currentStep >= 3 && (
+          {currentStep >= 4 && (
             <div className="p-6 space-y-6">
               <h2 className="text-xl font-semibold">
-                {currentStep === 3 && 'Run Forecast'}
-                {currentStep === 4 && 'Analyze Results'}
-                {currentStep === 5 && 'Chat with Insights'}
-                {currentStep === 6 && 'Export Report'}
+                {currentStep === 4 && 'Run Forecast'}
+                {currentStep === 5 && 'Analyze Results'}
+                {currentStep === 6 && 'Chat with Insights'}
+                {currentStep === 7 && 'Export Report'}
               </h2>
               
               <div className="py-8 text-center">
                 <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
-                  {currentStep === 3 && 'Configure and run your forecast with the selected settings.'}
-                  {currentStep === 4 && 'View and analyze the forecast results and metrics.'}
-                  {currentStep === 5 && 'Get insights and ask questions about your forecast.'}
-                  {currentStep === 6 && 'Export your forecast report in PDF format.'}
+                  {currentStep === 4 && 'Configure and run your forecast with the selected settings.'}
+                  {currentStep === 5 && 'View and analyze the forecast results and metrics.'}
+                  {currentStep === 6 && 'Get insights and ask questions about your forecast.'}
+                  {currentStep === 7 && 'Export your forecast report in PDF format.'}
                 </p>
                 
-                {currentStep === 3 && (
+                {currentStep === 4 && (
                   <Button 
                     className="mt-6"
                     onClick={handleRunForecast}
@@ -606,7 +757,7 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
                   </Button>
                 )}
                 
-                {currentStep === 6 && (
+                {currentStep === 7 && (
                   <Button 
                     className="mt-6"
                     onClick={handleExportPDF}
@@ -627,78 +778,13 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
                 )}
               </div>
               
-              <div className="flex justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-                <Button variant="outline" onClick={goToPreviousStep}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back
-                </Button>
-                
-                {currentStep < 6 ? (
-                  <Button
-                    onClick={goToNextStep}
-                    disabled={
-                      (currentStep === 3 && forecastResults.length === 0) ||
-                      (currentStep === 4 && !progress.forecastResults) ||
-                      (currentStep === 5 && !progress.chatInteraction)
-                    }
-                  >
-                    Next Step
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                ) : (
-                  <Button variant="success" onClick={resetSession}>
-                    Start New Forecast
-                  </Button>
-                )}
-              </div>
+              {/* Footer navigation removed: StageTabs now controls navigation */}
             </div>
           )}
         </Card>
       </div>
       
-      {/* Floating Navigation */}
-      <div className="fixed bottom-6 right-6 flex flex-col sm:flex-row gap-2 z-50">
-        {canGoPrevious && (
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={goToPreviousStep}
-            className="shadow-lg"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Previous
-          </Button>
-        )}
-        
-        <Button
-          variant={currentStep < totalSteps ? "default" : "success"}
-          size="lg"
-          onClick={currentStep < totalSteps ? goToNextStep : handleExportPDF}
-          disabled={currentStep < totalSteps ? !canGoNext : false}
-          className="shadow-lg"
-        >
-          {currentStep < totalSteps ? (
-            <>
-              Next
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </>
-          ) : (
-            <>
-              <Download className="mr-2 h-4 w-4" />
-              Export Report
-            </>
-          )}
-        </Button>
-        
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={scrollToTop}
-          className="shadow-lg"
-        >
-          <ArrowUp className="h-4 w-4" />
-        </Button>
-      </div>
+      {/* Floating navigation removed: StageTabs is the primary navigator */}
     </div>
   );
 };

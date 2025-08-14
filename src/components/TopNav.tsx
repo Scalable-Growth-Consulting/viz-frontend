@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart2 as BarChartIcon, DatabaseIcon, LightbulbIcon, LogOut, Menu, HeartPulse } from 'lucide-react';
+import { BarChart2 as BarChartIcon, DatabaseIcon, LightbulbIcon, LogOut, Menu, HeartPulse, Home as HomeIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from './ui/button';
@@ -88,6 +88,12 @@ const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
               <div>
                 <h3 className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Menu</h3>
                 <div className="space-y-2">
+                  <SheetClose asChild>
+                    <Link to="/" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/20 dark:hover:bg-viz-light">
+                      <HomeIcon className="w-4 h-4 text-viz-accent" />
+                      <span className="text-sm">Home</span>
+                    </Link>
+                  </SheetClose>
                   {showData && zone !== 'riz' && (
                     <SheetClose asChild>
                       <Link to="/data-control" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/20 dark:hover:bg-viz-light">
@@ -142,7 +148,7 @@ const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-viz-dark dark:text-white">Viz</h1>
-            <p className="text-xs text-slate-500 dark:text-viz-text-secondary">virtual intelligence zone</p>
+            <p className="hidden sm:block text-xs text-slate-500 dark:text-viz-text-secondary">virtual intelligence zone</p>
           </div>
         </Link>
       </div>
@@ -151,7 +157,7 @@ const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
       <div className="flex-1" />
       
       {/* Right Section - Navigation & User */}
-      <div className="flex-1 flex justify-end">
+      <div className="flex-1 flex justify-end items-center gap-2">
         <div className="hidden lg:flex items-center space-x-2 md:space-x-3">
           {showData && (
             <Link 

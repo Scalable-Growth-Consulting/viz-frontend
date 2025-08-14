@@ -42,24 +42,22 @@ const RIZ: React.FC = () => {
       <TopNav zone="riz" showData={false} />
       <div className="flex h-[calc(100vh-73px)] overflow-hidden">
         {/* Left Sidebar - Vertical Tabs */}
-        <div className="w-64 bg-white/80 dark:bg-viz-medium/80 backdrop-blur-sm border-r border-slate-200/50 dark:border-viz-light/20 flex flex-col flex-shrink-0">
-          <div className="p-4 border-b border-slate-200/50 dark:border-viz-light/20">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-viz-dark dark:text-white">Retail Intelligence</h2>
-                <p className="text-sm text-slate-600 dark:text-viz-text-secondary">Specialized AI Agents</p>
-              </div>
+        <div className="hidden md:flex w-72 bg-white/85 dark:bg-viz-medium/85 backdrop-blur-sm border-r border-slate-200/50 dark:border-viz-light/20 flex-col flex-shrink-0">
+          <div className="p-5 border-b border-slate-200/50 dark:border-viz-light/20">
+            <div className="text-center">
+              <h2 className="text-lg font-semibold text-viz-dark dark:text-white">Retail Intelligence</h2>
+              <p className="text-sm text-slate-600 dark:text-viz-text-secondary">Specialized AI Agents</p>
             </div>
           </div>
           
-          <nav className="flex-1 p-4 space-y-2">
+          <nav className="flex-1 p-5 space-y-3">
             {/* DUFA Tab */}
             <button
               onClick={() => handleTabChange('dufa')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 text-left ${
+              className={`w-full group flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 text-left ${
                 activeTab === 'dufa'
-                  ? 'bg-gradient-to-r from-viz-accent to-blue-600 text-white shadow-lg'
-                  : 'bg-white/50 dark:bg-viz-dark/50 text-slate-700 dark:text-viz-text-secondary hover:bg-white/70 dark:hover:bg-viz-dark/70 hover:text-viz-dark dark:hover:text-white'
+                  ? 'bg-gradient-to-r from-viz-accent to-blue-600 text-white shadow-md border-transparent'
+                  : 'bg-white/60 dark:bg-viz-dark/50 text-slate-700 dark:text-viz-text-secondary hover:bg-white border border-slate-200/60 dark:border-viz-light/20'
               }`}
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
@@ -73,24 +71,22 @@ const RIZ: React.FC = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium">DUFA</div>
-                <div className={`text-sm ${
-                  activeTab === 'dufa' ? 'text-white/80' : 'text-slate-500 dark:text-viz-text-secondary'
-                }`}>
-                  Demand Understanding & Forecasting Agent
-                </div>
+                {activeTab === 'dufa' && (
+                  <div className="text-sm text-white/85 line-clamp-2">
+                    Demand Understanding & Forecasting Agent
+                  </div>
+                )}
               </div>
-              {activeTab === 'dufa' && (
-                <div className="w-2 h-2 bg-white rounded-full"></div>
-              )}
+              {activeTab === 'dufa' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
             </button>
 
             {/* MIA Tab */}
             <button
               onClick={() => handleTabChange('mia')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 text-left ${
+              className={`w-full group flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 text-left ${
                 activeTab === 'mia'
-                  ? 'bg-gradient-to-r from-pink-500 to-viz-accent text-white shadow-lg'
-                  : 'bg-white/50 dark:bg-viz-dark/50 text-slate-700 dark:text-viz-text-secondary hover:bg-white/70 dark:hover:bg-viz-dark/70 hover:text-viz-dark dark:hover:text-white'
+                  ? 'bg-gradient-to-r from-pink-500 to-viz-accent text-white shadow-md border-transparent'
+                  : 'bg-white/60 dark:bg-viz-dark/50 text-slate-700 dark:text-viz-text-secondary hover:bg-white border border-slate-200/60 dark:border-viz-light/20'
               }`}
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
@@ -104,15 +100,13 @@ const RIZ: React.FC = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium">MIA</div>
-                <div className={`text-sm ${
-                  activeTab === 'mia' ? 'text-white/80' : 'text-slate-500 dark:text-viz-text-secondary'
-                }`}>
-                  Marketing Intelligence Agent
-                </div>
+                {activeTab === 'mia' && (
+                  <div className="text-sm text-white/85 line-clamp-2">
+                    Marketing Intelligence Agent
+                  </div>
+                )}
               </div>
-              {activeTab === 'mia' && (
-                <div className="w-2 h-2 bg-white rounded-full"></div>
-              )}
+              {activeTab === 'mia' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
             </button>
           </nav>
 
@@ -129,7 +123,32 @@ const RIZ: React.FC = () => {
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0 overflow-auto bg-white/50 dark:bg-viz-dark/50">
-          <div className="flex-1 overflow-auto p-6">
+          {/* Mobile Tabs (DUFA/MIA) */}
+          <div className="md:hidden sticky top-0 z-10 bg-white/80 dark:bg-viz-medium/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-b border-slate-200/50 dark:border-viz-light/20">
+            <div className="px-4 py-2 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleTabChange('dufa')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  activeTab === 'dufa'
+                    ? 'bg-gradient-to-r from-viz-accent to-blue-600 text-white shadow'
+                    : 'bg-white dark:bg-viz-dark text-slate-700 dark:text-viz-text-secondary border border-slate-200/60 dark:border-viz-light/20'
+                }`}
+              >
+                DUFA
+              </button>
+              <button
+                onClick={() => handleTabChange('mia')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  activeTab === 'mia'
+                    ? 'bg-gradient-to-r from-pink-500 to-viz-accent text-white shadow'
+                    : 'bg-white dark:bg-viz-dark text-slate-700 dark:text-viz-text-secondary border border-slate-200/60 dark:border-viz-light/20'
+                }`}
+              >
+                MIA
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-auto p-4 md:p-6">
             {activeTab === 'dufa' && (
               <DUFAAccessGuard>
                 <div className="h-full w-full">
