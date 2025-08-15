@@ -5,7 +5,6 @@ import { Card } from '@/components/ui/card';
 import {
   ChevronLeft,
   ChevronRight,
-  ArrowUp,
   Keyboard,
   CheckCircle,
   Circle,

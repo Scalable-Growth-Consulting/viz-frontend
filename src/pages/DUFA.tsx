@@ -1,366 +1,381 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Header from '@/components/Header';
-import DUFASettingsModal from '@/components/dufa/DUFASettingsModal';
+import React, { useCallback, useRef, useMemo, Suspense, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from '@/components/ui/use-toast';
+import { useDufaState } from '@/hooks/useDufaState';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { 
-  TrendingUp, 
-  Database, 
-  Settings, 
-  BarChart3, 
-  MessageSquare,
-  ChevronRight,
-  ChevronLeft,
-  ChevronDown,
-  Play,
-  Pause,
-  RotateCcw,
-  AlertTriangle,
-  Download,
-  Loader2,
-  Sparkles,
-  Target,
-  Zap
-} from 'lucide-react';
-import DUFADatasetSelection from '@/components/dufa/DUFADatasetSelection';
-import DUFAConfiguration from '@/components/dufa/DUFAConfiguration';
-import DUFAAnalysis from '@/components/dufa/DUFAAnalysis';
-import DUFAChatbot from '@/components/dufa/DUFAChatbot';
-import DUFAProgressTracker from '@/components/dufa/DUFAProgressTracker';
-import DUFAPDFGenerator from '@/components/dufa/DUFAPDFGenerator';
-import DUFAFloatingNavigation from '@/components/dufa/DUFAFloatingNavigation';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertCircle, ArrowLeft, ArrowRight, Database, Download, FileText, Loader2, Play, RotateCcw, Settings, Target, TrendingUp, Upload, X, Zap, Trash2, Clock } from 'lucide-react';
+import { datasetService, DatasetSummary } from '@/services/datasetService';
+import DUFASettingsModal from '@/components/dufa/DUFASettingsModal';
+import StageTabs from '@/components/dufa/StageTabs';
 
-export interface Dataset {
+// Types
+interface Dataset {
   id: string;
   name: string;
-  table_name: string;
-  rows: number;
-  columns: string[];
-  last_updated: string;
+  size: number;
 }
 
-export interface ForecastConfig {
+interface ForecastConfig {
   algorithms: string[];
   horizon: number;
   seasonality: 'auto' | 'daily' | 'weekly' | 'monthly' | 'yearly';
   confidence_interval: number;
 }
 
-export interface ForecastResult {
-  model: string;
-  metrics: {
-    mape: number;
-    rmse: number;
-    mae: number;
-  };
-  forecast_data: Array<{
-    date: string;
-    actual?: number;
-    forecast: number;
-    lower_bound: number;
-    upper_bound: number;
-    anomaly?: boolean;
-  }>;
-  insights: {
-    trend: string;
-    seasonality: string;
-    anomalies: number;
-    growth_rate: number;
-  };
+interface ForecastMetrics {
+  mae: number;
+  mse: number;
+  rmse: number;
+  mape: number;
 }
 
-export interface ProgressState {
-  dataSelection: boolean;
-  forecastConfiguration: boolean;
-  forecastResults: boolean;
-  chatInteraction: boolean;
-  pdfDownload: boolean;
+interface ForecastResult {
+  id: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  metrics?: ForecastMetrics;
+  model?: string;
+  forecast_data?: any[];
+  insights?: string[];
 }
 
-const DUFA: React.FC = () => {
-  const { user } = useAuth();
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [dufaVisible, setDufaVisible] = useState(true); // default to visible
-  const [featureFlags, setFeatureFlags] = useState<{ [key: string]: boolean }>({
-    'Beta Chatbot': false,
-    'Advanced Charts': false
-  });
+interface ChatMessage {
+  id: string;
+  content: string;
+  type: 'user' | 'assistant';
+  timestamp: Date;
+}
+
+// Lazy-loaded components
+const TopNav = React.lazy(() => import('@/components/TopNav'));
+
+interface DUFAProps {
+  showTopNav?: boolean;
+}
+
+const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
+  // Hooks
   const { toast } = useToast();
+  const { user } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
+  const totalSteps = 7;
+  const navigate = useNavigate();
   
-  // Step management
-  const [currentStep, setCurrentStep] = useState<number>(1);
-  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
-  const totalSteps = 5;
+  // State management with useDufaState
+  const {
+    state,
+    updateState,
+    handleFileUpload,
+    toggleSection,
+  } = useDufaState();
   
-  // Data states
-  const [selectedDatasets, setSelectedDatasets] = useState<Dataset[]>([]);
-  const [forecastConfig, setForecastConfig] = useState<ForecastConfig>({
-    algorithms: ['ARIMA'],
-    horizon: 30,
-    seasonality: 'auto',
-    confidence_interval: 95
-  });
-  const [forecastResults, setForecastResults] = useState<ForecastResult[]>([]);
-  const [bestModel, setBestModel] = useState<ForecastResult | null>(null);
-  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  // Destructure state
+  const {
+    currentStep = 1,
+    completedSteps = [],
+    uploadedDataset = null,
+    selectedDatasets = [],
+    forecastConfig = {
+      algorithms: ['prophet'],
+      horizon: 7,
+      seasonality: 'auto',
+      confidence_interval: 0.95
+    },
+    forecastResults = [],
+    chatMessages = [],
+    loading = {
+      datasets: false,
+      forecast: false,
+      analysis: false,
+      chat: false,
+      pdfGeneration: false
+    },
+    progress = {
+      upload: false,
+      dataSelection: false,
+      forecastConfiguration: false,
+      forecastResults: false,
+      chatInteraction: false,
+      pdfDownload: false,
+    },
+    settingsOpen = false,
+    dufaVisible = true,
+    featureFlags = {},
+    collapsedSections = {
+      datasets: false,
+    }
+  } = state;
+
+  // Local dataset list state (mocked via datasetService/localStorage)
+  const [datasets, setDatasets] = useState<DatasetSummary[]>([]);
+  const [datasetsLoading, setDatasetsLoading] = useState<boolean>(false);
+
+  const loadDatasets = useCallback(async () => {
+    setDatasetsLoading(true);
+    const list = await datasetService.list(user?.id || '');
+    setDatasets(list);
+    setDatasetsLoading(false);
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadDatasets();
+  }, [loadDatasets]);
   
-  // Loading states
-  const [loading, setLoading] = useState({
-    datasets: false,
-    forecast: false,
-    analysis: false,
-    chat: false,
-    pdfGeneration: false
-  });
+  // Handle file upload
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileUpload(file);
+      updateState({ progress: { ...progress, dataSelection: true } });
+      // Save a summary entry to datasetService for selection in Step 2
+      const name = file.name.replace(/\.[^/.]+$/, '');
+      const summary: DatasetSummary = {
+        id: `${Date.now()}`,
+        name,
+        tableName: name.toLowerCase().replace(/\s+/g, '_'),
+        rows: 0,
+        updatedAt: new Date().toISOString(),
+        columns: [],
+      };
+      datasetService.add(user?.id || '', summary).then(loadDatasets);
+    }
+  }, [handleFileUpload, updateState, progress, user?.id, loadDatasets]);
   
-  // Progress tracking
-  const [progress, setProgress] = useState<ProgressState>({
-    dataSelection: false,
-    forecastConfiguration: false,
-    forecastResults: false,
-    chatInteraction: false,
-    pdfDownload: false
-  });
-
-  const [collapsedSections, setCollapsedSections] = useState({
-    datasets: false,
-    configuration: true,
-    results: true,
-    chat: true
-  });
-
-  // Handler functions
-  const handleSectionToggle = (section: keyof typeof collapsedSections) => {
-    setCollapsedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
-
-  const handleChatMessagesUpdate = (messages: any[]) => {
-    setChatMessages(messages);
-  };
-
-  const handlePDFDownloadComplete = () => {
-    setProgress(prev => ({ ...prev, pdfDownload: true }));
-    toast({
-      title: "PDF Downloaded",
-      description: "Your DUFA report has been generated and downloaded successfully.",
-    });
-  };
-
   // Navigation functions
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const scrollToStep = (step: number) => {
-    const stepElement = document.getElementById(`dufa-step-${step}`);
-    if (stepElement) {
-      stepElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
-  const goToNextStep = () => {
+  const goToNextStep = useCallback(() => {
     if (currentStep < totalSteps) {
-      const nextStep = currentStep + 1;
-      setCurrentStep(nextStep);
+      const newCompletedSteps = completedSteps.includes(currentStep)
+        ? [...completedSteps]
+        : [...completedSteps, currentStep];
       
-      // Auto-expand the next section
-      const sectionKeys = ['datasets', 'configuration', 'results', 'chat', 'pdf'] as const;
-      const nextSectionKey = sectionKeys[nextStep - 1];
-      if (nextSectionKey && collapsedSections[nextSectionKey]) {
-        setCollapsedSections(prev => ({ ...prev, [nextSectionKey]: false }));
-      }
-      
-      // Auto-scroll to the next step
-      setTimeout(() => scrollToStep(nextStep), 100);
-      
-      toast({
-        title: `Step ${nextStep}`,
-        description: `Moved to ${['Data Selection', 'Configuration', 'Analysis', 'Chat Interaction', 'PDF Download'][nextStep - 1]}`,
+      updateState({
+        currentStep: currentStep + 1,
+        completedSteps: newCompletedSteps
       });
+      
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  };
+  }, [currentStep, totalSteps, completedSteps, updateState]);
 
-  const goToPreviousStep = () => {
+  const goToPreviousStep = useCallback(() => {
     if (currentStep > 1) {
-      const prevStep = currentStep - 1;
-      setCurrentStep(prevStep);
-      
-      // Auto-expand the previous section
-      const sectionKeys = ['datasets', 'configuration', 'results', 'chat', 'pdf'] as const;
-      const prevSectionKey = sectionKeys[prevStep - 1];
-      if (prevSectionKey && collapsedSections[prevSectionKey]) {
-        setCollapsedSections(prev => ({ ...prev, [prevSectionKey]: false }));
-      }
-      
-      // Auto-scroll to the previous step
-      setTimeout(() => scrollToStep(prevStep), 100);
-      
-      toast({
-        title: `Step ${prevStep}`,
-        description: `Moved to ${['Data Selection', 'Configuration', 'Analysis', 'Chat Interaction', 'PDF Download'][prevStep - 1]}`,
-      });
+      updateState({ currentStep: currentStep - 1 });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  };
+  }, [currentStep, updateState]);
 
-  // Determine navigation availability
-  const canGoNext = () => {
+  
+
+  // Navigation state checks
+  const canGoNext = useMemo((): boolean => {
     switch (currentStep) {
-      case 1: return selectedDatasets.length > 0;
-      case 2: return progress.forecastConfiguration;
-      case 3: return progress.forecastResults;
-      case 4: return progress.chatInteraction;
-      case 5: return false; // Last step
-      default: return false;
+      case 1: return !!uploadedDataset; // Upload complete
+      case 2: return selectedDatasets.length > 0; // Dataset selected
+      case 3: return forecastConfig.algorithms.length > 0 && forecastConfig.horizon > 0; // Config
+      case 4: return forecastResults.length > 0; // Results available
+      case 5: return chatMessages.filter(m => m.type === 'user').length > 0; // Chat used
+      default: return true;
     }
-  };
+  }, [currentStep, uploadedDataset, selectedDatasets, forecastConfig, forecastResults, chatMessages]);
+  
+  const canGoPrevious = currentStep > 1;
 
-  const canGoPrevious = () => {
-    return currentStep > 1;
-  };
+  // Forecast function
+  const handleRunForecast = useCallback(async () => {
+    if (!uploadedDataset) {
+      toast({
+        title: 'No dataset uploaded',
+        description: 'Please upload a dataset first',
+        variant: 'destructive',
+      });
+      return;
+    }
 
-  // Additional handler functions
-  const handleRunForecast = async () => {
-    setLoading(prev => ({ ...prev, forecast: true }));
     try {
-      // Forecast logic would go here
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
-      setProgress(prev => ({ ...prev, forecastResults: true }));
+      updateState({ loading: { ...loading, forecast: true } });
+
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      const mockResults = [{
+        model: 'prophet',
+        metrics: {
+          mape: 12.5,
+          rmse: 150.2,
+          mae: 120.8,
+        },
+        forecast_data: Array.from({ length: 30 }, (_, i) => ({
+          date: new Date(Date.now() + i * 86400000).toISOString().split('T')[0],
+          forecast: 1000 + Math.random() * 500,
+          lower_bound: 800 + Math.random() * 200,
+          upper_bound: 1200 + Math.random() * 300,
+        })),
+        insights: {
+          trend: 'Strong upward trend detected',
+          seasonality: 'Weekly seasonality pattern observed',
+          anomalies: 3,
+          growth_rate: 0.12,
+        },
+      }];
+
+      updateState({
+        forecastResults: mockResults,
+        loading: { ...loading, forecast: false },
+        progress: { ...progress, forecastResults: true }
+      });
+
+      toast({
+        title: 'Forecast completed',
+        description: 'Successfully generated forecast results',
+      });
     } catch (error) {
       console.error('Forecast error:', error);
-    } finally {
-      setLoading(prev => ({ ...prev, forecast: false }));
+      updateState({ loading: { ...loading, forecast: false } });
+      
+      toast({
+        title: 'Forecast failed',
+        description: 'An error occurred while generating forecast',
+        variant: 'destructive',
+      });
     }
-  };
+  }, [uploadedDataset, loading, progress, toast, updateState]);
 
-  const handleSendMessage = async (message: string) => {
-    setLoading(prev => ({ ...prev, chat: true }));
+  // PDF Export function
+  const handleExportPDF = useCallback(async () => {
+    if (forecastResults.length === 0) {
+      toast({
+        title: 'No results to export',
+        description: 'Please generate forecast results first',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
-      const newMessage = { id: Date.now(), content: message, sender: 'user', timestamp: new Date() };
-      setChatMessages(prev => [...prev, newMessage]);
+      updateState({ loading: { ...loading, pdfGeneration: true } });
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Simulate AI response
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const aiResponse = { id: Date.now() + 1, content: 'AI response to: ' + message, sender: 'ai', timestamp: new Date() };
-      setChatMessages(prev => [...prev, aiResponse]);
+      // PDF generation simulation
+      const pdfBlob = new Blob(['DUFA Forecast Report'], { type: 'application/pdf' });
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `forecast-report-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
       
-      setProgress(prev => ({ ...prev, chatInteraction: true }));
+      updateState({
+        loading: { ...loading, pdfGeneration: false },
+        progress: { ...progress, pdfDownload: true }
+      });
+      
+      toast({
+        title: 'PDF Exported',
+        description: 'Forecast report downloaded successfully',
+      });
     } catch (error) {
-      console.error('Chat error:', error);
-    } finally {
-      setLoading(prev => ({ ...prev, chat: false }));
+      console.error('Export error:', error);
+      updateState({ loading: { ...loading, pdfGeneration: false } });
+      
+      toast({
+        title: 'Export Failed',
+        description: 'Failed to generate PDF report',
+        variant: 'destructive',
+      });
     }
-  };
+  }, [forecastResults, loading, progress, toast, updateState]);
 
-
-
-  // Keyboard shortcuts
-  useKeyboardShortcuts({
-    onNext: canGoNext() ? goToNextStep : undefined,
-    onPrevious: canGoPrevious() ? goToPreviousStep : undefined,
-    onEscape: scrollToTop,
-  });
-
-  // Enhanced progress tracking
-  useEffect(() => {
-    const newProgress = {
-      dataSelection: selectedDatasets.length > 0,
-      forecastConfiguration: forecastConfig.algorithms.length > 0 && forecastConfig.horizon > 0,
-      forecastResults: forecastResults.length > 0 && bestModel !== null,
-      chatInteraction: chatMessages.length > 0,
-      pdfDownload: progress.pdfDownload
-    };
-    
-    setProgress(newProgress);
-  }, [selectedDatasets, forecastConfig, forecastResults, bestModel, chatMessages, progress.pdfDownload]);
-
-  const handleStepComplete = (stepId: number) => {
-    if (!completedSteps.includes(stepId)) {
-      setCompletedSteps([...completedSteps, stepId]);
-    }
-  };
-
-  const handleNextStep = () => {
-    if (currentStep < 5) {
-      handleStepComplete(currentStep);
-      setCurrentStep(currentStep + 1);
-    }
-  };
-
-  const handlePreviousStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const canProceedToNextStep = () => {
-    switch (currentStep) {
-      case 1:
-        return selectedDatasets.length > 0;
-      case 2:
-        return forecastConfig.algorithms.length > 0 && forecastConfig.horizon > 0;
-      case 3:
-        return forecastResults.length > 0;
-      case 4:
-        return chatMessages.filter(m => m.type === 'user').length > 0;
-      default:
-        return true;
-    }
-  };
+  // Reset function
+  const resetSession = useCallback(() => {
+    updateState({
+      currentStep: 1,
+      completedSteps: [],
+      uploadedDataset: null,
+      selectedDatasets: [],
+      forecastConfig: {
+        algorithms: ['prophet'],
+        horizon: 7,
+        seasonality: 'auto',
+        confidence_interval: 0.95
+      },
+      forecastResults: [],
+      chatMessages: [],
+      loading: {
+        datasets: false,
+        forecast: false,
+        analysis: false,
+        chat: false,
+        pdfGeneration: false
+      },
+      progress: {
+        upload: false,
+        dataSelection: false,
+        forecastConfiguration: false,
+        forecastResults: false,
+        chatInteraction: false,
+        pdfDownload: false,
+      }
+    });
+    toast({ description: 'Session has been reset' });
+  }, [updateState, toast]);
 
   return (
-    <>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900" ref={containerRef}>
       <DUFASettingsModal
         open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
+        onClose={() => updateState({ settingsOpen: false })}
         isAdmin={user?.email?.toLowerCase() === 'creatorvision03@gmail.com'}
         initialVisibility={dufaVisible}
         initialFeatureFlags={featureFlags}
-        onSave={(vis, flags) => {
-          setDufaVisible(vis);
-          setFeatureFlags(flags);
-        }}
+        onSave={(vis, flags) => updateState({ 
+          dufaVisible: vis, 
+          featureFlags: flags 
+        })}
       />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-viz-dark dark:to-black">
-        <Header />
       
-      <div className="container mx-auto px-6 py-8 max-w-7xl">
-        {/* Header Section */}
+      {showTopNav && (
+        <Suspense fallback={<div className="h-16 bg-white dark:bg-gray-800" />}>
+          <TopNav zone="riz" showData={false} />
+        </Suspense>
+      )}
+
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Header */}
         <div className="mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="space-y-2">
-              <h1 className="text-4xl font-bold text-viz-dark dark:text-white flex items-center gap-3">
-                <div className="p-2 bg-viz-accent/10 rounded-xl">
-                  <TrendingUp className="w-9 h-9 text-viz-accent" />
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+                  <TrendingUp className="w-7 h-7 md:w-9 md:h-9 text-blue-600 dark:text-blue-400" />
                 </div>
                 Demand Understanding & Forecasting Agent
               </h1>
-              <p className="text-lg text-slate-600 dark:text-viz-text-secondary">
-                Advanced AI-powered demand forecasting and analytics platform for data-driven business insights
+              <p className="text-gray-600 dark:text-gray-300">
+                AI-powered demand forecasting and analytics platform
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            
+            <div className="flex flex-wrap gap-2">
               <Button
-                onClick={() => setCurrentStep(1)}
+                onClick={resetSession}
                 variant="outline"
-                className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-viz-light/20 shadow-sm hover:shadow-md transition-shadow"
+                className="flex items-center gap-2"
               >
                 <RotateCcw className="w-4 h-4" />
                 Reset
               </Button>
               <Button 
-                variant="outline" 
-                className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-viz-light/20 shadow-sm hover:shadow-md transition-shadow"
-                onClick={() => setSettingsOpen(true)}
+                variant="outline"
+                onClick={() => updateState({ settingsOpen: true })}
+                className="flex items-center gap-2"
               >
                 <Settings className="w-4 h-4" />
                 Settings
@@ -369,254 +384,409 @@ const DUFA: React.FC = () => {
           </div>
         </div>
 
-        {/* Quick Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm hover:shadow-lg transition-all duration-300 relative overflow-hidden group">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
                   <Database className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
-                <div className="text-3xl font-bold text-viz-dark dark:text-white">{selectedDatasets.length}</div>
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Datasets</p>
+                  <p className="text-2xl font-bold">{selectedDatasets.length}</p>
+                </div>
               </div>
-              <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-1">Active Datasets</h3>
-              <p className="text-sm text-slate-500 dark:text-viz-text-secondary">Connected data sources</p>
             </CardContent>
-            <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-blue-600" />
           </Card>
           
-          <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm hover:shadow-lg transition-all duration-300 relative overflow-hidden group">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-2.5 bg-green-50 dark:bg-green-900/20 rounded-xl group-hover:bg-green-100 dark:group-hover:bg-green-900/30 transition-colors">
+          <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
                   <Zap className="h-5 w-5 text-green-600 dark:text-green-400" />
                 </div>
-                <div className="text-3xl font-bold text-viz-dark dark:text-white">{forecastConfig.algorithms.length}</div>
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Algorithms</p>
+                  <p className="text-2xl font-bold">{forecastConfig.algorithms.length}</p>
+                </div>
               </div>
-              <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-1">AI Algorithms</h3>
-              <p className="text-sm text-slate-500 dark:text-viz-text-secondary">Forecasting models</p>
             </CardContent>
-            <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-green-600" />
           </Card>
           
-          <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm hover:shadow-lg transition-all duration-300 relative overflow-hidden group">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded-xl group-hover:bg-purple-100 dark:group-hover:bg-purple-900/30 transition-colors">
+          <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
                   <Target className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                 </div>
-                <div className="text-3xl font-bold text-viz-dark dark:text-white">{forecastConfig.horizon}</div>
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Forecast Days</p>
+                  <p className="text-2xl font-bold">{forecastConfig.horizon}</p>
+                </div>
               </div>
-              <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-1">Forecast Horizon</h3>
-              <p className="text-sm text-slate-500 dark:text-viz-text-secondary">Days ahead</p>
             </CardContent>
-            <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-purple-600" />
           </Card>
         </div>
-        
-        {/* Enhanced Progress Tracker */}
-        <div className="mb-8">
-          <DUFAProgressTracker 
-            progress={progress}
-            currentStep={currentStep}
-            className=""
-          />
-        </div>
 
-        {/* Animated Progress Bar */}
-        <div className="relative mb-4">
-          <div className="w-full h-3 bg-slate-200 dark:bg-viz-dark/40 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-viz-accent to-green-400 dark:from-viz-accent dark:to-green-500 transition-all duration-700"
-              style={{ width: `${Math.round(((currentStep-1) + (progress.pdfDownload ? 1 : 0)) / 5 * 100)}%` }}
-              aria-valuenow={currentStep}
-              aria-valuemax={5}
-              aria-valuemin={1}
-              role="progressbar"
-            />
-          </div>
-          <div className="absolute inset-0 flex justify-between px-2 text-xs text-slate-400 dark:text-slate-500 font-medium pointer-events-none select-none">
-            <span>Start</span>
-            <span>Finish</span>
-          </div>
-        </div>
-
-        {/* Main Dashboard Tabs */}
-        <div className="space-y-8">
-          <div className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 rounded-2xl p-1 shadow-sm">
-            <div className="grid grid-cols-5 gap-2 bg-gradient-to-r from-viz-accent/10 to-viz-accent/5 dark:from-viz-dark/60 dark:to-viz-dark/40 rounded-2xl p-2 h-auto shadow-md">
-  {[
-    { label: 'Data', icon: <Database className="w-4 h-4" />, enabled: true, complete: progress.dataSelection },
-    { label: 'Config', icon: <Settings className="w-4 h-4" />, enabled: progress.dataSelection, complete: progress.forecastConfiguration },
-    { label: 'Results', icon: <BarChart3 className="w-4 h-4" />, enabled: progress.forecastConfiguration, complete: progress.forecastResults },
-    { label: 'Chat', icon: <MessageSquare className="w-4 h-4" />, enabled: progress.forecastResults, complete: progress.chatInteraction },
-    { label: 'Export', icon: <Download className="w-4 h-4" />, enabled: progress.chatInteraction, complete: progress.pdfDownload },
-  ].map((step, idx) => {
-    const stepIndex = idx + 1;
-    const isActive = currentStep === stepIndex;
-    const isComplete = step.complete;
-    return (
-      <button
-        key={step.label}
-        onClick={() => step.enabled && setCurrentStep(stepIndex)}
-        disabled={!step.enabled}
-        className={`
-          flex flex-col items-center justify-center relative py-3 px-2 sm:px-4 rounded-2xl font-semibold transition-all duration-200
-          focus:outline-none focus:ring-2 focus:ring-viz-accent/60
-          ${isActive ? 'bg-white dark:bg-viz-medium text-viz-accent shadow-lg scale-105 z-10' : 'bg-transparent text-slate-600 dark:text-slate-400'}
-          ${step.enabled ? 'hover:bg-viz-accent/10 dark:hover:bg-viz-accent/10 cursor-pointer' : 'opacity-50 cursor-not-allowed'}
-        `}
-        tabIndex={step.enabled ? 0 : -1}
-        aria-current={isActive ? 'step' : undefined}
-        aria-disabled={!step.enabled}
-      >
-        <div className="flex items-center gap-2">
-          {step.icon}
-          <span className="hidden sm:inline">{step.label}</span>
-        </div>
-        {/* Completion checkmark */}
-        {isComplete && (
-          <span className="absolute top-2 right-2">
-            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-          </span>
-        )}
-        {/* Active accent underline */}
-        {isActive && <span className="block mt-2 h-1 w-8 bg-viz-accent rounded-full"></span>}
-      </button>
-    );
-  })}
-</div>
-          </div>
-
-          {/* Tab Content with Animation */}
-          <div className="space-y-8 mt-8 min-h-[350px] relative">
-            <div
-              key={currentStep}
-              className="animate-fadein-slidein absolute w-full"
-              style={{ position: 'relative' }}
-            >
-              {currentStep === 1 && (
-                <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
-                  <CardHeader className="pb-4">
-                    <CardTitle>Data Selection</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <DUFADatasetSelection
-                      selectedDatasets={selectedDatasets}
-                      onDatasetsChange={setSelectedDatasets}
-                      loading={loading.datasets}
-                      onLoadingChange={(isLoading) => setLoading(prev => ({ ...prev, datasets: isLoading }))}
-                    />
-                  </CardContent>
-                </Card>
-              )}
-              {currentStep === 2 && (
-                <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
-                  <CardHeader className="pb-4">
-                    <CardTitle>Configuration</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <DUFAConfiguration
-                      config={forecastConfig}
-                      onConfigChange={setForecastConfig}
-                      selectedDatasets={selectedDatasets}
-                    />
-                  </CardContent>
-                </Card>
-              )}
-              {currentStep === 3 && (
-                <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
-                  <CardHeader className="pb-4">
-                    <CardTitle>Analysis Results</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <DUFAAnalysis
-                      results={forecastResults}
-                      bestModel={bestModel}
-                      loading={loading.analysis}
-                      config={forecastConfig}
-                      onResultsChange={setForecastResults}
-                      onBestModelChange={setBestModel}
-                      datasets={selectedDatasets}
-                    />
-                  </CardContent>
-                </Card>
-              )}
-              {currentStep === 4 && (
-                <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="flex items-center gap-3">
-                      <div className="p-2.5 bg-orange-50 dark:bg-orange-900/20 rounded-xl">
-                        <MessageSquare className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-viz-dark dark:text-white">
-                          AI Chat Analysis
-                        </h2>
-                        <p className="text-sm text-slate-600 dark:text-viz-text-secondary font-normal">
-                          Interactive insights and scenario analysis
-                        </p>
-                      </div>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <DUFAChatbot
-                      forecastResults={forecastResults}
-                      bestModel={bestModel}
-                      datasets={selectedDatasets}
-                      config={forecastConfig}
-                      onMessagesUpdate={handleChatMessagesUpdate}
-                    />
-                  </CardContent>
-                </Card>
-              )}
-              {currentStep === 5 && (
-                <Card className="bg-white dark:bg-viz-medium border border-slate-200 dark:border-viz-light/20 shadow-sm">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="flex items-center gap-3">
-                      <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
-                        <Download className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-viz-dark dark:text-white">
-                          Export & Download
-                        </h2>
-                        <p className="text-sm text-slate-600 dark:text-viz-text-secondary font-normal">
-                          Generate and download comprehensive reports
-                        </p>
-                      </div>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <DUFAPDFGenerator
-                      datasets={selectedDatasets}
-                      config={forecastConfig}
-                      results={forecastResults}
-                      bestModel={bestModel}
-                      chatMessages={chatMessages}
-                      onDownloadComplete={handlePDFDownloadComplete}
-                      isLoading={loading.pdfGeneration}
-                    />
-                  </CardContent>
-                </Card>
-              )}
+        {/* Stage Tabs */}
+        {(() => {
+          const maxAllowed = Math.max(currentStep, ...(completedSteps.length ? completedSteps : [1])) + 1;
+          const items = [
+            { step: 1, label: 'Upload', icon: <Upload className="w-4 h-4" /> },
+            { step: 2, label: 'Select Data', icon: <Database className="w-4 h-4" /> },
+            { step: 3, label: 'Configure', icon: <Settings className="w-4 h-4" /> },
+            { step: 4, label: 'Run', icon: <Play className="w-4 h-4" /> },
+            { step: 5, label: 'Results', icon: <TrendingUp className="w-4 h-4" /> },
+            { step: 6, label: 'AI Chat', icon: <Target className="w-4 h-4" /> },
+            { step: 7, label: 'Export', icon: <FileText className="w-4 h-4" /> },
+          ].map((it) => ({
+            ...it,
+            disabled: it.step > maxAllowed,
+            completed: completedSteps.includes(it.step),
+          }));
+          return (
+            <div className="mb-6 sticky top-16 z-30">
+              <StageTabs
+                items={items}
+                currentStep={currentStep}
+                onSelect={(step) => updateState({ currentStep: step })}
+                className="shadow-sm"
+              />
             </div>
-          </div>
-        </div>
+          );
+        })()}
+
+        {/* Step Content */}
+        <Card className="bg-white dark:bg-gray-800">
+          {currentStep === 1 && (
+            <div className="p-6 space-y-6">
+              <h2 className="text-xl font-semibold">Upload Data</h2>
+              <div 
+                className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center cursor-pointer"
+                onClick={() => document.getElementById('file-upload')?.click()}
+              >
+                <Upload className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  Drag & drop your CSV or Excel file, or click to browse
+                </p>
+                <Button>
+                  Select File
+                  <input 
+                    id="file-upload"
+                    type="file" 
+                    className="hidden" 
+                    accept=".csv,.xlsx,.xls"
+                    onChange={handleFileChange}
+                  />
+                </Button>
+                
+                {uploadedDataset && (
+                  <div className="mt-6 p-3 bg-green-50 dark:bg-green-900/10 rounded-md border border-green-200 dark:border-green-800/50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-green-600" />
+                        <span className="font-medium truncate max-w-xs">{uploadedDataset.name}</span>
+                      </div>
+                      <span className="text-sm text-green-700 dark:text-green-400">
+                        {Math.round(uploadedDataset.size / 1024)} KB
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-end">
+                <Button 
+                  onClick={goToNextStep}
+                  disabled={!uploadedDataset}
+                >
+                  Next: Select Dataset
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {/* Step 2: Select Dataset(s) from library */}
+          {currentStep === 2 && (
+            <div className="p-6 space-y-6">
+              <h2 className="text-xl font-semibold">Select Dataset</h2>
+              <p className="text-gray-600 dark:text-gray-300">Choose one or more datasets for processing. You can also delete datasets from your library.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {datasetsLoading && (
+                  <div className="col-span-full text-center text-gray-500">Loading datasets...</div>
+                )}
+                {!datasetsLoading && datasets.length === 0 && (
+                  <div className="col-span-full text-center text-gray-500">No datasets yet. Upload a file to add one.</div>
+                )}
+                {datasets.map(ds => {
+                  const selected = selectedDatasets.some(s => s.id === ds.id);
+                  return (
+                    <div key={ds.id} className="border rounded-xl p-4 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-sm hover:shadow transition">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{ds.name}</h3>
+                          <div className="text-sm text-gray-500">{ds.tableName}</div>
+                        </div>
+                        <button
+                          className="p-2 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600"
+                          onClick={async () => { await datasetService.remove(user?.id || '', ds.id); await loadDatasets(); updateState({ selectedDatasets: selectedDatasets.filter(s => s.id !== ds.id) }); }}
+                          aria-label="Delete dataset"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        <div className="flex items-center gap-1"><Database className="w-4 h-4" /> {ds.rows.toLocaleString()} rows</div>
+                        <div className="flex items-center gap-1"><Clock className="w-4 h-4" /> {new Date(ds.updatedAt).toLocaleDateString()}</div>
+                      </div>
+                      {ds.columns?.length > 0 && (
+                        <div className="mt-3">
+                          <div className="text-sm text-gray-500 mb-1">Columns ({ds.columns.length >= 4 ? 4 : ds.columns.length}):</div>
+                          <div className="flex flex-wrap gap-2">
+                            {ds.columns.slice(0,3).map(col => (
+                              <span key={col} className="text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-slate-300">{col}</span>
+                            ))}
+                            {ds.columns.length > 3 && (
+                              <span className="text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-slate-300">+{ds.columns.length - 3} more</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      <div className="mt-4 flex items-center justify-between">
+                        <label className="inline-flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={(e) => {
+                              const isChecked = e.target.checked;
+                              const next = isChecked
+                                ? [
+                                    ...selectedDatasets,
+                                    {
+                                      id: ds.id,
+                                      name: ds.name,
+                                      table_name: ds.tableName,
+                                      rows: ds.rows,
+                                      columns: ds.columns || [],
+                                      last_updated: ds.updatedAt,
+                                    } as any,
+                                  ]
+                                : selectedDatasets.filter(s => s.id !== ds.id);
+                              updateState({ selectedDatasets: next });
+                            }}
+                          />
+                          Select for processing
+                        </label>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                <Button variant="outline" onClick={goToPreviousStep}>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
+                <Button onClick={goToNextStep} disabled={selectedDatasets.length === 0}>
+                  Next: Configure Forecast
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {currentStep === 3 && (
+            <div className="p-6 space-y-6">
+              <h2 className="text-xl font-semibold">Configure Forecast</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="font-medium">Core Settings</h3>
+                  
+                  <div>
+                    <Label htmlFor="horizon">Forecast Horizon (days)</Label>
+                    <Input
+                      id="horizon"
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={forecastConfig.horizon}
+                      onChange={(e) => updateState({
+                        forecastConfig: {
+                          ...forecastConfig,
+                          horizon: Math.min(365, Math.max(1, parseInt(e.target.value) || 7))
+                        }
+                      })}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="seasonality">Seasonality</Label>
+                    <Select
+                      value={forecastConfig.seasonality}
+                      onValueChange={(value) => updateState({
+                        forecastConfig: {
+                          ...forecastConfig,
+                          seasonality: value as typeof forecastConfig.seasonality
+                        }
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select seasonality" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">Auto-detect</SelectItem>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="yearly">Yearly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <h3 className="font-medium">Advanced Settings</h3>
+                  
+                  <div>
+                    <Label>Algorithms</Label>
+                    <div className="mt-2 space-y-2">
+                      {['prophet', 'arima', 'lstm', 'xgboost'].map((algo) => (
+                        <div key={algo} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`algo-${algo}`}
+                            checked={forecastConfig.algorithms.includes(algo)}
+                            onCheckedChange={(checked) => {
+                              const algorithms = checked
+                                ? [...forecastConfig.algorithms, algo]
+                                : forecastConfig.algorithms.filter(a => a !== algo);
+                              
+                              updateState({
+                                forecastConfig: {
+                                  ...forecastConfig,
+                                  algorithms
+                                }
+                              });
+                            }}
+                          />
+                          <Label htmlFor={`algo-${algo}`} className="capitalize">
+                            {algo}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label>Confidence Level</Label>
+                    <div className="flex items-center space-x-4 mt-2">
+                      <Slider
+                        value={[forecastConfig.confidence_interval * 100]}
+                        onValueChange={([value]) => updateState({
+                          forecastConfig: {
+                            ...forecastConfig,
+                            confidence_interval: (value || 95) / 100
+                          }
+                        })}
+                        min={50}
+                        max={99}
+                        step={1}
+                      />
+                      <span className="text-sm font-medium w-12">
+                        {Math.round(forecastConfig.confidence_interval * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                <Button variant="outline" onClick={goToPreviousStep}>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
+                
+                <Button 
+                  onClick={goToNextStep}
+                  disabled={forecastConfig.algorithms.length === 0}
+                >
+                  Next: Run Forecast
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {currentStep >= 4 && (
+            <div className="p-6 space-y-6">
+              <h2 className="text-xl font-semibold">
+                {currentStep === 4 && 'Run Forecast'}
+                {currentStep === 5 && 'Analyze Results'}
+                {currentStep === 6 && 'Chat with Insights'}
+                {currentStep === 7 && 'Export Report'}
+              </h2>
+              
+              <div className="py-8 text-center">
+                <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
+                  {currentStep === 4 && 'Configure and run your forecast with the selected settings.'}
+                  {currentStep === 5 && 'View and analyze the forecast results and metrics.'}
+                  {currentStep === 6 && 'Get insights and ask questions about your forecast.'}
+                  {currentStep === 7 && 'Export your forecast report in PDF format.'}
+                </p>
+                
+                {currentStep === 4 && (
+                  <Button 
+                    className="mt-6"
+                    onClick={handleRunForecast}
+                    disabled={loading.forecast}
+                  >
+                    {loading.forecast ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Running Forecast...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="mr-2 h-4 w-4" />
+                        Run Forecast
+                      </>
+                    )}
+                  </Button>
+                )}
+                
+                {currentStep === 7 && (
+                  <Button 
+                    className="mt-6"
+                    onClick={handleExportPDF}
+                    disabled={loading.pdfGeneration || forecastResults.length === 0}
+                  >
+                    {loading.pdfGeneration ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating Report...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download PDF Report
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+              
+              {/* Footer navigation removed: StageTabs now controls navigation */}
+            </div>
+          )}
+        </Card>
       </div>
-      </div>
-      {/* Floating Navigation */}
-      <DUFAFloatingNavigation
-        currentStep={currentStep}
-        totalSteps={5}
-        completedSteps={completedSteps}
-        onPrevious={goToPreviousStep}
-        onNext={goToNextStep}
-        onScrollToTop={scrollToTop}
-        canGoPrevious={canGoPrevious()}
-        canGoNext={canGoNext()}
-      />
-    </>
+      
+      {/* Floating navigation removed: StageTabs is the primary navigator */}
+    </div>
   );
 };
+
 export default DUFA;

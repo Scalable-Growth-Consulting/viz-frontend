@@ -1,18 +1,20 @@
 import React from 'react';
-import { BarChartIcon, LightbulbIcon, DatabaseIcon, UserIcon, LogOut, TrendingUp, Menu, HeartPulse, Home as HomeIcon } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { BarChart2 as BarChartIcon, DatabaseIcon, LightbulbIcon, LogOut, Menu, HeartPulse, Home as HomeIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from './ui/sheet';
 
-interface HeaderProps {
-  showDataSection?: boolean;
+type ZoneType = 'home' | 'biz' | 'riz';
+
+interface TopNavProps {
+  zone: ZoneType;
+  showData?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ showDataSection = true }) => {
+const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
   const { user, signOut } = useAuth();
-  const location = useLocation();
 
   const handleSignOut = async () => {
     await signOut();
@@ -92,7 +94,7 @@ const Header: React.FC<HeaderProps> = ({ showDataSection = true }) => {
                       <span className="text-sm">Home</span>
                     </Link>
                   </SheetClose>
-                  {showDataSection && !location.pathname.startsWith('/tips') && (
+                  {showData && zone !== 'riz' && (
                     <SheetClose asChild>
                       <Link to="/data-control" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/20 dark:hover:bg-viz-light">
                         <DatabaseIcon className="w-4 h-4 text-viz-accent" />
@@ -157,20 +159,33 @@ const Header: React.FC<HeaderProps> = ({ showDataSection = true }) => {
       {/* Right Section - Navigation & User */}
       <div className="flex-1 flex justify-end items-center gap-2">
         <div className="hidden lg:flex items-center space-x-2 md:space-x-3">
-          {showDataSection && !location.pathname.startsWith('/tips') && (
-            <Link to="/data-control" className="flex items-center space-x-1 bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105">
+          {showData && (
+            <Link 
+              to={zone === 'biz' ? "/data-control" : "#"}
+              className={`flex items-center space-x-1 ${
+                zone === 'riz' ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/30 dark:hover:bg-viz-light'
+              } bg-white/20 dark:bg-viz-medium px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105`}
+              title={zone === 'riz' ? 'Data management not available in RIZ' : 'Manage Data'}
+            >
               <DatabaseIcon className="w-4 h-4 text-viz-accent" />
               <span className="text-sm font-medium hidden lg:inline text-slate-700 dark:text-white">Data</span>
             </Link>
           )}
-          <Link to="/tips" className="flex items-center space-x-1 bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105">
+          
+          <Link 
+            to="/tips" 
+            className="flex items-center space-x-1 bg-white/20 dark:bg-viz-medium hover:bg-white/30 dark:hover:bg-viz-light px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105"
+          >
             <LightbulbIcon className="w-4 h-4 text-viz-accent" />
             <span className="text-sm font-medium hidden lg:inline text-slate-700 dark:text-white">Tips</span>
           </Link>
         
           {user && (
             <div className="flex items-center space-x-2">
-              <Link to="/profile" className="flex items-center space-x-2 bg-white/20 dark:bg-viz-medium px-3 py-1.5 rounded-lg hover:bg-white/30 dark:hover:bg-viz-light transition-all shadow-sm hover:shadow md:hover:scale-105">
+              <Link 
+                to="/profile" 
+                className="flex items-center space-x-2 bg-white/20 dark:bg-viz-medium px-3 py-1.5 rounded-lg hover:bg-white/30 dark:hover:bg-viz-light transition-all shadow-sm hover:shadow md:hover:scale-105"
+              >
                 <Avatar className="h-6 w-6">
                   <AvatarFallback className="text-xs bg-viz-accent text-white">
                     {userInitials}
@@ -197,4 +212,4 @@ const Header: React.FC<HeaderProps> = ({ showDataSection = true }) => {
   );
 };
 
-export default Header;
+export default TopNav;

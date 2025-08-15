@@ -3,6 +3,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster } from './components/ui/toaster';
 import Index from './pages/Index';
+import Home from './pages/Home';
+import BIZ from './pages/BIZ';
+import RIZ from './pages/RIZ';
 import Auth from './pages/Auth';
 import DataControl from './pages/DataControl';
 import TableExplorer from './pages/TableExplorer';
@@ -46,7 +49,13 @@ function App() {
           <Route path="/auth" element={<Auth />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           {/* Protected routes */}
-          <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+          <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+<Route path="/biz" element={<ProtectedRoute><BIZ /></ProtectedRoute>} />
+<Route path="/riz" element={<ProtectedRoute><RIZ /></ProtectedRoute>} />
+<Route path="/riz/dufa" element={<ProtectedRoute><RIZ /></ProtectedRoute>} />
+<Route path="/riz/mia" element={<ProtectedRoute><RIZ /></ProtectedRoute>} />
+{/* Legacy home for compatibility */}
+<Route path="/home" element={<ProtectedRoute><Index /></ProtectedRoute>} />
           <Route path="/data-control" element={<ProtectedRoute><DataControl /></ProtectedRoute>} />
           <Route path="/table-explorer" element={<ProtectedRoute><TableExplorer /></ProtectedRoute>} />
           <Route path="/dufa" element={<ProtectedRoute><DUFAAccessGuard><DUFA /></DUFAAccessGuard></ProtectedRoute>} />

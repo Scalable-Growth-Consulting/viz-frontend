@@ -5,20 +5,21 @@ import QueryButton from './QueryButton';
 import { toast } from "@/components/ui/sonner";
 
 interface ChatInterfaceProps {
-  onQuerySubmit: (query: string) => void;
+  onQuerySubmit: (query: string) => Promise<void> | void;
+  quickQueries?: string[];
   isLoading?: boolean;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ onQuerySubmit, isLoading = false }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ onQuerySubmit, quickQueries, isLoading = false }) => {
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const quickQueries = [
-    "Give me total revenue per state",
-    "Tell me about overall Delivery Performance",
-    "Give me GMV and total number of orders for each state",
-    "Give me GMV for each month"
-  ];
+  const defaultQuickQueries = [
+  "Give me total revenue per state",
+  "Tell me about overall Delivery Performance",
+  "Give me GMV and total number of orders for each state",
+  "Give me GMV for each month"
+];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +55,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onQuerySubmit, isLoading 
           <h2 className="text-lg font-semibold">Quick Queries</h2>
         </div>
         <div className="grid grid-cols-1 gap-3">
-          {quickQueries.map((queryText, index) => (
+          {(quickQueries ?? defaultQuickQueries).map((queryText, index) => (
             <QueryButton 
               key={index} 
               text={queryText} 
