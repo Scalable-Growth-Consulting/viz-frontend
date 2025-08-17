@@ -14,7 +14,9 @@ export const supabase = createClient<Database>(
   SUPABASE_PUBLISHABLE_KEY,
   {
     auth: {
-      persistSession: true
+      persistSession: true,
+      autoRefreshToken: true,     // Refresh expired JWTs in the background
+      detectSessionInUrl: true,   // Handle OAuth callback URLs automatically
     }
   }
 );

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,10 +11,12 @@ const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<{ fullName?: string; password?: string; confirmPassword?: string }>({});
   
-  const { user, signIn, signUp, signInWithGoogle } = useAuth();
+  const { user, signIn, signUp, signInWithGoogle} = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -24,10 +26,40 @@ const Auth = () => {
     return null; // Render nothing while redirecting
   }
 
+  const validate = () => {
+    const newErrors: { fullName?: string; password?: string; confirmPassword?: string } = {};
+    if (!isLogin) {
+      // Name validation: not empty, only letters and spaces
+      if (!fullName.trim()) {
+        newErrors.fullName = 'Name is required.';
+      } else if (!/^[A-Za-z ]+$/.test(fullName.trim())) {
+        newErrors.fullName = 'Name can only contain letters and spaces.';
+      }
+      // Password validation: min 8 chars, upper, lower, number, special
+      if (!password) {
+        newErrors.password = 'Password is required.';
+      } else if (
+        password.length < 6 ||
+        !/[A-Z]/.test(password) ||
+        !/[a-z]/.test(password) ||
+        !/[0-9]/.test(password) ||
+        !/[!@#$%^&*(),.?":{}|<>]/.test(password)
+      ) {
+        newErrors.password = 'Password must be at least 6 characters and include upper, lower, number, and special character.';
+      }
+      // Confirm password validation
+      if (password !== confirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match.';
+      }
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
     setLoading(true);
-
     try {
       if (isLogin) {
         const { error } = await signIn(email, password);
@@ -154,6 +186,9 @@ const Auth = () => {
                     disabled={loading}
                   />
                 </div>
+                {errors.fullName && (
+                  <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>
+                )}
               </div>
             )}
             
@@ -193,7 +228,46 @@ const Auth = () => {
                   disabled={loading}
                 />
               </div>
+              {!isLogin && errors.password && (
+                <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+              )}
+              {/* Forgot Password Button (only for sign in) */}
+              {isLogin && (
+                <div className="flex justify-end mt-1">
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm text-viz-accent hover:underline focus:outline-none"
+                  >
+                    Forgot Password?
+                  </Link>
+                </div>
+              )}
             </div>
+
+            {/* Confirm Password Field (Signup only) */}
+            {!isLogin && (
+              <div>
+                <Label htmlFor="confirmPassword" className="text-viz-dark dark:text-white">
+                  Confirm Password
+                </Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pl-10"
+                    required={!isLogin}
+                    disabled={loading}
+                  />
+                </div>
+                {errors.confirmPassword && (
+                  <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
+                )}
+              </div>
+            )}
 
             <Button
               type="submit"
