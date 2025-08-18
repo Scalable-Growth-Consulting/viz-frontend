@@ -24,9 +24,9 @@ const MIAAccessGuard: React.FC<MIAAccessGuardProps> = ({ children }) => {
     return <>{children}</>;
   }
 
-  // All other users see Coming Soon page
+  // All other users see Coming Soon page inline without the extra header
   console.log('[MIAAccessGuard] ❌ Access denied - showing Coming Soon page');
-  return <MIAComingSoon />;
+  return <MIAComingSoon showHeader={false} />;
 };
 
 export default MIAAccessGuard;

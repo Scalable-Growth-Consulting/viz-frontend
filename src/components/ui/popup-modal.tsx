@@ -43,8 +43,13 @@ const PopupModal: React.FC<PopupModalProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`${maxWidthClasses[maxWidth]} max-h-[90vh] overflow-hidden`}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent hideClose={!showCloseButton} className={`${maxWidthClasses[maxWidth]} max-h-[90vh] overflow-auto`}>
         <DialogHeader className="relative">
           <DialogTitle className="text-lg font-semibold pr-8">{title}</DialogTitle>
           {showCloseButton && (

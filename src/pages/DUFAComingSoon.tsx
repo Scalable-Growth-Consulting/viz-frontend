@@ -16,7 +16,9 @@ import {
 import { Link } from 'react-router-dom';
 import Header from '@/components/Header';
 
-const DUFAComingSoon: React.FC = () => {
+interface Props { showHeader?: boolean }
+
+const DUFAComingSoon: React.FC<Props> = ({ showHeader = true }) => {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -58,7 +60,7 @@ const DUFAComingSoon: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-viz-dark dark:via-slate-900 dark:to-black">
-      <Header />
+      {showHeader && <Header />}
       
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -223,7 +225,7 @@ const DUFAComingSoon: React.FC = () => {
         {/* Footer */}
         <div className="text-center mt-16 text-slate-500 dark:text-viz-text-secondary">
           <p className="text-sm">
-            DUFA is currently in development. Expected launch: Q2 2024
+            DUFA is currently in development. Expected launch: Q4 2025
           </p>
         </div>
       </div>
