@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Database, BarChart2, Loader2, Copy } from 'lucide-react';
+import { FileText, Database, BarChart2, Loader2, Copy, AlertCircle, Plus } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { ScrollArea } from './ui/scroll-area';
 import { cn } from '../lib/utils';
@@ -7,6 +7,8 @@ import { Button } from './ui/button';
 import { toast } from './ui/use-toast';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
+import { useNavigate } from 'react-router-dom';
+import { useSchema } from '@/contexts/SchemaContext';
 
 // Register ChartJS components
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
@@ -48,6 +50,32 @@ const ResultsArea: React.FC<ResultsAreaProps> = ({
   chartHtml,
 }) => {
   const reactChartWrapperRef = React.useRef<HTMLDivElement | null>(null);
+  const navigate = useNavigate();
+  const { hasTables } = useSchema();
+
+
+  // Component for data not available message
+  
+
+  // Component for table unavailable message
+  const TableUnavailableMessage = () => (
+    <div className="flex items-center justify-center py-8">
+      <div className="text-center space-y-4">
+        <div className="flex items-center justify-center space-x-2 text-amber-600">
+          <AlertCircle className="w-5 h-5" />
+          <span className="font-medium">Required data table is missing or unavailable</span>
+        </div>
+        <Button 
+          onClick={() => navigate('/data-control')}
+          variant="outline"
+          className="inline-flex items-center space-x-2 hover:bg-blue-50 hover:border-blue-300"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Open Data Control</span>
+        </Button>
+      </div>
+    </div>
+  );
 
   // Prebuild iframe document when BI Agent returns HTML/JS
   const iframeDoc = React.useMemo(() => {
@@ -136,10 +164,17 @@ ${safeSnippet}
             </div>
             <ScrollArea className="flex-1 p-4">
               <div className="prose dark:prose-invert max-w-none">
-                {answer || (
-                  <div className="text-center text-muted-foreground py-8">
-                    <p>Ask a question or use one of the example queries to get started.</p>
-                  </div>
+                {hasTables ? (
+                  answer ? (
+                    answer
+                  ) : (
+                    <div className="text-center text-muted-foreground py-8 space-y-2">
+                      <p>Ask a question to analyze your data.</p>
+                      <p className="text-xs">Tips: be specific (metric, time range, segment). Example: "Monthly revenue by product for the last 6 months."</p>
+                    </div>
+                  )
+                ) : (
+                  <TableUnavailableMessage />
                 )}
               </div>
             </ScrollArea>
@@ -168,6 +203,7 @@ ${safeSnippet}
             </div>
             <ScrollArea className="flex-1">
               {(() => {
+                if (!hasTables) return <TableUnavailableMessage />;
                 const src = sql && sql.trim().length > 0 ? sql : '-- SQL will appear here --';
                 const lines = src.split('\n');
                 return (
@@ -239,11 +275,14 @@ ${safeSnippet}
                     }}
                   />
                 </div>
+              ) : !hasTables ? (
+                <TableUnavailableMessage />
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-4 text-center">
+                <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-4 text-center space-y-2">
                   <BarChart2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <h4 className="font-medium">No chart data available</h4>
-                  <p className="text-sm mt-1">Ask a question to generate a chart visualization</p>
+                  <h4 className="font-medium">No chart yet</h4>
+                  <p className="text-sm">Generate an answer first, then open the Chart tab to visualize it.</p>
+                  <p className="text-xs">Tip: include a time range and one metric to get a clear chart (e.g., "Daily active users last 30 days").</p>
                 </div>
               )}
             </div>

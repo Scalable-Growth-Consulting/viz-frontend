@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,6 +20,103 @@ serve(async (req) => {
     const { prompt, email } = await req.json();
     console.log('Prompt:', prompt);
     console.log('Email:', email);
+
+    // Initialize Supabase client (service role) and authenticate user from bearer token
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !serviceKey) {
+      console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Server misconfiguration' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+
+    const authHeader = req.headers.get('Authorization') || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    const adminClient = createClient(supabaseUrl, serviceKey);
+
+    let userId: string | null = null;
+    if (token) {
+      const { data: userData, error: userErr } = await adminClient.auth.getUser(token);
+      if (userErr) {
+        console.warn('Failed to get user from token:', userErr);
+      } else {
+        userId = userData.user?.id ?? null;
+      }
+    }
+
+    // Enforce rate limit only for authenticated users
+    if (userId) {
+      // Ensure row exists for this user
+      const { data: usageRow, error: usageErr } = await adminClient
+        .from('chat_usage')
+        .select('id, used_count, last_reset')
+        .eq('user_id', userId)
+        .single();
+
+      if (usageErr && usageErr.code !== 'PGRST116') { // not found code
+        console.warn('Error fetching usage row:', usageErr);
+      }
+
+      let used_count = 0;
+      let last_reset: string | null = null;
+      let usage_id: string | null = null;
+
+      if (!usageRow) {
+        const { data: inserted, error: insertErr } = await adminClient
+          .from('chat_usage')
+          .insert({ user_id: userId, used_count: 0 })
+          .select('id, used_count, last_reset')
+          .single();
+        if (insertErr) {
+          console.error('Error inserting usage row:', insertErr);
+        } else {
+          used_count = inserted.used_count ?? 0;
+          last_reset = inserted.last_reset ?? null;
+          usage_id = inserted.id;
+        }
+      } else {
+        used_count = usageRow.used_count ?? 0;
+        last_reset = usageRow.last_reset ?? null;
+        usage_id = usageRow.id;
+      }
+
+      // Reset if last_reset older than 24 hours
+      let needsReset = false;
+      if (last_reset) {
+        const last = new Date(last_reset);
+        const ageMs = Date.now() - last.getTime();
+        if (ageMs > 24 * 60 * 60 * 1000) needsReset = true;
+      } else {
+        needsReset = true;
+      }
+
+      if (needsReset && usage_id) {
+        const { error: resetErr } = await adminClient
+          .from('chat_usage')
+          .update({ used_count: 0, last_reset: new Date().toISOString() })
+          .eq('id', usage_id);
+        if (resetErr) console.warn('Failed to reset usage:', resetErr);
+        used_count = 0;
+      }
+
+      if (used_count >= 5) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Rate limit exceeded' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
+        );
+      }
+
+      // Increment usage
+      if (usage_id) {
+        const { error: incErr } = await adminClient
+          .from('chat_usage')
+          .update({ used_count: used_count + 1 })
+          .eq('id', usage_id);
+        if (incErr) console.warn('Failed to increment usage:', incErr);
+      }
+    }
 
     // Create AbortController for timeout
     const controller = new AbortController();

@@ -6,6 +6,7 @@ import { TableSchema } from './TableExplorer';
 import Header from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useSchema } from '@/contexts/SchemaContext';
 
 
 const mockTables: { id: string; name: string }[] = [
@@ -57,6 +58,7 @@ interface KPI {
 const DataControl = () => {
 
   const { user } = useAuth();
+  const { setHasTables } = useSchema();
   const [selectedTableId, setSelectedTableId] = useState<string>(mockTables[0].id);
   const [schemas, setSchemas] = useState<Record<string, TableSchema>>({});
   const [loadingSchema, setLoadingSchema] = useState(false);
@@ -79,6 +81,11 @@ const DataControl = () => {
       fetchRealSchema(user.email);
     }
   }, [activeTab, user?.email]);
+
+  // Keep global hasTables in sync with local schemas state
+  useEffect(() => {
+    setHasTables(Object.keys(schemas).length > 0);
+  }, [schemas, setHasTables]);
 
     const handleSave = async () => {
     try {
@@ -171,6 +178,7 @@ const DataControl = () => {
       }
   
       setSchemas(updatedSchemas);
+      setHasTables(Object.keys(updatedSchemas).length > 0);
   
       // ✅ Only set selectedTableId if it's not already set
       if (!selectedTableId && tableList.length > 0) {
@@ -188,6 +196,7 @@ const DataControl = () => {
 
        setSchemas({}); // Ensure no fallback data
        setSelectedTableId(""); // Clear selected table
+       setHasTables(false);
     } finally {
       setLoadingSchema(false);
     }
