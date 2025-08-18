@@ -7,6 +7,8 @@ import Header from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useSchema } from '@/contexts/SchemaContext';
+import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 
 
 const mockTables: { id: string; name: string }[] = [
@@ -247,6 +249,16 @@ const DataControl = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-viz-dark dark:to-black">
       <Header />
       <div className="container mx-auto px-4 py-8">
+        {/* Back to BIZ */}
+        <div className="mb-3">
+          <Link
+            to="/"
+            className="inline-flex items-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:underline text-sm"
+            aria-label="Back to BIZ"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" /> Back to BIZ
+          </Link>
+        </div>
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-viz-dark dark:text-white mb-2">Data Control Center</h1>
           <p className="text-viz-text-secondary">Manage your data connections, schema, and KPIs</p>
