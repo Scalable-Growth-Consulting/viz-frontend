@@ -1,0 +1,10 @@
+<html>
+  <body>
+    <p>Reset Password</p>
+    <p>Use the following One-Time Password (OTP) to reset your password:</p>
+    <h2>{{ .Token }}</h2>
+  <p>This code expires shortly. If you prefer a link, you can also use the link below:</p>
+  <!-- Link back to your app; app will read the confirmation_url and continue the flow -->
+  <p><a href="{{ .SiteURL }}/forgot-password?confirmation_url={{ .ConfirmationURL }}">Reset Password</a></p>
+  </body>
+</html>

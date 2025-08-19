@@ -4,19 +4,34 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Mail, Lock, User } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Loader2, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const initialIsLogin = searchParams.get('mode') === 'signup' ? false : true;
+  const [isLogin, setIsLogin] = useState(initialIsLogin);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<{ fullName?: string; password?: string; confirmPassword?: string }>({});
   
-  const { user, signIn, signUp, signInWithGoogle } = useAuth();
+  const { user, signIn, signUp, signInWithGoogle} = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Keep isLogin in sync if the query param changes while mounted
+  React.useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const mode = params.get('mode');
+    if (mode === 'signup' && isLogin) setIsLogin(false);
+    if ((!mode || mode === 'login') && !isLogin) setIsLogin(true);
+  }, [location.search]);
 
   // Redirect if already authenticated - purely client-side to avoid SSR issues
   if (user) {
@@ -24,10 +39,75 @@ const Auth = () => {
     return null; // Render nothing while redirecting
   }
 
+  const validate = () => {
+    const newErrors: { fullName?: string; password?: string; confirmPassword?: string } = {};
+    if (!isLogin) {
+      // Name validation: not empty, only letters and spaces
+      if (!fullName.trim()) {
+        newErrors.fullName = 'Name is required.';
+      } else if (!/^[A-Za-z ]+$/.test(fullName.trim())) {
+        newErrors.fullName = 'Name can only contain letters and spaces.';
+      }
+      // Password validation: min 8 chars, upper, lower, number, special
+      if (!password) {
+        newErrors.password = 'Password is required.';
+      } else if (
+        password.length < 8 ||
+        !/[A-Z]/.test(password) ||
+        !/[a-z]/.test(password) ||
+        !/[0-9]/.test(password) ||
+        !/[!@#$%^&*(),.?":{}|<>]/.test(password)
+      ) {
+        newErrors.password = 'Password must be at least 8 characters and include upper, lower, number, and special character.';
+      }
+      // Confirm password validation
+      if (!confirmPassword) {
+        newErrors.confirmPassword = 'Please confirm your password.';
+      } else if (password !== confirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match.';
+      }
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Live handlers to improve UX: clear/validate password fields as user types
+  const handlePasswordChange = (value: string) => {
+    setPassword(value);
+    setErrors(prev => {
+      const next = { ...prev };
+      // clear password error if it no longer applies
+      if (next.password) {
+        if (value && value.length >= 8 && /[A-Z]/.test(value) && /[a-z]/.test(value) && /[0-9]/.test(value) && /[!@#$%^&*(),.?":{}|<>]/.test(value)) {
+          delete next.password;
+        }
+      }
+      // update confirm password mismatch
+      if (next.confirmPassword && confirmPassword) {
+        if (value === confirmPassword) delete next.confirmPassword;
+      }
+      return next;
+    });
+  };
+
+  const handleConfirmPasswordChange = (value: string) => {
+    setConfirmPassword(value);
+    setErrors(prev => {
+      const next = { ...prev };
+      if (next.confirmPassword) {
+        if (value && value === password) delete next.confirmPassword;
+        else if (!value) next.confirmPassword = 'Please confirm your password.';
+      }
+      return next;
+    });
+  };
+
+  const AUTH_EMAIL_URL = import.meta.env.VITE_AUTH_EMAIL_URL; // Make sure this is set in your .env
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
     setLoading(true);
-
     try {
       if (isLogin) {
         const { error } = await signIn(email, password);
@@ -54,7 +134,7 @@ const Auth = () => {
         } else {
           toast({
             title: "Account created!",
-            description: "Please check your email to verify your account.",
+            description: "Please check your email for the verification link.",
           });
         }
       }
@@ -102,7 +182,7 @@ const Auth = () => {
             <span className="text-2xl font-bold text-viz-dark dark:text-white">Viz</span>
           </Link>
           <h1 className="text-3xl font-bold text-viz-dark dark:text-white mb-2">
-            {isLogin ? 'Welcome back' : 'Create account'}
+            {isLogin ? 'AI-powered insights' : 'Create account'}
           </h1>
           <p className="text-viz-text-secondary">
             {isLogin ? 'Sign in to your account' : 'Sign up to get started'}
@@ -154,6 +234,9 @@ const Auth = () => {
                     disabled={loading}
                   />
                 </div>
+                {errors.fullName && (
+                  <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>
+                )}
               </div>
             )}
             
@@ -184,16 +267,71 @@ const Auth = () => {
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
                   id="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 pr-10"
                   required
                   disabled={loading}
                 />
+                <button
+                  type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-700 focus:outline-none"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5"/> : <Eye className="h-5 w-5"/>}
+                </button>
               </div>
+              {!isLogin && errors.password && (
+                <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+              )}
+              {/* Forgot Password Button (only for sign in) */}
+              {isLogin && (
+                <div className="flex justify-end mt-1">
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm text-viz-accent hover:underline focus:outline-none"
+                  >
+                    Forgot Password?
+                  </Link>
+                </div>
+              )}
             </div>
+
+            {/* Confirm Password Field (Signup only) */}
+            {!isLogin && (
+              <div>
+                <Label htmlFor="confirmPassword" className="text-viz-dark dark:text-white">
+                  Confirm Password
+                </Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pl-10 pr-10"
+                    required={!isLogin}
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                    onClick={() => setShowConfirmPassword((v) => !v)}
+                    className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-700 focus:outline-none"
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-5 w-5"/> : <Eye className="h-5 w-5"/>}
+                  </button>
+                </div>
+                {errors.confirmPassword && (
+                  <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
+                )}
+              </div>
+            )}
 
             <Button
               type="submit"

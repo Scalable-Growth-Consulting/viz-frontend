@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import BIZ from './pages/BIZ';
 import RIZ from './pages/RIZ';
 import Auth from './pages/Auth';
+import ForgotPassword from './pages/ForgotPassword';
 import DataControl from './pages/DataControl';
 import TableExplorer from './pages/TableExplorer';
 import Tips from './pages/Tips';
@@ -50,6 +51,7 @@ function App() {
           {/* Public routes */}
           <Route path="/auth" element={<Auth />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           {/* Protected routes */}
           <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
 <Route path="/biz" element={<ProtectedRoute><BIZ /></ProtectedRoute>} />
