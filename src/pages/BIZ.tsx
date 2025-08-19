@@ -1,11 +1,18 @@
 import React, { useState, useCallback, useEffect } from 'react';
+
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/ui/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import { Loader2, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { supabase, fetchWithRetry } from '../lib/supabase';
+import { mapErrorToToast } from '../lib/errorMessages';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import Header from '../components/Header';
 import ChatInterface from '../components/ChatInterface';
 import ResultsArea from '../components/ResultsArea';
+import { Link } from 'react-router-dom';
+import { useSchema } from '@/contexts/SchemaContext';
 
 // (no local API config; using fetchWithRetry)
 
@@ -13,6 +20,8 @@ const BIZ: React.FC = () => {
   // Hooks
   const { toast } = useToast();
   const { user } = useAuth();
+  const { hasTables, setHasTables } = useSchema();
+  const [limitOpen, setLimitOpen] = useState(false);
 
   // State
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -34,7 +43,6 @@ const BIZ: React.FC = () => {
     }>;
   } | null>(null);
   const [activeTab, setActiveTab] = useState<'answer' | 'sql' | 'chart'>('answer');
-  const [hasData, setHasData] = useState<boolean>(false);
 
   // Refs (removed - not needed)
 
@@ -98,7 +106,20 @@ const BIZ: React.FC = () => {
 
   // Handle ask button click
   const handleAsk = useCallback(async (query: string) => {
-    if (!query.trim()) return;
+        if (!query.trim()) return;
+
+    if (!hasTables) {
+      toast({
+        title: 'No Data Source Connected',
+        description: 'Please add a data source before making a query.',
+        action: (
+          <Link to="/data-control">
+            <ToastAction altText="Add Data">Add Data</ToastAction>
+          </Link>
+        ),
+      });
+      return;
+    }
     
     setIsLoading(true);
     setQueryResult('');
@@ -158,29 +179,21 @@ const BIZ: React.FC = () => {
       setQueryData(mappedData);
       setUserQuery(query);
       
-      setHasData(true);
+      // We received a valid response; assume data access is OK
+      setHasTables(true);
     } catch (error: any) {
-      // Surface function error details if present
-      let errDetails: string | undefined;
+      // Centralized human-friendly error messaging
       try {
-        const resp = error?.context?.response as Response | undefined;
-        if (resp) {
-          const ct = resp.headers.get('content-type') || '';
-          if (ct.includes('application/json')) {
-            const j = await resp.clone().json();
-            errDetails = JSON.stringify(j);
-          } else {
-            errDetails = await resp.clone().text();
-          }
+        const payload = await mapErrorToToast(error);
+        toast(payload);
+        if ((error as any)?.context?.response?.status === 429 || payload.title === 'Daily limit reached') {
+          setLimitOpen(true);
         }
-      } catch {}
-      const errMsg = error?.message || errDetails || 'Unknown error';
-      console.error('Error processing query:', errMsg, error);
-      toast({
-        title: 'Query failed',
-        description: typeof errMsg === 'string' ? errMsg : 'The server returned an error.',
-        variant: 'destructive',
-      });
+      } catch (e) {
+        console.error('Error mapping toast:', e);
+        toast({ title: 'Query failed', description: 'An unexpected error occurred.', variant: 'destructive' });
+      }
+      console.error('Error processing query:', error);
     } finally {
       setIsLoading(false);
     }
@@ -358,25 +371,21 @@ const BIZ: React.FC = () => {
       } catch (fallbackErr) {
         console.warn('Local chart fallback failed:', fallbackErr);
       }
-      let errDetails: string | undefined;
       try {
-        const resp = error?.context?.response as Response | undefined;
-        if (resp) {
-          const ct = resp.headers.get('content-type') || '';
-          if (ct.includes('application/json')) {
-            const j = await resp.clone().json();
-            errDetails = JSON.stringify(j);
-          } else {
-            errDetails = await resp.clone().text();
-          }
+        const payload = await mapErrorToToast(error);
+        // Tailor chart guidance when relevant
+        if (payload.title === 'Request failed') {
+          payload.description = payload.description + ' Tip: open the SQL tab to validate the query, or try a narrower time range.';
         }
-      } catch {}
-      console.error('Error generating chart:', error?.message || errDetails || error);
-      toast({
-        title: 'Chart generation failed',
-        description: error?.message || errDetails || 'Could not generate chart. Please try again.',
-        variant: 'destructive',
-      });
+        toast(payload);
+        if ((error as any)?.context?.response?.status === 429 || payload.title === 'Daily limit reached') {
+          setLimitOpen(true);
+        }
+      } catch (e) {
+        console.error('Error mapping toast:', e);
+        toast({ title: 'Chart generation failed', description: 'Could not generate chart. Please try again.', variant: 'destructive' });
+      }
+      console.error('Error generating chart:', error);
     } finally {
       setIsChartLoading(false);
     }
@@ -393,24 +402,35 @@ const BIZ: React.FC = () => {
   // Check data access when user changes
   useEffect(() => {
     const checkDataAccess = async () => {
-      if (!user) return;
+      if (!user?.email) {
+        setHasTables(false);
+        return;
+      }
+
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        if (error) throw error;
-        setHasData(!!data);
+        const response = await fetch('https://viz-fetch-schema-286070583332.us-central1.run.app', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: user.email }),
+        });
+
+        if (!response.ok) {
+          setHasTables(false);
+          return;
+        }
+
+        const schemaData = await response.json();
+        const tables = Array.isArray(schemaData?.tables) ? schemaData.tables : [];
+        setHasTables(tables.length > 0);
       } catch (error) {
         console.error('Error checking data access:', error);
-        setHasData(false);
+        setHasTables(false);
       }
     };
-    if (user) {
-      checkDataAccess();
-    }
-  }, [user, setHasData]);
+
+    // invoke on mount and when user email changes
+    checkDataAccess();
+  }, [user?.email, setHasTables]);
 
   // Render API status indicator
   const renderApiStatus = useCallback(() => {
@@ -461,40 +481,27 @@ const BIZ: React.FC = () => {
         variant: 'destructive',
       });
     }
-  }, [toast]);
+  }, [toast, hasTables, setHasTables]);
 
-  // Render the component
   return (
-    <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
-      {/* Main Navbar */}
+    <div className="min-h-screen flex flex-col">
       <Header />
-      {/* API status bar under navbar */}
-      <div className="border-b border-gray-200 dark:border-gray-800 px-4 py-2 flex justify-end">
-        <div className="flex items-center space-x-2">
-          {renderApiStatus()}
-          {apiStatus === 'offline' && (
-            <button
-              onClick={testApiConnection}
-              className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              title="Retry connection"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-          )}
-        </div>
+      {/* Status bar: right-aligned API status */}
+      <div className="px-4 py-2 flex justify-end items-center">
+        {renderApiStatus()}
       </div>
 
       {/* Main content - Simple two-panel layout */}
-      <main className="flex-1 flex overflow-hidden">
+      <main className="h-[calc(100vh-6.5rem)] flex overflow-hidden min-h-0">
         {/* Left panel - Chat interface (input only) */}
-        <div className="w-1/2 h-full border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-auto">
+        <div className="w-1/2 h-full border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-auto min-h-0">
           <div className="p-4">
             <ChatInterface onQuerySubmit={handleAsk} quickQueries={faqs} isLoading={isLoading} />
           </div>
         </div>
 
         {/* Right panel - Results */}
-        <div className="w-1/2 h-full bg-white dark:bg-gray-900 overflow-auto">
+        <div className="w-1/2 h-full bg-white dark:bg-gray-900 overflow-auto min-h-0">
           <ResultsArea
             activeTab={activeTab}
             onTabChange={handleTabChange}
@@ -505,14 +512,30 @@ const BIZ: React.FC = () => {
             isLoading={isLoading}
             isChartLoading={isChartLoading}
             onChartUpdate={handleChartUpdate}
-            className="h-full"
+            className="h-full min-h-0"
           />
         </div>
       </main>
+
+      {/* Rate limit dialog */}
+      <Dialog open={limitOpen} onOpenChange={setLimitOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Daily limit reached</DialogTitle>
+            <DialogDescription>
+              You have reached today's 5-message limit. To continue with higher limits or a custom implementation, contact our team.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-between">
+            <Button variant="secondary" onClick={() => setLimitOpen(false)}>OK</Button>
+            <a href="mailto:viz-sales@sgconsultingtech.com?subject=VIZ%20Pricing%20and%20Custom%20Implementation" target="_blank" rel="noopener noreferrer">
+              <Button className="ml-2">Contact Sales</Button>
+            </a>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
-
-// ...
 
 export default BIZ;

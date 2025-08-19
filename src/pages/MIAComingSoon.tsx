@@ -20,7 +20,9 @@ import {
 } from 'lucide-react';
 import Header from '@/components/Header';
 
-const MIAComingSoon: React.FC = () => {
+interface Props { showHeader?: boolean }
+
+const MIAComingSoon: React.FC<Props> = ({ showHeader = true }) => {
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { toast } = useToast();
@@ -79,7 +81,7 @@ const MIAComingSoon: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-viz-dark dark:via-gray-900 dark:to-black">
-      <Header />
+      {showHeader && <Header />}
       
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">

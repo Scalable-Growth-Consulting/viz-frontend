@@ -1,18 +1,37 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// Hardened CORS: allow localhost:8080 and any subdomain/apex of sgconsultingtech.com
+const ALLOWED_ORIGINS = new Set<string>([
+  'http://localhost:8080',
+]);
+const ALLOWED_DOMAIN_REGEX = /^https?:\/\/([a-z0-9-]+\.)*sgconsultingtech\.com$/i;
+
+function isOriginAllowed(origin: string | null): origin is string {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+  return ALLOWED_DOMAIN_REGEX.test(origin);
+}
+
+function buildCorsHeaders(origin: string) {
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Vary': 'Origin',
+  } as Record<string, string>;
 }
 
 // Timeout duration in milliseconds (120 seconds)
 const TIMEOUT_DURATION = 120000;
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    if (!isOriginAllowed(origin)) {
+      return new Response('origin not allowed', { status: 403 });
+    }
+    return new Response('ok', { headers: buildCorsHeaders(origin!) })
   }
 
   try {
@@ -159,14 +178,14 @@ serve(async (req) => {
         console.log('Returning chart code (session mode)')
         return new Response(
           JSON.stringify({ success: true, chart_code: chartScript }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          { headers: { ...(isOriginAllowed(origin) ? buildCorsHeaders(origin!) : {}), 'Content-Type': 'application/json' }, status: 200 }
         )
       } else {
         // Direct mode: just return code
         console.log('Returning chart code (direct mode)')
         return new Response(
           JSON.stringify({ success: true, chart_code: chartScript }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          { headers: { ...(isOriginAllowed(origin) ? buildCorsHeaders(origin!) : {}), 'Content-Type': 'application/json' }, status: 200 }
         )
       }
     } catch (fetchError) {
@@ -186,7 +205,7 @@ serve(async (req) => {
         errorType: error.name === 'AbortError' ? 'timeout' : 'general'
       }),
       { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...(isOriginAllowed(origin) ? buildCorsHeaders(origin!) : {}), 'Content-Type': 'application/json' },
         status: error.name === 'AbortError' ? 504 : 400 
       }
     )
