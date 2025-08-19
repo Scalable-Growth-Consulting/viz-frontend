@@ -1,8 +1,15 @@
 {
-    "rewrites": [
-      {
-        "source": "/(.*)",
-        "destination": "/index.html"
-      }
-    ]
-  }  
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build",
+  "build": {
+    "env": {
+      "NODE_VERSION": "20"
+    }
+  }
+}
