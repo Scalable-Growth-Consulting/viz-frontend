@@ -1,4 +1,4 @@
- import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,22 +39,57 @@ const Auth = () => {
       if (!password) {
         newErrors.password = 'Password is required.';
       } else if (
-        password.length < 6 ||
+        password.length < 8 ||
         !/[A-Z]/.test(password) ||
         !/[a-z]/.test(password) ||
         !/[0-9]/.test(password) ||
         !/[!@#$%^&*(),.?":{}|<>]/.test(password)
       ) {
-        newErrors.password = 'Password must be at least 6 characters and include upper, lower, number, and special character.';
+        newErrors.password = 'Password must be at least 8 characters and include upper, lower, number, and special character.';
       }
       // Confirm password validation
-      if (password !== confirmPassword) {
+      if (!confirmPassword) {
+        newErrors.confirmPassword = 'Please confirm your password.';
+      } else if (password !== confirmPassword) {
         newErrors.confirmPassword = 'Passwords do not match.';
       }
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
+  // Live handlers to improve UX: clear/validate password fields as user types
+  const handlePasswordChange = (value: string) => {
+    setPassword(value);
+    setErrors(prev => {
+      const next = { ...prev };
+      // clear password error if it no longer applies
+      if (next.password) {
+        if (value && value.length >= 8 && /[A-Z]/.test(value) && /[a-z]/.test(value) && /[0-9]/.test(value) && /[!@#$%^&*(),.?":{}|<>]/.test(value)) {
+          delete next.password;
+        }
+      }
+      // update confirm password mismatch
+      if (next.confirmPassword && confirmPassword) {
+        if (value === confirmPassword) delete next.confirmPassword;
+      }
+      return next;
+    });
+  };
+
+  const handleConfirmPasswordChange = (value: string) => {
+    setConfirmPassword(value);
+    setErrors(prev => {
+      const next = { ...prev };
+      if (next.confirmPassword) {
+        if (value && value === password) delete next.confirmPassword;
+        else if (!value) next.confirmPassword = 'Please confirm your password.';
+      }
+      return next;
+    });
+  };
+
+  const AUTH_EMAIL_URL = import.meta.env.VITE_AUTH_EMAIL_URL; // Make sure this is set in your .env
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,7 +121,7 @@ const Auth = () => {
         } else {
           toast({
             title: "Account created!",
-            description: "Please check your email to verify your account.",
+            description: "Please check your email for the verification link.",
           });
         }
       }

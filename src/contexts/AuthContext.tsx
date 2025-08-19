@@ -25,6 +25,8 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<SupabaseSignInResponse>;
   signInWithGoogle: () => Promise<SupabaseOAuthResponse>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ data: any; error: AuthError | null }>;
+
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -127,6 +129,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const resetPassword = async (email: string) => {
+  // set redirectTo to the page that will handle password reset on your host
+  const redirectTo = `${window.location.origin}/forgot-password`;
+  console.log('reset called, redirectTo=', redirectTo);
+  const { data, error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  return { data, error };
+  };
+
   const value: AuthContextType = {
     user,
     session,
@@ -135,6 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signInWithGoogle,
     signOut,
+    resetPassword,
   };
 
   return (

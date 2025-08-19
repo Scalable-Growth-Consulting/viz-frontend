@@ -1,1 +1,25 @@
 project_id = "aemqjpcbtgdnfypgkkhx"
+
+[auth]
+# site used for constructing links in emails
+site_url = "http://localhost:8080"
+
+# adjust common auth behavior
+enable_signup = true
+
+[auth.email]
+# minimum interval between emails (prevents spamming)
+max_frequency = "1m"
+
+# OTP config (builtin)
+otp_length = 6
+otp_expiry = 600           # seconds (10 minutes) - adjust as needed
+
+# templates: point content_path to files you create locally
+[auth.email.template.recovery]
+subject = "Reset Password"
+content_path = "./supabase/auth/templates/recovery.html"
+
+[auth.email.template.recovery_text]
+content_path = "./supabase/auth/templates/recovery.txt"
+

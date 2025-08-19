@@ -1,0 +1,9 @@
+Reset Password
+
+Use the following One-Time Password (OTP) to reset your password:
+
+{{ .Token }}
+
+If you prefer a link, follow this URL:
+
+{{ .ConfirmationURL }}
