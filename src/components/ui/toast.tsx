@@ -25,7 +25,7 @@ ToastViewport.displayName = ToastPrimitives.Viewport.displayName
 
 const toastVariants = cva(
   // Card aesthetics with subtle glass effect and nicer shadow
-  "group pointer-events-auto relative flex w-full items-center justify-between gap-3 overflow-hidden rounded-xl border p-4 pr-10 shadow-xl backdrop-blur-md transition-all \
+  "group pointer-events-auto relative flex w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border p-4 pr-10 text-center shadow-xl backdrop-blur-md transition-all \
    bg-white/90 text-foreground border-slate-200/60 dark:bg-viz-medium/90 dark:border-viz-light/20 \
    data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none \
    data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-bottom-4",

@@ -1,18 +1,37 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// Hardened CORS: allow localhost:8080 and any subdomain/apex of sgconsultingtech.com
+const ALLOWED_ORIGINS = new Set<string>([
+  'http://localhost:8080',
+]);
+const ALLOWED_DOMAIN_REGEX = /^https?:\/\/([a-z0-9-]+\.)*sgconsultingtech\.com$/i;
+
+function isOriginAllowed(origin: string | null): origin is string {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+  return ALLOWED_DOMAIN_REGEX.test(origin);
+}
+
+function buildCorsHeaders(origin: string) {
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Vary': 'Origin',
+  } as Record<string, string>;
 }
 
 // Timeout duration in milliseconds (120 seconds)
 const TIMEOUT_DURATION = 120000;
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    if (!isOriginAllowed(origin)) {
+      return new Response('origin not allowed', { status: 403 });
+    }
+    return new Response('ok', { headers: buildCorsHeaders(origin!) })
   }
 
   try {
@@ -28,7 +47,7 @@ serve(async (req) => {
       console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
       return new Response(
         JSON.stringify({ success: false, error: 'Server misconfiguration' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        { headers: { ...(isOriginAllowed(origin) ? buildCorsHeaders(origin!) : {}), 'Content-Type': 'application/json' }, status: 500 }
       );
     }
 
@@ -104,7 +123,7 @@ serve(async (req) => {
       if (used_count >= 5) {
         return new Response(
           JSON.stringify({ success: false, error: 'Rate limit exceeded' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
+          { headers: { ...(isOriginAllowed(origin) ? buildCorsHeaders(origin!) : {}), 'Content-Type': 'application/json' }, status: 429 }
         );
       }
 
@@ -144,7 +163,7 @@ serve(async (req) => {
             details: rawText,
             status: text2sqlResponse.status
           }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 502 }
+          { headers: { ...(isOriginAllowed(origin) ? buildCorsHeaders(origin!) : {}), 'Content-Type': 'application/json' }, status: 502 }
         );
       }
 
@@ -161,7 +180,7 @@ serve(async (req) => {
           }
         }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: { ...(isOriginAllowed(origin) ? buildCorsHeaders(origin!) : {}), 'Content-Type': 'application/json' },
           status: 200
         }
       );
@@ -183,7 +202,7 @@ serve(async (req) => {
         errorType: (error as any).name === 'AbortError' ? 'timeout' : 'general'
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...(isOriginAllowed(origin) ? buildCorsHeaders(origin!) : {}), 'Content-Type': 'application/json' },
         status: (error as any).name === 'AbortError' ? 504 : 400 // Use 504 Gateway Timeout for timeout errors
       }
     );

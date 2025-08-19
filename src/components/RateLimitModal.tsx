@@ -122,71 +122,81 @@ const RateLimitModal: React.FC<RateLimitModalProps> = ({ isOpen, onClose }) => {
       title="Daily Message Limit Reached"
       maxWidth="2xl"
       showCloseButton={false}
+      contentOverflow="hidden"
+      fullScreenOnMobile
     >
-      <div className="space-y-6 pb-6">
-        <div className="text-center space-y-2">
-          <p className="text-muted-foreground">
+      {/* Layout envelope: fixed height, only middle scrolls */}
+      <div
+        className="flex flex-col w-full h-full sm:max-h-[70vh] overflow-hidden rounded-xl"
+      >
+        {/* Notice */}
+        <div className="shrink-0 px-4 pt-2">
+          <p className="text-sm text-muted-foreground text-center">
             You've reached your daily limit of 5 messages. Schedule a demo to discuss upgrading your plan or custom development needs.
           </p>
         </div>
-        
-        {/* Cal.com Calendar Embed */}
-        <div className="border rounded-lg overflow-hidden bg-white mb-4" aria-label="Schedule a demo calendar">
-          <div 
-            key={containerKey}
-            style={{width:'100%', height:'600px', overflow:'hidden'}} 
-            id="my-cal-inline-viz-demo-discussion"
-            className="min-h-[400px]"
-          />
-        </div>
-        
-        {/* Footer Text */}
-        <div className="text-center text-sm text-muted-foreground border-t pt-4">
-          <p>
-            For purchase / custom development you can block a slot or email at{' '}
-            <a 
-              href="mailto:viz-sales@sgconsultingtech.com?subject=VIZ%20Demo%20Request"
-              className="text-blue-600 hover:text-blue-800 underline"
-              onClick={(e) => {
-                // Improve reliability in some environments/browsers
-                const mailto = 'mailto:viz-sales@sgconsultingtech.com?subject=VIZ%20Demo%20Request';
-                try {
-                  e.preventDefault();
-                  const opened = window.open(mailto, '_self');
-                  if (!opened) {
-                    // Fallback
-                    window.location.href = mailto;
-                  }
-                } catch {
-                  window.location.href = mailto;
-                }
-              }}
-            >
-              viz-sales@sgconsultingtech.com
-            </a>
-          </p>
+
+        {/* Scrollable body: calendar only scrolls here to avoid double scrollbars */}
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3">
+          <div
+            className="h-full w-full overflow-visible rounded-lg border bg-white shadow-sm"
+            aria-label="Schedule a demo calendar"
+          >
+            <div
+              key={containerKey}
+              id="my-cal-inline-viz-demo-discussion"
+              className="min-h-[900px] md:min-h-[980px] w-full"
+              style={{ minWidth: 0 }}
+            />
+          </div>
         </div>
 
-        {/* Bottom Actions */}
-        <div className="mt-3 flex justify-end gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-[#22d3ee] text-[#0891b2] hover:bg-[#22d3ee] hover:text-white"
-            onClick={handleCopyEmail}
-            aria-label="Copy email address"
-          >
-            <Copy className="mr-1.5 h-4 w-4" /> Copy email
-          </Button>
-          <Button
-            size="sm"
-            variant="default"
-            className="bg-[#22d3ee] hover:bg-[#06b6d4] text-white border-0"
-            onClick={onClose}
-            aria-label="Close rate limit dialog"
-          >
-            Close
-          </Button>
+        {/* Pinned footer */}
+        <div className="shrink-0 border-t bg-white/80 dark:bg-viz-medium/80 backdrop-blur px-4 py-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-center sm:text-left text-xs sm:text-sm text-muted-foreground">
+              For purchase / custom development you can block a slot or email at{' '}
+              <a
+                href="mailto:viz-sales@sgconsultingtech.com?subject=VIZ%20Demo%20Request"
+                className="text-blue-600 hover:text-blue-800 underline"
+                onClick={(e) => {
+                  const mailto = 'mailto:viz-sales@sgconsultingtech.com?subject=VIZ%20Demo%20Request';
+                  try {
+                    e.preventDefault();
+                    const opened = window.open(mailto, '_self');
+                    if (!opened) {
+                      window.location.href = mailto;
+                    }
+                  } catch {
+                    window.location.href = mailto;
+                  }
+                }}
+              >
+                viz-sales@sgconsultingtech.com
+              </a>
+            </p>
+
+            <div className="flex justify-center sm:justify-end gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-[#22d3ee] text-[#0891b2] hover:bg-[#22d3ee] hover:text-white"
+                onClick={handleCopyEmail}
+                aria-label="Copy email address"
+              >
+                <Copy className="mr-1.5 h-4 w-4" /> Copy email
+              </Button>
+              <Button
+                size="sm"
+                variant="default"
+                className="bg-[#22d3ee] hover:bg-[#06b6d4] text-white border-0"
+                onClick={onClose}
+                aria-label="Close rate limit dialog"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </PopupModal>

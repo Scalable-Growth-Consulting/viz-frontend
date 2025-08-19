@@ -10,6 +10,10 @@ interface PopupModalProps {
   children: React.ReactNode;
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   showCloseButton?: boolean;
+  /** Controls overflow behavior of DialogContent. Use 'hidden' if inner body manages its own scroll. */
+  contentOverflow?: 'auto' | 'hidden';
+  /** When true, expand the dialog close to full height on mobile for better usability. */
+  fullScreenOnMobile?: boolean;
 }
 
 const PopupModal: React.FC<PopupModalProps> = ({
@@ -18,7 +22,9 @@ const PopupModal: React.FC<PopupModalProps> = ({
   title,
   children,
   maxWidth = 'lg',
-  showCloseButton = false
+  showCloseButton = false,
+  contentOverflow = 'auto',
+  fullScreenOnMobile = false
 }) => {
   // Handle escape key
   useEffect(() => {
@@ -42,6 +48,12 @@ const PopupModal: React.FC<PopupModalProps> = ({
     '2xl': 'max-w-2xl'
   };
 
+  const overflowClass = contentOverflow === 'hidden' ? 'overflow-hidden' : 'overflow-auto';
+  // On small screens, optionally increase usable height; on larger screens cap height.
+  const heightClasses = fullScreenOnMobile
+    ? 'h-[92vh] sm:h-auto sm:max-h-[90vh]'
+    : 'max-h-[90vh]';
+
   return (
     <Dialog
       open={isOpen}
@@ -49,7 +61,10 @@ const PopupModal: React.FC<PopupModalProps> = ({
         if (!open) onClose();
       }}
     >
-      <DialogContent hideClose={!showCloseButton} className={`${maxWidthClasses[maxWidth]} max-h-[90vh] overflow-auto`}>
+      <DialogContent
+        hideClose={!showCloseButton}
+        className={`${maxWidthClasses[maxWidth]} ${heightClasses} ${overflowClass}`}
+      >
         <DialogHeader className="relative">
           <DialogTitle className="text-lg font-semibold pr-8">{title}</DialogTitle>
           {showCloseButton && (
@@ -63,9 +78,7 @@ const PopupModal: React.FC<PopupModalProps> = ({
             </Button>
           )}
         </DialogHeader>
-        <div className="overflow-auto flex-1">
-          {children}
-        </div>
+        {children}
       </DialogContent>
     </Dialog>
   );
