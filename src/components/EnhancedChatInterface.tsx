@@ -6,9 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { SendIcon, DatabaseIcon, BarChartIcon, FileTextIcon, Loader2 } from 'lucide-react';
+import { SendIcon, DatabaseIcon, BarChartIcon, FileTextIcon, Loader2, AlertCircle, Plus } from 'lucide-react';
 import { format } from 'sql-formatter';
 import { Json } from '@/integrations/supabase/types';
+import { useNavigate } from 'react-router-dom';
+import RateLimitModal from './RateLimitModal';
 import {
   Chart as ChartJS,
   BarElement,
@@ -68,10 +70,46 @@ const EnhancedChatInterface: React.FC = () => {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [showRateLimitModal, setShowRateLimitModal] = useState(false);
   const MAX_RETRIES = 2;
   const REQUEST_TIMEOUT = 30000; // 30 seconds
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // Per-user, per-day storage key for rate limit
+  const storageKey = React.useMemo(() => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const uid = user?.id || 'anon';
+    return `chatMessageCount:${uid}:${yyyy}-${mm}-${dd}`;
+  }, [user?.id]);
+
+  const [messageCount, setMessageCount] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      return saved ? parseInt(saved, 10) : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      setMessageCount(saved ? parseInt(saved, 10) : 0);
+    } catch {
+      setMessageCount(0);
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, String(messageCount));
+    } catch {}
+  }, [messageCount, storageKey]);
 
   // Utility function for retrying failed requests
   const fetchWithRetry = async <T,>(
@@ -129,6 +167,12 @@ const EnhancedChatInterface: React.FC = () => {
       return;
     }
 
+    // Rate limit check (frontend UX)
+    if (messageCount >= 5) {
+      setShowRateLimitModal(true);
+      return;
+    }
+
     // Cancel any ongoing request
     if (abortController) {
       abortController.abort();
@@ -144,6 +188,9 @@ const EnhancedChatInterface: React.FC = () => {
 
     try {
       // Call inference edge function with retry logic
+      // Increment local counter early to block more sends; server still enforces hard limit
+      setMessageCount((c) => c + 1);
+
       const inferenceResponse = await fetchWithRetry(
         async () => {
           const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/inference`, {
@@ -334,6 +381,103 @@ const EnhancedChatInterface: React.FC = () => {
     }
   };
 
+  // Helper function to check if data is not available
+  const isDataNotAvailable = (content: string | null) => {
+    if (!content) return false;
+    const lowerContent = content.toLowerCase();
+    // Only show "no data" message if the response explicitly indicates no data AND doesn't contain actual data
+    const hasNoDataIndicators = lowerContent.includes('no data found') || 
+                                lowerContent.includes('data not available') || 
+                                lowerContent.includes('dataset is empty') ||
+                                lowerContent.includes('no results') ||
+                                lowerContent.includes('empty dataset') ||
+                                lowerContent.includes('no data available');
+    
+    // Check if content has actual data (numbers, tables, specific values)
+    const hasActualData = /\d+/.test(content) || // Contains numbers
+                         content.includes('|') || // Table format
+                         content.includes('Total') || // Aggregation results
+                         content.includes('Revenue') || // Business metrics
+                         content.includes('Orders') || // Transaction data
+                         content.includes('State') || // Geographic data
+                         content.includes('Month') || // Time series data
+                         content.length > 200; // Substantial content
+    
+    // Only return true if there are explicit no-data indicators AND no actual data present
+    return hasNoDataIndicators && !hasActualData;
+  };
+
+  // Helper function to check if a required table/dataset is unavailable
+  const isTableUnavailable = (content: string | null) => {
+    if (!content) return false;
+    const lower = content.toLowerCase();
+    const tableIndicators = [
+      'table not found',
+      'not found: table',
+      'table does not exist',
+      'no such table',
+      'missing table',
+      'dataset not found',
+      'not found: dataset',
+      'dataset does not exist',
+      'table unavailable',
+      'no table available'
+    ];
+    const hasIndicator = tableIndicators.some(p => lower.includes(p));
+
+    // Reuse data presence heuristic to avoid false positives
+    const hasActualData = /\d+/.test(content) ||
+                          content.includes('|') ||
+                          content.includes('Total') ||
+                          content.includes('Revenue') ||
+                          content.includes('Orders') ||
+                          content.includes('State') ||
+                          content.includes('Month') ||
+                          content.length > 200;
+
+    return hasIndicator && !hasActualData;
+  };
+
+  // Component for data not available message
+  const DataNotAvailableMessage = () => (
+    <div className="flex items-center justify-center py-8">
+      <div className="text-center space-y-4">
+        <div className="flex items-center justify-center space-x-2 text-amber-600">
+          <AlertCircle className="w-5 h-5" />
+          <span className="font-medium">Data not available, please add data</span>
+        </div>
+        <Button 
+          onClick={() => navigate('/data-control')}
+          variant="outline"
+          className="inline-flex items-center space-x-2 hover:bg-blue-50 hover:border-blue-300"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Add Data</span>
+        </Button>
+      </div>
+    </div>
+  );
+
+  // Component for table unavailable message
+  const TableUnavailableMessage = () => (
+    <div className="flex items-center justify-center py-8">
+      <div className="text-center space-y-4">
+        <div className="flex items-center justify-center space-x-2 text-amber-600">
+          <AlertCircle className="w-5 h-5" />
+          <span className="font-medium">Required data table is missing or unavailable</span>
+        </div>
+        <Button 
+          onClick={() => navigate('/table-explorer')}
+          variant="outline"
+          className="inline-flex items-center space-x-2 hover:bg-blue-50 hover:border-blue-300"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Open Table Explorer</span>
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-200px)]">
       {/* Chat History Sidebar */}
@@ -385,10 +529,11 @@ const EnhancedChatInterface: React.FC = () => {
                     handleSubmitPrompt();
                   }
                 }}
+                disabled={loading || messageCount >= 5}
               />
               <Button
                 onClick={handleSubmitPrompt}
-                disabled={loading || !prompt.trim()}
+                disabled={loading || !prompt.trim() || messageCount >= 5}
                 className="bg-viz-accent hover:bg-viz-accent-light"
               >
                 {loading ? (
@@ -444,6 +589,7 @@ const EnhancedChatInterface: React.FC = () => {
 
           {/* Content */}
           <CardContent className="flex-1 p-6 overflow-auto">
+            <div className="text-xs text-slate-500 dark:text-viz-text-secondary mb-3">Messages used: {messageCount}/5</div>
             {!currentSession ? (
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <FileTextIcon className="w-12 h-12 text-viz-text-secondary mb-4" />
@@ -454,7 +600,15 @@ const EnhancedChatInterface: React.FC = () => {
               <div>
                 {activeTab === 'answer' && (
                   <div className="prose dark:prose-invert max-w-none">
-                    {currentSession.answer || (
+                    {currentSession.answer ? (
+                      isTableUnavailable(currentSession.answer) ? (
+                        <TableUnavailableMessage />
+                      ) : isDataNotAvailable(currentSession.answer) ? (
+                        <DataNotAvailableMessage />
+                      ) : (
+                        currentSession.answer
+                      )
+                    ) : (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="w-6 h-6 animate-spin mr-2" />
                         <span>Analyzing your query...</span>
@@ -466,11 +620,17 @@ const EnhancedChatInterface: React.FC = () => {
                 {activeTab === 'sql' && (
                   <div>
                     {currentSession.sql_query ? (
-                      <div className="bg-viz-dark p-4 rounded-lg">
-                        <pre className="text-viz-accent text-sm overflow-x-auto whitespace-pre-wrap">
-                          <code>{format(currentSession.sql_query, { language: 'bigquery', tabWidth: 2 })}</code>
-                        </pre>
-                      </div>
+                      isTableUnavailable(currentSession.sql_query) ? (
+                        <TableUnavailableMessage />
+                      ) : isDataNotAvailable(currentSession.sql_query) ? (
+                        <DataNotAvailableMessage />
+                      ) : (
+                        <div className="bg-viz-dark p-4 rounded-lg">
+                          <pre className="text-viz-accent text-sm overflow-x-auto whitespace-pre-wrap">
+                            <code>{format(currentSession.sql_query, { language: 'bigquery', tabWidth: 2 })}</code>
+                          </pre>
+                        </div>
+                      )
                     ) : (
                       <div className="flex items-center justify-center py-8">
                         <DatabaseIcon className="w-6 h-6 text-viz-text-secondary mr-2" />
@@ -491,6 +651,10 @@ const EnhancedChatInterface: React.FC = () => {
                       <div id="chartContainer" className="w-full min-h-[400px]">
                         {/* Chart will be injected here */}
                       </div>
+                    ) : currentSession?.answer && isTableUnavailable(currentSession.answer) ? (
+                      <TableUnavailableMessage />
+                    ) : currentSession?.answer && isDataNotAvailable(currentSession.answer) ? (
+                      <DataNotAvailableMessage />
                     ) : (
                       <div className="flex flex-col items-center justify-center py-8">
                         <BarChartIcon className="w-6 h-6 text-viz-text-secondary mb-2" />
@@ -504,6 +668,12 @@ const EnhancedChatInterface: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Rate Limit Modal */}
+      <RateLimitModal 
+        isOpen={showRateLimitModal}
+        onClose={() => setShowRateLimitModal(false)}
+      />
     </div>
   );
 };

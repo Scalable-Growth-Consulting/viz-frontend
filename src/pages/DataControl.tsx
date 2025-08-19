@@ -6,6 +6,9 @@ import { TableSchema } from './TableExplorer';
 import Header from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useSchema } from '@/contexts/SchemaContext';
+import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 
 
 const mockTables: { id: string; name: string }[] = [
@@ -57,6 +60,7 @@ interface KPI {
 const DataControl = () => {
 
   const { user } = useAuth();
+  const { setHasTables } = useSchema();
   const [selectedTableId, setSelectedTableId] = useState<string>(mockTables[0].id);
   const [schemas, setSchemas] = useState<Record<string, TableSchema>>({});
   const [loadingSchema, setLoadingSchema] = useState(false);
@@ -79,6 +83,11 @@ const DataControl = () => {
       fetchRealSchema(user.email);
     }
   }, [activeTab, user?.email]);
+
+  // Keep global hasTables in sync with local schemas state
+  useEffect(() => {
+    setHasTables(Object.keys(schemas).length > 0);
+  }, [schemas, setHasTables]);
 
     const handleSave = async () => {
     try {
@@ -171,6 +180,7 @@ const DataControl = () => {
       }
   
       setSchemas(updatedSchemas);
+      setHasTables(Object.keys(updatedSchemas).length > 0);
   
       // ✅ Only set selectedTableId if it's not already set
       if (!selectedTableId && tableList.length > 0) {
@@ -188,6 +198,7 @@ const DataControl = () => {
 
        setSchemas({}); // Ensure no fallback data
        setSelectedTableId(""); // Clear selected table
+       setHasTables(false);
     } finally {
       setLoadingSchema(false);
     }
@@ -238,6 +249,16 @@ const DataControl = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-viz-dark dark:to-black">
       <Header />
       <div className="container mx-auto px-4 py-8">
+        {/* Back to BIZ */}
+        <div className="mb-3">
+          <Link
+            to="/"
+            className="inline-flex items-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:underline text-sm"
+            aria-label="Back to BIZ"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" /> Back to BIZ
+          </Link>
+        </div>
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-viz-dark dark:text-white mb-2">Data Control Center</h1>
           <p className="text-viz-text-secondary">Manage your data connections, schema, and KPIs</p>
