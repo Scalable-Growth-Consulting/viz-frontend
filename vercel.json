@@ -5,7 +5,7 @@
       "destination": "/index.html"
     }
   ],
-  "installCommand": "npm ci",
+  "installCommand": "rm -f package-lock.json && npm install",
   "buildCommand": "ROLLUP_USE_NODE_JS=true npm run build",
   "build": {
     "env": {
