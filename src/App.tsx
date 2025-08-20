@@ -21,6 +21,7 @@ import MIA from './pages/MIA';
 import MIAComingSoon from './pages/MIAComingSoon';
 import MIAAccessGuard from '@/components/mia/MIAAccessGuard';
 import './App.css';
+import { sanitizeEmail } from "@/utils/sanitize";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();

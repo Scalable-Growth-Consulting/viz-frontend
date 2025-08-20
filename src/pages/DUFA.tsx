@@ -14,6 +14,12 @@ import { AlertCircle, ArrowLeft, ArrowRight, Database, Download, FileText, Loade
 import { datasetService, DatasetSummary } from '@/services/datasetService';
 import DUFASettingsModal from '@/components/dufa/DUFASettingsModal';
 import StageTabs from '@/components/dufa/StageTabs';
+import * as XLSX from "xlsx";
+import { sanitizeEmail, sanitizeName } from "@/utils/sanitize";
+import { presignForUpload, putToPresignedUrl, triggerAthenaSync } from "@/services/dufa";
+import { supabase } from "@/supabase";
+
+
 
 // Types
 interface Dataset {
@@ -66,6 +72,8 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const totalSteps = 7;
   const navigate = useNavigate();
+
+
   
   // State management with useDufaState
   const {
@@ -127,7 +135,7 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
     loadDatasets();
   }, [loadDatasets]);
   
-  // Handle file upload
+  /* Handle file upload
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -146,7 +154,89 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
       datasetService.add(user?.id || '', summary).then(loadDatasets);
     }
   }, [handleFileUpload, updateState, progress, user?.id, loadDatasets]);
-  
+  */
+ 
+const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  if (!user?.email) {
+    toast({ title: "Not logged in", description: "Please sign in to upload", variant: "destructive" });
+    return;
+  }
+
+  // UI state sync
+  handleFileUpload(file);
+  updateState({ progress: { ...progress, dataSelection: true } });
+
+  // owner + dataset
+  const owner = `dufa_${sanitizeEmail(user.email)}`;
+  const defaultName = file.name.replace(/\.[^/.]+$/, "");
+  const datasetSan = sanitizeName(defaultName);
+
+  try {
+    // 1) presign for the raw file
+    const presign = await presignForUpload(file, user.email, datasetSan);
+
+    // 2) upload raw file to S3
+    await putToPresignedUrl(presign.uploadUrl, file);
+
+    // 3) XLSX → each sheet as CSV
+    if (/\.(xlsx|xlsm|xls)$/i.test(file.name)) {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf);
+
+      for (const sheetName of wb.SheetNames) {
+        const csv = XLSX.utils.sheet_to_csv(wb.Sheets[sheetName]);
+        const blob = new Blob([csv], { type: "text/csv" });
+        const sheetNameSan = sanitizeName(sheetName);
+
+        // presign for this sheet csv
+        const { data, error } = await supabase.functions.invoke<{ uploadUrl: string; key: string }>(
+          "dufa-presign",
+          {
+            body: {
+              filename: `${datasetSan}__${sheetNameSan}.csv`,
+              ext: "csv",
+              owner,
+              dataset: datasetSan,
+              kind: "sheet",
+            },
+          }
+        );
+        if (error || !data?.uploadUrl) throw new Error(error?.message || "Sheet presign failed");
+        await putToPresignedUrl(data.uploadUrl, blob);
+      }
+    }
+
+    // 4) dataset list me dikhane ke liye local entry
+    const summary: DatasetSummary = {
+      id: `${Date.now()}`,
+      name: defaultName,
+      tableName: datasetSan,
+      rows: 0,
+      updatedAt: new Date().toISOString(),
+      columns: [],
+    };
+    await datasetService.add(user.id || "", summary);
+    await loadDatasets();
+
+    // 5) (optional) athena/glue sync
+    triggerAthenaSync(owner, datasetSan, `${owner}/${datasetSan}/`).catch(() => {});
+
+    toast({ title: "Upload complete", description: `Uploaded to s3 under ${owner}/${datasetSan}/` });
+  } catch (err: any) {
+    console.error("Upload error", err);
+    toast({
+      title: "Upload failed",
+      description: err?.message || "Temporary issue. Please try again.",
+      variant: "destructive",
+    });
+  }
+}, [user?.email, user?.id, handleFileUpload, updateState, progress, loadDatasets, toast]);
+
+
+
   // Navigation functions
   const goToNextStep = useCallback(() => {
     if (currentStep < totalSteps) {
