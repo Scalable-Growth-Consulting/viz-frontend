@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navigate } from 'react-router-dom';
 import { ADMIN_EMAIL, hasPremiumAccess } from '@/utils/adminAccess';
+import DUFAComingSoon from '@/pages/DUFAComingSoon';
 
 interface DUFAAccessGuardProps {
   children: React.ReactNode;
@@ -20,8 +20,9 @@ const DUFAAccessGuard: React.FC<DUFAAccessGuardProps> = ({ children }) => {
   console.log('[DUFAAccessGuard] Access Check:', access);
 
   if (!hasPremiumAccess(user)) {
-    console.log('[DUFAAccessGuard] ❌ Access denied - redirecting to Coming Soon page');
-    return <Navigate to="/dufa-coming-soon" replace />;
+    console.log('[DUFAAccessGuard] ❌ Access denied - showing Coming Soon inline');
+    // Render Coming Soon inline so the RIZ layout (with sidebar) remains visible
+    return <DUFAComingSoon showHeader={false} />;
   }
 
   console.log('[DUFAAccessGuard] ✅ Premium access granted for', user?.email);

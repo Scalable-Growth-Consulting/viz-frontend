@@ -8,6 +8,7 @@ import { SaveIcon, RefreshCwIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useSchema } from '@/contexts/SchemaContext';
 
 export interface Table {
   id: string;
@@ -34,6 +35,7 @@ export interface TableSchema {
 }
 
 const TableExplorer = () => {
+  const { setHasTables } = useSchema();
   const [tables, setTables] = useState<Table[]>([]);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [schema, setSchema] = useState<TableSchema | null>(null);
@@ -107,6 +109,7 @@ const TableExplorer = () => {
         }
       ];
       setTables(mockTables);
+      setHasTables(mockTables.length > 0);
       if (mockTables.length > 0) {
         setSelectedTable(mockTables[0]);
       }
@@ -288,6 +291,8 @@ const TableExplorer = () => {
       };
       setSchema(mockSchemas[tableId] || null);
       setHasChanges(false);
+      // Update hasTables based on whether schema exists for the selected table
+      setHasTables(!!mockSchemas[tableId]);
     } catch (error) {
       toast({
         title: "Error",
@@ -302,6 +307,7 @@ const TableExplorer = () => {
   const handleSchemaChange = (updatedSchema: TableSchema) => {
     setSchema(updatedSchema);
     setHasChanges(true);
+    setHasTables(true);
   };
 
   // Update table name/description handlers

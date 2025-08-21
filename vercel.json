@@ -1,8 +1,16 @@
 {
-    "rewrites": [
-      {
-        "source": "/(.*)",
-        "destination": "/index.html"
-      }
-    ]
-  }  
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "installCommand": "rm -f package-lock.json && npm install",
+  "buildCommand": "ROLLUP_USE_NODE_JS=true npm run build",
+  "build": {
+    "env": {
+      "NODE_VERSION": "20",
+      "ROLLUP_USE_NODE_JS": "true"
+    }
+  }
+}

@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster } from './components/ui/toaster';
+import { SchemaProvider } from './contexts/SchemaContext';
 import Index from './pages/Index';
 import Home from './pages/Home';
 import BIZ from './pages/BIZ';
@@ -44,8 +45,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 function App() {
   return (
     <AuthProvider>
-      <div className="App">
-        <Routes>
+      <SchemaProvider>
+        <div className="App">
+          <Routes>
           {/* Public routes */}
           <Route path="/auth" element={<Auth />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
@@ -68,9 +70,10 @@ function App() {
           <Route path="/MIA-coming-soon" element={<ProtectedRoute><MIAComingSoon /></ProtectedRoute>} />
           {/* 404 fallback - shown for all users */}
           <Route path="*" element={<NotFound />} />
-        </Routes>
-        <Toaster />
-      </div>
+          </Routes>
+          <Toaster />
+        </div>
+      </SchemaProvider>
     </AuthProvider>
   );
 }
