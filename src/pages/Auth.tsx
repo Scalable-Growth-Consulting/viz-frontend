@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +16,8 @@ const Auth = () => {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ fullName?: string; password?: string; confirmPassword?: string }>({});
+  const [showOtp, setShowOtp] = useState(false);
+  const [otp, setOtp] = useState('');
   
   const { user, signIn, signUp, signInWithGoogle} = useAuth();
   const { toast } = useToast();
@@ -121,8 +124,9 @@ const Auth = () => {
         } else {
           toast({
             title: "Account created!",
-            description: "Please check your email for the verification link.",
+            description: "Check your email for the OTP.",
           });
+          setShowOtp(true);
         }
       }
     } catch (error) {
@@ -131,6 +135,35 @@ const Auth = () => {
         description: "Please try again later.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: otp,
+        type: 'email',
+      });
+      if (error) {
+        toast({ title: "OTP verification failed", description: error.message, variant: "destructive" });
+      } else {
+        // OTP verified, now sign in automatically
+        const { error: signInError } = await signIn(email, password);
+        if (signInError) {
+          toast({ title: "Email verified, but sign in failed", description: signInError.message, variant: "destructive" });
+          setShowOtp(false);
+          setIsLogin(true);
+        } else {
+          toast({ title: "Account verified & signed in!", description: "Welcome!" });
+          setShowOtp(false);
+          navigate('/');
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -202,7 +235,8 @@ const Auth = () => {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {!showOtp && (
+            <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <div>
                 <Label htmlFor="fullName" className="text-viz-dark dark:text-white">
@@ -319,6 +353,26 @@ const Auth = () => {
               )}
             </Button>
           </form>
+          )}
+
+          {showOtp && (
+            <form onSubmit={handleVerifyOtp} className="space-y-4 mt-4">
+              <Label htmlFor="otp">Enter OTP</Label>
+              <Input
+                id="otp"
+                type="text"
+                value={otp}
+                onChange={e => setOtp(e.target.value)}
+                maxLength={6}
+                required
+                disabled={loading}
+              />
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Verify OTP
+              </Button>
+            </form>
+          )}
 
           <div className="mt-6 text-center">
             <p className="text-viz-text-secondary">
