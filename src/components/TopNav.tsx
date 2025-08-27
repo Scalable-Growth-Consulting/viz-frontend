@@ -57,7 +57,7 @@ const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
                   </SheetClose>
                   <SheetClose asChild>
                     <Link 
-                      to="/riz/dufa" 
+                      to="/riz/inventory" 
                       className="flex items-center justify-between bg-gradient-to-r from-pink-500 to-viz-accent text-white px-4 py-3 rounded-lg shadow hover:opacity-90 transition"
                     >
                       <div className="flex items-center gap-2">
