@@ -13,7 +13,7 @@ import InventoryAccessGuard from '@/components/inventory/InventoryAccessGuard';
 type ActiveTab = 'dufa' | 'mia' | 'inventory';
 
 const RIZ: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('dufa');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('mia');
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();

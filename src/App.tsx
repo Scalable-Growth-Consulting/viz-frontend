@@ -22,6 +22,9 @@ import DUFAAccessGuard from '@/components/dufa/DUFAAccessGuard';
 import MIA from './pages/MIA';
 import MIAComingSoon from './pages/MIAComingSoon';
 import MIAAccessGuard from '@/components/mia/MIAAccessGuard';
+import MIAPrivacy from './pages/MIAPrivacy';
+import MIADataDeletion from './pages/MIADataDeletion';
+import MIATerms from './pages/MIATerms';
 import './App.css';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -55,7 +58,7 @@ function App() {
           {/* Protected routes */}
           <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
 <Route path="/biz" element={<ProtectedRoute><BIZ /></ProtectedRoute>} />
-<Route path="/riz" element={<ProtectedRoute><RIZ /></ProtectedRoute>} />
+<Route path="/riz" element={<ProtectedRoute><Navigate to="/riz/mia" replace /></ProtectedRoute>} />
 <Route path="/riz/dufa" element={<ProtectedRoute><RIZ /></ProtectedRoute>} />
 <Route path="/riz/inventory" element={<ProtectedRoute><RIZ /></ProtectedRoute>} />
 <Route path="/riz/mia" element={<ProtectedRoute><RIZ /></ProtectedRoute>} />
@@ -69,6 +72,18 @@ function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/MIA" element={<ProtectedRoute><MIAAccessGuard><MIA /></MIAAccessGuard></ProtectedRoute>} />
           <Route path="/MIA-coming-soon" element={<ProtectedRoute><MIAComingSoon /></ProtectedRoute>} />
+          {/* Lowercase canonical routes for MIA */}
+          <Route path="/mia/privacy" element={<ProtectedRoute><MIAPrivacy /></ProtectedRoute>} />
+          <Route path="/mia/data-deletion" element={<ProtectedRoute><MIADataDeletion /></ProtectedRoute>} />
+          <Route path="/mia/terms" element={<ProtectedRoute><MIATerms /></ProtectedRoute>} />
+          {/* Redirect legacy uppercase policy routes to lowercase canonical URLs */}
+          <Route path="/MIA/privacy" element={<Navigate to="/mia/privacy" replace />} />
+          <Route path="/MIA/data-deletion" element={<Navigate to="/mia/data-deletion" replace />} />
+          <Route path="/MIA/terms" element={<Navigate to="/mia/terms" replace />} />
+          {/* RIZ-scoped policy routes for MIA */}
+          <Route path="/riz/mia/privacy" element={<ProtectedRoute><MIAPrivacy /></ProtectedRoute>} />
+          <Route path="/riz/mia/data-deletion" element={<ProtectedRoute><MIADataDeletion /></ProtectedRoute>} />
+          <Route path="/riz/mia/terms" element={<ProtectedRoute><MIATerms /></ProtectedRoute>} />
           {/* 404 fallback - shown for all users */}
           <Route path="*" element={<NotFound />} />
           </Routes>
