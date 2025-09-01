@@ -7,11 +7,13 @@ import DUFA from './DUFA';
 import MIA from './MIA';
 import DUFAAccessGuard from '@/components/dufa/DUFAAccessGuard';
 import MIAAccessGuard from '@/components/mia/MIAAccessGuard';
+import InventorySuite from './InventorySuite';
+import InventoryAccessGuard from '@/components/inventory/InventoryAccessGuard';
 
-type ActiveTab = 'dufa' | 'mia';
+type ActiveTab = 'dufa' | 'mia' | 'inventory';
 
 const RIZ: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('dufa');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('mia');
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -22,7 +24,9 @@ const RIZ: React.FC = () => {
   // Handle deep linking
   useEffect(() => {
     const path = location.pathname;
-    if (path.includes('/riz/mia')) {
+    if (path.includes('/riz/inventory')) {
+      setActiveTab('inventory');
+    } else if (path.includes('/riz/mia')) {
       setActiveTab('mia');
     } else if (path.includes('/riz/dufa')) {
       setActiveTab('dufa');
@@ -51,7 +55,36 @@ const RIZ: React.FC = () => {
           </div>
           
           <nav className="flex-1 p-5 space-y-3">
-            {/* DUFA Tab */}
+            {/* MIA Tab (Marketing first) */}
+            <button
+              onClick={() => handleTabChange('mia')}
+              className={`w-full group flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 text-left ${
+                activeTab === 'mia'
+                  ? 'bg-gradient-to-r from-pink-500 to-viz-accent text-white shadow-md border-transparent'
+                  : 'bg-white/60 dark:bg-viz-dark/50 text-slate-700 dark:text-viz-text-secondary hover:bg-white border border-slate-200/60 dark:border-viz-light/20'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                activeTab === 'mia' 
+                  ? 'bg-white/20' 
+                  : 'bg-pink-500/10'
+              }`}>
+                <Target className={`w-5 h-5 ${
+                  activeTab === 'mia' ? 'text-white' : 'text-pink-500'
+                }`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium">MIA</div>
+                {activeTab === 'mia' && (
+                  <div className="text-sm text-white/85 line-clamp-2">
+                    Marketing Intelligence Agent
+                  </div>
+                )}
+              </div>
+              {activeTab === 'mia' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+            </button>
+
+            {/* DUFA Tab (second) */}
             <button
               onClick={() => handleTabChange('dufa')}
               className={`w-full group flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 text-left ${
@@ -80,33 +113,33 @@ const RIZ: React.FC = () => {
               {activeTab === 'dufa' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
             </button>
 
-            {/* MIA Tab */}
+            {/* Inventory Tab (third, label as IIA) */}
             <button
-              onClick={() => handleTabChange('mia')}
+              onClick={() => handleTabChange('inventory')}
               className={`w-full group flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 text-left ${
-                activeTab === 'mia'
-                  ? 'bg-gradient-to-r from-pink-500 to-viz-accent text-white shadow-md border-transparent'
+                activeTab === 'inventory'
+                  ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-md border-transparent'
                   : 'bg-white/60 dark:bg-viz-dark/50 text-slate-700 dark:text-viz-text-secondary hover:bg-white border border-slate-200/60 dark:border-viz-light/20'
               }`}
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                activeTab === 'mia' 
+                activeTab === 'inventory' 
                   ? 'bg-white/20' 
-                  : 'bg-pink-500/10'
+                  : 'bg-emerald-500/10'
               }`}>
-                <Target className={`w-5 h-5 ${
-                  activeTab === 'mia' ? 'text-white' : 'text-pink-500'
+                <BarChartIcon className={`w-5 h-5 ${
+                  activeTab === 'inventory' ? 'text-white' : 'text-emerald-500'
                 }`} />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-medium">MIA</div>
-                {activeTab === 'mia' && (
+                <div className="font-medium">IIA</div>
+                {activeTab === 'inventory' && (
                   <div className="text-sm text-white/85 line-clamp-2">
-                    Marketing Intelligence Agent
+                    Inventory Insight Agent
                   </div>
                 )}
               </div>
-              {activeTab === 'mia' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+              {activeTab === 'inventory' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
             </button>
           </nav>
 
@@ -123,9 +156,19 @@ const RIZ: React.FC = () => {
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0 overflow-auto bg-white/50 dark:bg-viz-dark/50">
-          {/* Mobile Tabs (DUFA/MIA) */}
+          {/* Mobile Tabs (MIA, DUFA, IIA) */}
           <div className="md:hidden sticky top-0 z-10 bg-white/80 dark:bg-viz-medium/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-b border-slate-200/50 dark:border-viz-light/20">
-            <div className="px-4 py-2 grid grid-cols-2 gap-2">
+            <div className="px-4 py-2 grid grid-cols-3 gap-2">
+              <button
+                onClick={() => handleTabChange('mia')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  activeTab === 'mia'
+                    ? 'bg-gradient-to-r from-pink-500 to-viz-accent text-white shadow'
+                    : 'bg-white dark:bg-viz-dark text-slate-700 dark:text-viz-text-secondary border border-slate-200/60 dark:border-viz-light/20'
+                }`}
+              >
+                MIA
+              </button>
               <button
                 onClick={() => handleTabChange('dufa')}
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -137,14 +180,14 @@ const RIZ: React.FC = () => {
                 DUFA
               </button>
               <button
-                onClick={() => handleTabChange('mia')}
+                onClick={() => handleTabChange('inventory')}
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activeTab === 'mia'
-                    ? 'bg-gradient-to-r from-pink-500 to-viz-accent text-white shadow'
+                  activeTab === 'inventory'
+                    ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow'
                     : 'bg-white dark:bg-viz-dark text-slate-700 dark:text-viz-text-secondary border border-slate-200/60 dark:border-viz-light/20'
                 }`}
               >
-                MIA
+                IIA
               </button>
             </div>
           </div>
@@ -162,6 +205,13 @@ const RIZ: React.FC = () => {
                   <MIA showHeader={false} />
                 </div>
               </MIAAccessGuard>
+            )}
+            {activeTab === 'inventory' && (
+              <InventoryAccessGuard>
+                <div className="h-full w-full">
+                  <InventorySuite showHeader={false} />
+                </div>
+              </InventoryAccessGuard>
             )}
           </div>
         </div>
