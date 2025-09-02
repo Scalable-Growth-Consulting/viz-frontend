@@ -39,6 +39,7 @@ import MIACampaignTable from './MIACampaignTable';
 import MIAInsightsPanel from './MIAInsightsPanel';
 import MIAChatInterface from './MIAChatInterface';
 import MIAIntegrationStatus from './MIAIntegrationStatus';
+import MIAMetaIntegration from './MIAMetaIntegration';
 
 interface MIADashboardProps {
   userId: string;
@@ -515,17 +516,51 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
 
   const SourcesPanel: React.FC = () => (
     <div className="space-y-6">
+      {/* Meta Integration - Fully Functional */}
+      <MIAMetaIntegration 
+        onConnectionChange={(connected) => {
+          console.log('Meta connection status changed:', connected);
+          // You can update dashboard state here if needed
+        }}
+      />
+
+      {/* Other Data Sources - Coming Soon */}
       <Card className="bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20 shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Database className="w-5 h-5 text-viz-accent" /> Data Sources</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="w-5 h-5 text-viz-accent" /> 
+            Other Data Sources
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {['Meta Ads','Google Ads','GA4','LinkedIn Ads','TikTok Ads','CRM','Revenue'].map((c) => (
-            <Button key={c} variant="outline" className="justify-start">
-              <Database className="w-4 h-4 mr-2 text-viz-accent" /> Connect {c}
-            </Button>
+          {[
+            { name: 'Google Ads', icon: '🔍', status: 'coming-soon' },
+            { name: 'GA4', icon: '📊', status: 'coming-soon' },
+            { name: 'LinkedIn Ads', icon: '💼', status: 'coming-soon' },
+            { name: 'TikTok Ads', icon: '🎵', status: 'coming-soon' },
+            { name: 'CRM', icon: '👥', status: 'coming-soon' },
+            { name: 'Revenue', icon: '💰', status: 'coming-soon' },
+          ].map((source) => (
+            <div key={source.name} className="relative">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start opacity-60 cursor-not-allowed"
+                disabled
+              >
+                <span className="mr-2">{source.icon}</span>
+                Connect {source.name}
+              </Button>
+              <Badge 
+                className="absolute -top-2 -right-2 bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 text-xs"
+              >
+                Soon
+              </Badge>
+            </div>
           ))}
-          <div className="col-span-full text-xs text-slate-500">Connections are placeholders. APIs to be wired later.</div>
+          <div className="col-span-full text-xs text-slate-500 mt-4 p-3 rounded-lg bg-slate-50 dark:bg-viz-dark/40">
+            <strong>Meta Ads integration is live!</strong> Other platform integrations are coming soon. 
+            Contact support if you need priority access to specific platforms.
+          </div>
         </CardContent>
       </Card>
     </div>
