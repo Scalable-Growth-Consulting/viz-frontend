@@ -68,22 +68,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleBasicOAuthCallback = async (session: Session) => {
     try {
-      if (session.provider_token && session.provider_refresh_token) {
+      if ((session as any).provider_token) {
+        const providerToken = (session as any).provider_token as string;
+        const providerRefreshToken = (session as any).provider_refresh_token as string | undefined;
+        const providerName = (session.user as any)?.app_metadata?.provider ?? 'google';
+
+        // Only persist tokens and updated_at to avoid overwriting scopes or connection flags.
+        const upsertPayload: Record<string, any> = {
+          user_id: session.user.id,
+          provider: providerName,
+          access_token_encrypted: providerToken,
+          updated_at: new Date().toISOString(),
+        };
+
+        if (providerRefreshToken) {
+          upsertPayload.refresh_token_encrypted = providerRefreshToken;
+        }
+
         const { error } = await supabase
           .from('user_oauth_credentials')
-          .upsert({
-            user_id: session.user.id,
-            provider: 'google',
-            access_token_encrypted: session.provider_token,
-            refresh_token_encrypted: session.provider_refresh_token,
-            token_expires_at: new Date(Date.now() + 86400000).toISOString(),
-            scopes: [
-              'https://www.googleapis.com/auth/userinfo.email',
-              'https://www.googleapis.com/auth/userinfo.profile',
-            ],
-            is_bigquery_connected: false,
-            updated_at: new Date().toISOString(),
-          }, {
+          .upsert(upsertPayload, {
             onConflict: 'user_id,provider',
           });
 
@@ -114,7 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/`,
+        redirectTo: `${window.location.origin}/auth/callback`,
         scopes: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid',
         queryParams: { access_type: 'offline', prompt: 'consent' },
       },

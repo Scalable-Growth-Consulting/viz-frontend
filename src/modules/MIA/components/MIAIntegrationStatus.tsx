@@ -13,35 +13,65 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { IntegrationConfig } from '../types';
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { fetchIntegrationStatuses, connectPlatform } from '../services/integrationStatusService';
 
 const MIAIntegrationStatus: React.FC = () => {
-  // Mock integration status - in real app, this would come from props or context
-  const integrations: IntegrationConfig[] = [
-    {
-      platform: 'meta',
-      isConnected: true,
-      lastSync: '2024-01-20T10:30:00Z',
-      syncStatus: 'success',
-      accountId: 'act_123456789',
-    },
-    {
-      platform: 'google',
-      isConnected: true,
-      lastSync: '2024-01-20T09:15:00Z',
-      syncStatus: 'success',
-      accountId: '123-456-7890',
-    },
-    {
-      platform: 'linkedin',
-      isConnected: false,
-      syncStatus: 'idle',
-    },
-    {
-      platform: 'tiktok',
-      isConnected: false,
-      syncStatus: 'idle',
-    },
-  ];
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [integrations, setIntegrations] = useState<IntegrationConfig[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [connectingPlatform, setConnectingPlatform] = useState<IntegrationConfig['platform'] | null>(null);
+
+  const loadStatuses = async () => {
+    try {
+      const data = await fetchIntegrationStatuses(user?.id);
+      setIntegrations(data);
+    } catch (err) {
+      console.error('Failed to load integration statuses:', err);
+      toast({
+        title: 'Error loading integration statuses',
+        description: 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    loadStatuses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const handleConnect = async (platform: IntegrationConfig['platform']) => {
+    try {
+      setConnectingPlatform(platform);
+      await connectPlatform(platform);
+      toast({
+        title: 'Continue in popup',
+        description: 'Complete the provider sign-in to connect.',
+      });
+    } catch (err: any) {
+      console.error('Connect error:', err);
+      toast({
+        title: 'Unable to connect',
+        description: err?.message || 'Please try again later.',
+        variant: 'destructive',
+      });
+    } finally {
+      setConnectingPlatform(null);
+      // Refresh after the OAuth attempt
+      loadStatuses();
+    }
+  };
+
+  const handleManageClick = () => {
+    toast({ title: 'Manage integrations', description: 'Management UI coming soon.' });
+  };
 
   const getStatusIcon = (config: IntegrationConfig) => {
     if (!config.isConnected) {
@@ -114,6 +144,40 @@ const MIAIntegrationStatus: React.FC = () => {
   const connectedIntegrations = integrations.filter(i => i.isConnected);
   const hasErrors = integrations.some(i => i.syncStatus === 'error');
 
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-lg font-semibold">Integration Status</CardTitle>
+            <div className="h-8 w-24 bg-slate-200 dark:bg-viz-light/10 rounded animate-pulse" />
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[0,1,2,3].map((i) => (
+                <div key={i} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3 animate-pulse">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-slate-200 dark:bg-viz-light/10 rounded" />
+                      <div className="h-4 w-32 bg-slate-200 dark:bg-viz-light/10 rounded" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-6 w-24 bg-slate-200 dark:bg-viz-light/10 rounded" />
+                    <div className="space-y-1 text-xs">
+                      <div className="h-3 w-40 bg-slate-200 dark:bg-viz-light/10 rounded" />
+                      <div className="h-3 w-32 bg-slate-200 dark:bg-viz-light/10 rounded" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Status Overview */}
@@ -124,7 +188,7 @@ const MIAIntegrationStatus: React.FC = () => {
             <Badge variant="outline">
               {connectedIntegrations.length} of {integrations.length} connected
             </Badge>
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleManageClick} className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
               Manage
             </Button>
@@ -149,7 +213,9 @@ const MIAIntegrationStatus: React.FC = () => {
                   
                   {integration.isConnected ? (
                     <div className="space-y-1 text-xs text-muted-foreground">
-                      <div>Account: {integration.accountId}</div>
+                      {integration.accountId && (
+                        <div>Account: {integration.accountId}</div>
+                      )}
                       <div>Last sync: {formatLastSync(integration.lastSync)}</div>
                       {integration.errorMessage && (
                         <div className="text-red-600 dark:text-red-400">
@@ -158,9 +224,24 @@ const MIAIntegrationStatus: React.FC = () => {
                       )}
                     </div>
                   ) : (
-                    <Button variant="outline" size="sm" className="w-full text-xs">
-                      <Plus className="w-3 h-3 mr-1" />
-                      Connect
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full text-xs"
+                      onClick={() => handleConnect(integration.platform)}
+                      disabled={connectingPlatform === integration.platform}
+                    >
+                      {connectingPlatform === integration.platform ? (
+                        <>
+                          <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                          Connecting...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-3 h-3 mr-1" />
+                          Connect
+                        </>
+                      )}
                     </Button>
                   )}
                 </div>

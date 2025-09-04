@@ -181,7 +181,7 @@ const BigQueryConnection: React.FC = () => {
         provider: 'google',
         options: {
           scopes: 'https://www.googleapis.com/auth/bigquery.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
-          redirectTo: `${currentUrl}/auth/callback`,
+          redirectTo: `${currentUrl}/auth/callback?integration=bigquery`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent'
