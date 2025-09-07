@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ADMIN_EMAIL, hasPremiumAccess } from '@/utils/adminAccess';
-import MIAComingSoon from '@/pages/MIAComingSoon';
+import MIARegularUser from '@/modules/MIA/components/MIARegularUser';
 
 interface MIAAccessGuardProps {
   children: React.ReactNode;
@@ -24,9 +24,9 @@ const MIAAccessGuard: React.FC<MIAAccessGuardProps> = ({ children }) => {
     return <>{children}</>;
   }
 
-  // All other users see Coming Soon page inline without the extra header
-  console.log('[MIAAccessGuard] ❌ Access denied - showing Coming Soon page');
-  return <MIAComingSoon showHeader={false} />;
+  // Regular users see the Meta and Google integration page
+  console.log('[MIAAccessGuard] ✅ Regular user access - showing Meta and Google integration');
+  return <MIARegularUser />;
 };
 
 export default MIAAccessGuard;
