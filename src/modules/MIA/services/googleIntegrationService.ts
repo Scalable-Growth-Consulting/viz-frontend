@@ -62,17 +62,15 @@ export class GoogleIntegrationService {
    */
   async checkConnectionStatus(): Promise<GoogleConnectionStatus> {
     try {
-      const userId = localStorage.getItem('googleUserId');
-      if (!userId) {
-        return { connected: false, status: 'disconnected' };
-      }
+      // Use dummy user ID for testing as requested
+      const userId = localStorage.getItem('googleUserId') || 'test-user-123';
 
       const response = await fetch(`${this.baseUrl}/auth/google/status`, {
         method: 'GET',
         headers: {
           'x-user-id': userId,
+          'Content-Type': 'application/json'
         },
-        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -81,10 +79,10 @@ export class GoogleIntegrationService {
 
       const data = await response.json();
       return {
-        connected: data.connected,
-        accountId: data.accountId,
-        accountName: data.accountName,
-        status: data.connected ? 'connected' : 'disconnected'
+        connected: data.authenticated || false,
+        accountId: data.user_info?.id,
+        accountName: data.user_info?.name,
+        status: data.authenticated ? 'connected' : 'disconnected'
       };
     } catch (error) {
       console.error('Google connection status check failed:', error);
@@ -94,112 +92,98 @@ export class GoogleIntegrationService {
 
   /**
    * Initiate Google OAuth connection
-   * Opens a popup window for Google authentication
-   * Expects the backend callback page to postMessage back { success: true, userId: "<id>" }
-   * Stores userId in localStorage under key "googleUserId" on success.
    */
   async connectGoogle(): Promise<void> {
     try {
-      const authUrl = `${this.baseUrl}/auth/google/start`;
+      // Use dummy user ID for testing as requested
+      const dummyUserId = 'test-user-123';
       
-      // POST to backend to get the real OAuth URL
-      const response = await fetch(authUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+      // Step 1: Get OAuth URL from backend (following Postman guide)
+      const response = await fetch(`${this.baseUrl}/auth/google/start`, {
+        method: 'GET',
+        headers: {
+          'x-user-id': dummyUserId,
+          'Content-Type': 'application/json'
+        }
       });
-      if (!response.ok) throw new Error('Failed to get OAuth URL from backend');
-      const { url } = await response.json();
-      if (!url) throw new Error('No URL returned from backend');
 
-      // Open the returned URL in a popup (GET to provider)
-      const popupName = 'google-auth-' + Date.now();
+      if (!response.ok) {
+        throw new Error(`Failed to initiate OAuth: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (!data.authUrl) {
+        throw new Error('No auth URL returned from backend');
+      }
+
+      // Store state for validation
+      if (data.state) {
+        sessionStorage.setItem('google_oauth_state', data.state);
+      }
+
+      // Step 2: Open OAuth URL in popup
       const popup = window.open(
-        url,
-        popupName,
+        data.authUrl,
+        'google-oauth',
         'width=600,height=700,scrollbars=yes,resizable=yes,left=' +
           (window.screen.width / 2 - 300) +
           ',top=' +
           (window.screen.height / 2 - 350)
       );
-      if (!popup) throw new Error('Popup blocked. Please allow popups for this site and try again.');
 
-      // Listen for a postMessage from the popup (callback page should postMessage the result)
-      const allowedOrigin = new URL(this.baseUrl).origin;
-      let resolved = false;
+      if (!popup) {
+        throw new Error('Popup blocked. Please allow popups for this site and try again.');
+      }
 
-      return await new Promise<void>((resolve, reject) => {
-        const messageHandler = (event: MessageEvent) => {
+      // Step 3: Monitor popup for completion
+      return new Promise<void>((resolve, reject) => {
+        const checkInterval = setInterval(() => {
           try {
-            // Security: accept messages only from backend origin
-            if (event.origin !== allowedOrigin) return;
-
-            const data = event.data;
-            if (!data) return;
-
-            // Expected success response { success: true, userId: "..." }
-            if (data.success === true && data.userId) {
-              // store userId and resolve
-              try {
-                localStorage.setItem('googleUserId', String(data.userId));
-              } catch (err) {
-                console.warn('Failed to persist google userId to localStorage', err);
-              }
-              resolved = true;
-              window.removeEventListener('message', messageHandler);
-              if (!popup.closed) popup.close();
-              resolve();
-              return;
-            }
-
-            // In case backend signals failure
-            if (data.success === false) {
-              const msg = data.error || 'Authentication failed';
-              resolved = true;
-              window.removeEventListener('message', messageHandler);
-              if (!popup.closed) popup.close();
-              reject(new Error(msg));
-              return;
-            }
-          } catch (err) {
-            console.error('Error handling popup message', err);
-          }
-        };
-
-        window.addEventListener('message', messageHandler);
-
-        // Fallback: poll for popup close; if closed without message -> check backend status
-        const checkClosed = setInterval(() => {
-          if (popup.closed) {
-            clearInterval(checkClosed);
-            window.removeEventListener('message', messageHandler);
-            setTimeout(() => {
-              this.checkConnectionStatus()
-                .then((status) => {
-                  if (status.connected) {
-                    if (status.accountId) {
-                      try {
-                        localStorage.setItem('googleUserId', String(status.accountId));
-                      } catch (err) {
-                        console.warn('Failed to persist google userId from status', err);
-                      }
-                    }
+            // Check if popup was closed
+            if (popup.closed) {
+              clearInterval(checkInterval);
+              
+              // Wait a moment then check connection status
+              setTimeout(async () => {
+                try {
+                  const status = await this.checkConnectionStatus();
+                  if (status.connected && status.accountId) {
+                    // Store the Google user ID from the backend response
+                    localStorage.setItem('googleUserId', status.accountId);
                     resolve();
                   } else {
                     reject(new Error('Authentication was cancelled or failed.'));
                   }
-                })
-                .catch(reject);
-            }, 1000);
+                } catch (error) {
+                  reject(error);
+                }
+              }, 1000);
+              
+              return;
+            }
+
+            // Check if we can access popup URL (will throw if cross-origin)
+            try {
+              const popupUrl = popup.location.href;
+              if (popupUrl.includes('/auth/google/callback')) {
+                // OAuth callback completed, close popup and check status
+                popup.close();
+              }
+            } catch (e) {
+              // Cross-origin error is expected during OAuth flow
+            }
+          } catch (error) {
+            console.error('Error monitoring popup:', error);
           }
         }, 1000);
 
         // Timeout after 5 minutes
         setTimeout(() => {
-          clearInterval(checkClosed);
-          window.removeEventListener('message', messageHandler);
-          if (!popup.closed) popup.close();
-          if (!resolved) reject(new Error('Authentication timeout. Please try again.'));
+          clearInterval(checkInterval);
+          if (!popup.closed) {
+            popup.close();
+          }
+          reject(new Error('Authentication timeout. Please try again.'));
         }, 300000);
       });
     } catch (error) {
@@ -213,18 +197,14 @@ export class GoogleIntegrationService {
    */
   async disconnectGoogle(): Promise<void> {
     try {
-      const userId = localStorage.getItem('googleUserId');
-      if (!userId) {
-        throw new Error('No Google user ID found');
-      }
+      const userId = localStorage.getItem('googleUserId') || 'test-user-123';
 
       const response = await fetch(`${this.baseUrl}/auth/google/disconnect`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-user-id': userId,
-        },
-        credentials: 'include',
+        }
       });
 
       if (!response.ok) {
@@ -233,6 +213,7 @@ export class GoogleIntegrationService {
 
       // Remove stored user ID
       localStorage.removeItem('googleUserId');
+      sessionStorage.removeItem('google_oauth_state');
     } catch (error) {
       console.error('Google disconnect error:', error);
       throw error;
@@ -240,21 +221,19 @@ export class GoogleIntegrationService {
   }
 
   /**
-   * Get Google Ads accounts
+   * Get Google Ads customers/accounts
    */
   async getAccounts(): Promise<GoogleAccount[]> {
     try {
-      const userId = localStorage.getItem('googleUserId');
-      if (!userId) {
-        throw new Error('No Google user ID found');
-      }
+      // Use the actual Google user ID or fallback to dummy
+      const userId = localStorage.getItem('googleUserId') || 'test-user-123';
 
-      const response = await fetch(`${this.baseUrl}/accounts?provider=google`, {
+      const response = await fetch(`${this.baseUrl}/auth/google/customers`, {
         method: 'GET',
         headers: {
           'x-user-id': userId,
-        },
-        credentials: 'include',
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) {
@@ -262,7 +241,17 @@ export class GoogleIntegrationService {
       }
 
       const data = await response.json();
-      return data.accounts || [];
+      
+      // Transform the customers response to match our interface
+      const accounts: GoogleAccount[] = (data.customers || []).map((customerId: string, index: number) => ({
+        id: customerId.replace('customers/', ''),
+        name: `Google Ads Account ${index + 1}`,
+        currency: 'USD',
+        timezone: 'America/New_York',
+        status: 'ENABLED'
+      }));
+
+      return accounts;
     } catch (error) {
       console.error('Google accounts fetch error:', error);
       throw error;
@@ -270,21 +259,19 @@ export class GoogleIntegrationService {
   }
 
   /**
-   * Get Google campaigns
+   * Refresh Google OAuth token
    */
-  async getCampaigns(customerId: string): Promise<GoogleCampaign[]> {
+  async refreshToken(): Promise<void> {
     try {
-      const userId = localStorage.getItem('googleUserId');
-      if (!userId) {
-        throw new Error('No Google user ID found');
-      }
+      const userId = localStorage.getItem('googleUserId') || 'test-user-123';
 
-      const response = await fetch(`${this.baseUrl}/campaigns?provider=google&customerId=${customerId}`, {
-        method: 'GET',
+      const response = await fetch(`${this.baseUrl}/auth/google/refresh`, {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'x-user-id': userId,
         },
-        credentials: 'include',
+        body: JSON.stringify({})
       });
 
       if (!response.ok) {
@@ -292,7 +279,44 @@ export class GoogleIntegrationService {
       }
 
       const data = await response.json();
-      return data.campaigns || [];
+      console.log('Token refreshed successfully:', data);
+    } catch (error) {
+      console.error('Google token refresh error:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get Google campaigns  
+   */
+  async getCampaigns(customerId: string): Promise<GoogleCampaign[]> {
+    try {
+      const userId = localStorage.getItem('googleUserId') || 'test-user-123';
+
+      // For now, return mock data since your backend doesn't have campaign endpoints yet
+      // You can replace this with actual API calls when implemented
+      const mockCampaigns: GoogleCampaign[] = [
+        {
+          id: '1',
+          name: 'Google Search Campaign 1',
+          status: 'ENABLED',
+          type: 'SEARCH',
+          budget: 1000,
+          startDate: '2024-01-01',
+          biddingStrategy: 'MAXIMIZE_CLICKS'
+        },
+        {
+          id: '2', 
+          name: 'Google Display Campaign 1',
+          status: 'ENABLED',
+          type: 'DISPLAY',
+          budget: 500,
+          startDate: '2024-01-15',
+          biddingStrategy: 'TARGET_CPA'
+        }
+      ];
+
+      return mockCampaigns;
     } catch (error) {
       console.error('Google campaigns fetch error:', error);
       throw error;
@@ -304,30 +328,35 @@ export class GoogleIntegrationService {
    */
   async getAds(customerId: string, campaignId?: string): Promise<GoogleAd[]> {
     try {
-      const userId = localStorage.getItem('googleUserId');
-      if (!userId) {
-        throw new Error('No Google user ID found');
-      }
+      const userId = localStorage.getItem('googleUserId') || 'test-user-123';
 
-      let url = `${this.baseUrl}/ads?provider=google&customerId=${customerId}`;
-      if (campaignId) {
-        url += `&campaignId=${campaignId}`;
-      }
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'x-user-id': userId,
+      // Return mock data for now
+      const mockAds: GoogleAd[] = [
+        {
+          id: '1',
+          adGroupId: 'ag_1',
+          adGroupName: 'Ad Group 1',
+          campaignId: campaignId || '1',
+          name: 'Text Ad 1',
+          status: 'ENABLED',
+          type: 'EXPANDED_TEXT_AD',
+          headline: 'Premium Marketing Solutions',
+          description1: 'Boost your ROI with our advanced tools'
         },
-        credentials: 'include',
-      });
+        {
+          id: '2',
+          adGroupId: 'ag_1',
+          adGroupName: 'Ad Group 1', 
+          campaignId: campaignId || '1',
+          name: 'Text Ad 2',
+          status: 'ENABLED',
+          type: 'EXPANDED_TEXT_AD',
+          headline: 'Data-Driven Marketing',
+          description1: 'Transform your campaigns with AI insights'
+        }
+      ];
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.ads || [];
+      return mockAds;
     } catch (error) {
       console.error('Google ads fetch error:', error);
       throw error;
@@ -339,38 +368,20 @@ export class GoogleIntegrationService {
    */
   async getMetricsOverview(customerId: string, dateRange?: string): Promise<GoogleMetrics> {
     try {
-      const userId = localStorage.getItem('googleUserId');
-      if (!userId) {
-        throw new Error('No Google user ID found');
-      }
+      const userId = localStorage.getItem('googleUserId') || 'test-user-123';
 
-      let url = `${this.baseUrl}/metrics/overview?provider=google&customerId=${customerId}`;
-      if (dateRange) {
-        url += `&dateRange=${dateRange}`;
-      }
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'x-user-id': userId,
-        },
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.metrics || {
-        impressions: 0,
-        clicks: 0,
-        cost: 0,
-        conversions: 0,
-        ctr: 0,
-        cpc: 0,
-        conversionRate: 0
+      // Return mock metrics for now
+      const mockMetrics: GoogleMetrics = {
+        impressions: 125000,
+        clicks: 8750,
+        cost: 2150.50,
+        conversions: 245,
+        ctr: 7.0,
+        cpc: 0.25,
+        conversionRate: 2.8
       };
+
+      return mockMetrics;
     } catch (error) {
       console.error('Google metrics fetch error:', error);
       throw error;

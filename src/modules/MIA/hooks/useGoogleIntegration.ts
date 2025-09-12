@@ -162,6 +162,24 @@ export const useGoogleIntegration = () => {
     }
   };
 
+  const refreshToken = async (): Promise<void> => {
+    try {
+      await googleIntegrationService.refreshToken();
+      toast({
+        title: "Token Refreshed",
+        description: "Google Ads access token has been refreshed successfully.",
+      });
+    } catch (error) {
+      console.error('Failed to refresh Google token:', error);
+      toast({
+        title: "Token Refresh Failed", 
+        description: "Could not refresh Google Ads access token.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   return {
     connectionStatus,
     loading,
@@ -173,6 +191,7 @@ export const useGoogleIntegration = () => {
     getCampaigns,
     getAds,
     getMetrics,
+    refreshToken,
     checkStatus
   };
 };

@@ -17,29 +17,46 @@ import {
   DollarSign,
   BarChart3,
 } from 'lucide-react';
-import { AIChatService } from '../services/aiChatService';
-import { MarketingQuery } from '../types';
+import { useMIAChat } from '../hooks/useMIAChat';
 
-interface MIAChatInterfaceProps {
-  aiChatService: AIChatService;
+interface ChatMessage {
+  id: string;
+  query?: string;
+  response: string;
+  timestamp: string;
   userId: string;
+  insights?: Array<{
+    title: string;
+    severity: string;
+    recommendation: string;
+  }>;
 }
 
-const MIAChatInterface: React.FC<MIAChatInterfaceProps> = ({ aiChatService, userId }) => {
-  const [messages, setMessages] = useState<MarketingQuery[]>([]);
+interface MIAChatInterfaceProps {}
+
+const MIAChatInterface: React.FC<MIAChatInterfaceProps> = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { sendMessage, isLoading } = useMIAChat();
 
   // Suggested queries
-  const suggestedQueries = aiChatService.getSuggestedQueries();
+  const suggestedQueries = [
+    "What's my current ROAS across all campaigns?",
+    "Which campaigns are underperforming?",
+    "How can I optimize my ad spend?",
+    "Show me insights for my Google Ads",
+    "Compare Meta vs Google performance",
+    "What's my best performing demographic?",
+    "How to improve my conversion rate?",
+    "Identify budget optimization opportunities"
+  ];
 
   useEffect(() => {
     // Add welcome message
-    const welcomeMessage: MarketingQuery = {
+    const welcomeMessage: ChatMessage = {
       id: 'welcome',
-      query: '',
       response: "👋 Hi! I'm your Marketing Intelligence Agent. I can help you analyze campaign performance, optimize ad spend, and provide actionable insights. Try asking me about your ROAS, campaign comparisons, or optimization recommendations!",
       timestamp: new Date().toISOString(),
       userId: 'system',
@@ -57,21 +74,65 @@ const MIAChatInterface: React.FC<MIAChatInterfaceProps> = ({ aiChatService, user
   const handleSendMessage = async (query: string = inputValue) => {
     if (!query.trim() || isLoading) return;
 
-    setIsLoading(true);
     setInputValue('');
 
+    // Add user message immediately
+    const userMessage: ChatMessage = {
+      id: `user_${Date.now()}`,
+      query: query,
+      response: query,
+      timestamp: new Date().toISOString(),
+      userId: 'user',
+    };
+    setMessages(prev => [...prev, userMessage]);
+
     try {
-      const response = await aiChatService.processQuery(query, userId);
-      setMessages(prev => [...prev, response]);
+      const response = await sendMessage({
+        message: query,
+        userId: 'anonymous',
+        timestamp: new Date().toISOString(),
+        context: 'marketing_intelligence'
+      });
+      
+      // Convert response to ChatMessage format
+      const chatResponse: ChatMessage = {
+        id: response.id,
+        query: query,
+        response: response.response,
+        timestamp: response.timestamp,
+        userId: 'system',
+        insights: response.insights
+      };
+      
+      setMessages(prev => [...prev, chatResponse]);
     } catch (error) {
       console.error('Error processing query:', error);
+      
+      let errorMessage = 'Failed to process your query. Please try again.';
+      if (error instanceof Error) {
+        if (error.message.includes('Backend URL not configured')) {
+          errorMessage = 'Chat service is not configured. Please contact support.';
+        } else if (error.message.includes('500')) {
+          errorMessage = 'Server error. Please try again later.';
+        } else if (error.message.includes('timeout') || error.message.includes('fetch')) {
+          errorMessage = 'Connection timeout. Please check your internet connection.';
+        }
+      }
+      
       toast({
         title: 'Error',
-        description: 'Failed to process your query. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
+      
+      // Add error message to chat
+      const errorChatMessage: ChatMessage = {
+        id: `error_${Date.now()}`,
+        response: `❌ ${errorMessage}`,
+        timestamp: new Date().toISOString(),
+        userId: 'system',
+      };
+      setMessages(prev => [...prev, errorChatMessage]);
     }
   };
 
@@ -87,8 +148,8 @@ const MIAChatInterface: React.FC<MIAChatInterfaceProps> = ({ aiChatService, user
     });
   };
 
-  const renderMessage = (message: MarketingQuery) => {
-    const isUser = message.userId !== 'system';
+  const renderMessage = (message: ChatMessage) => {
+    const isUser = message.userId === 'user';
     
     return (
       <div
@@ -109,42 +170,37 @@ const MIAChatInterface: React.FC<MIAChatInterfaceProps> = ({ aiChatService, user
                 : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
             }`}
           >
-            {isUser && message.query && (
-              <p className="text-sm">{message.query}</p>
-            )}
-            {!isUser && (
-              <div className="space-y-2">
-                <div className="prose prose-sm max-w-none dark:prose-invert">
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {message.response}
-                  </div>
+            <div className="space-y-2">
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                  {message.response}
                 </div>
-                
-                {message.insights && message.insights.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    <div className="text-xs font-medium text-muted-foreground">
-                      Related Insights:
-                    </div>
-                    {message.insights.slice(0, 2).map((insight, index) => (
-                      <div
-                        key={index}
-                        className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-2"
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="outline" className="text-xs">
-                            {insight.severity.toUpperCase()}
-                          </Badge>
-                          <span className="text-xs font-medium">{insight.title}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {insight.recommendation}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-            )}
+              
+              {message.insights && message.insights.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <div className="text-xs font-medium text-muted-foreground">
+                    Related Insights:
+                  </div>
+                  {message.insights.slice(0, 2).map((insight, index) => (
+                    <div
+                      key={index}
+                      className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-2"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="outline" className="text-xs">
+                          {insight.severity.toUpperCase()}
+                        </Badge>
+                        <span className="text-xs font-medium">{insight.title}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {insight.recommendation}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           
           <div className={`text-xs text-muted-foreground mt-1 ${isUser ? 'text-right' : 'text-left'}`}>

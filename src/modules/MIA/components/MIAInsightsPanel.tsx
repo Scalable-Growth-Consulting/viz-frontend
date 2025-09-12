@@ -12,11 +12,15 @@ import {
   CheckCircle,
   Clock,
   ArrowRight,
+  Zap,
+  Users,
+  Eye,
+  MousePointer
 } from 'lucide-react';
-import { PerformanceInsight } from '../types';
+import { AdInsight } from '../types/insights';
 
 interface MIAInsightsPanelProps {
-  insights: PerformanceInsight[];
+  insights: AdInsight[];
   showAll?: boolean;
 }
 
@@ -28,11 +32,26 @@ const MIAInsightsPanel: React.FC<MIAInsightsPanelProps> = ({ insights, showAll =
       case 'ad_fatigue':
         return <Clock className="w-5 h-5" />;
       case 'budget_optimization':
+      case 'budget_exhaustion':
+      case 'budget_underutilization':
         return <DollarSign className="w-5 h-5" />;
       case 'keyword_performance':
+      case 'bid_optimization':
         return <Target className="w-5 h-5" />;
       case 'creative_performance':
+      case 'creative_underperforming':
+      case 'performance_spike':
         return <TrendingUp className="w-5 h-5" />;
+      case 'ctr_decline':
+        return <MousePointer className="w-5 h-5" />;
+      case 'impression_share_loss':
+        return <Eye className="w-5 h-5" />;
+      case 'demographic_opportunity':
+      case 'audience_saturation':
+        return <Users className="w-5 h-5" />;
+      case 'roas_below_target':
+      case 'conversion_drop':
+        return <AlertTriangle className="w-5 h-5" />;
       default:
         return <Lightbulb className="w-5 h-5" />;
     }
@@ -40,12 +59,16 @@ const MIAInsightsPanel: React.FC<MIAInsightsPanelProps> = ({ insights, showAll =
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'high':
+      case 'critical':
         return 'text-red-600 dark:text-red-400';
+      case 'high':
+        return 'text-orange-600 dark:text-orange-400';
       case 'medium':
         return 'text-yellow-600 dark:text-yellow-400';
       case 'low':
         return 'text-blue-600 dark:text-blue-400';
+      case 'opportunity':
+        return 'text-green-600 dark:text-green-400';
       default:
         return 'text-gray-600 dark:text-gray-400';
     }
@@ -53,14 +76,31 @@ const MIAInsightsPanel: React.FC<MIAInsightsPanelProps> = ({ insights, showAll =
 
   const getSeverityBadgeVariant = (severity: string) => {
     switch (severity) {
+      case 'critical':
+        return 'destructive' as const;
       case 'high':
         return 'destructive' as const;
       case 'medium':
         return 'secondary' as const;
       case 'low':
         return 'outline' as const;
+      case 'opportunity':
+        return 'default' as const;
       default:
         return 'outline' as const;
+    }
+  };
+
+  const getPlatformEmoji = (platform: string) => {
+    switch (platform) {
+      case 'google':
+        return '🎯';
+      case 'meta':
+        return '📘';
+      case 'cross-platform':
+        return '🔄';
+      default:
+        return '📊';
     }
   };
 
@@ -109,7 +149,7 @@ const MIAInsightsPanel: React.FC<MIAInsightsPanelProps> = ({ insights, showAll =
                 <div className={getSeverityColor(insight.severity)}>
                   {getInsightIcon(insight.type)}
                 </div>
-                <div>
+                <div className="flex-1">
                   <h4 className="font-semibold text-viz-dark dark:text-white">
                     {insight.title}
                   </h4>
@@ -120,8 +160,20 @@ const MIAInsightsPanel: React.FC<MIAInsightsPanelProps> = ({ insights, showAll =
                     <Badge variant="outline" className="text-xs capitalize">
                       {insight.type.replace('_', ' ')}
                     </Badge>
+                    <span className="text-lg">{getPlatformEmoji(insight.platform)}</span>
                   </div>
                 </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {insight.confidence}% confidence
+                </Badge>
+                {insight.automationPossible && (
+                  <Badge variant="default" className="text-xs bg-green-600">
+                    <Zap className="w-3 h-3 mr-1" />
+                    Auto-Fix
+                  </Badge>
+                )}
               </div>
             </div>
 
@@ -153,14 +205,32 @@ const MIAInsightsPanel: React.FC<MIAInsightsPanelProps> = ({ insights, showAll =
               </div>
             </div>
 
-            {/* Action Button */}
-            {insight.campaignId && (
-              <div className="flex justify-end">
-                <Button variant="outline" size="sm" className="text-xs">
-                  View Campaign
-                </Button>
+            {/* Action Buttons */}
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Clock className="w-3 h-3" />
+                {insight.timeframe}
+                {insight.dataPoints && (
+                  <>
+                    <span className="mx-1">•</span>
+                    <span>Based on: {insight.dataPoints.join(', ')}</span>
+                  </>
+                )}
               </div>
-            )}
+              <div className="flex gap-2">
+                {insight.campaignId && (
+                  <Button variant="outline" size="sm" className="text-xs">
+                    View Campaign
+                  </Button>
+                )}
+                {insight.automationPossible && (
+                  <Button size="sm" className="text-xs bg-green-600 hover:bg-green-700">
+                    <Zap className="w-3 h-3 mr-1" />
+                    Auto-Apply
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         ))}
 
@@ -177,9 +247,15 @@ const MIAInsightsPanel: React.FC<MIAInsightsPanelProps> = ({ insights, showAll =
         {/* Summary Stats */}
         {showAll && insights.length > 0 && (
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-6">
-            <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
               <div>
                 <div className="text-2xl font-bold text-red-600">
+                  {insights.filter(i => i.severity === 'critical').length}
+                </div>
+                <div className="text-xs text-muted-foreground">Critical</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-orange-600">
                   {insights.filter(i => i.severity === 'high').length}
                 </div>
                 <div className="text-xs text-muted-foreground">High Priority</div>
@@ -196,6 +272,18 @@ const MIAInsightsPanel: React.FC<MIAInsightsPanelProps> = ({ insights, showAll =
                 </div>
                 <div className="text-xs text-muted-foreground">Low Priority</div>
               </div>
+              <div>
+                <div className="text-2xl font-bold text-green-600">
+                  {insights.filter(i => i.severity === 'opportunity').length}
+                </div>
+                <div className="text-xs text-muted-foreground">Opportunities</div>
+              </div>
+            </div>
+            
+            <div className="mt-4 text-center">
+              <Badge variant="outline" className="text-xs">
+                {insights.filter(i => i.automationPossible).length} insights can be auto-optimized
+              </Badge>
             </div>
           </div>
         )}

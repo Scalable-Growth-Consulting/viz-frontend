@@ -30,8 +30,8 @@ export class MetaIntegrationService {
       const authUrl = `${this.baseUrl}/auth/meta/start`;
       // POST to backend to get the real OAuth URL
       const response = await fetch(authUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json',  },
         credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to get OAuth URL from backend');
