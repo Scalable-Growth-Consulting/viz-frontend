@@ -13,12 +13,12 @@ export interface MetaConnectionStatus {
 export class MetaIntegrationService {
   private baseUrl: string;
   private toast: any;
+  private dummyUserId: string = 'test-user-123'; // Dummy user ID for testing
 
   constructor() {
     this.baseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
   }
 
-  // ...existing code...
   /**
    * Initiate Meta OAuth connection
    * Opens a popup window for Meta authentication
@@ -29,14 +29,22 @@ export class MetaIntegrationService {
     try {
       const authUrl = `${this.baseUrl}/auth/meta/start`;
       // POST to backend to get the real OAuth URL
+      console.log(authUrl);
       const response = await fetch(authUrl, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json',  },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': this.dummyUserId
+        },
         credentials: 'include',
       });
+      // console.log(response.url)
+      console.log(response)
       if (!response.ok) throw new Error('Failed to get OAuth URL from backend');
-      const { url } = await response.json();
-      if (!url) throw new Error('No URL returned from backend');
+      const data = await response.json();
+      console.log('[MetaIntegration] Auth response data:', data);
+      const url = data.authUrl || data.url; // ✅ Looking for 'authUrl' first, fallback to 'url'
+      if (!url) throw new Error('No authUrl returned from backend');
 
       // Open the returned URL in a popup (GET to provider)
       const popupName = 'meta-auth-' + Date.now();
@@ -201,17 +209,18 @@ export class MetaIntegrationService {
 
   /**
    * Check current Meta connection status
+   * ORIGINAL IMPLEMENTATION - COMMENTED OUT FOR DUMMY TESTING
    */
   async checkConnectionStatus(): Promise<MetaConnectionStatus> {
   try {
-    const metaUserId = localStorage.getItem('metaUserId');
+    const metaUserId = localStorage.getItem('metaUserId') || this.dummyUserId;
 
     const response = await fetch(`${this.baseUrl}/auth/meta/status`, {
       method: 'GET',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        ...(metaUserId ? { 'x-user-id': metaUserId } : {}),
+        'x-user-id': metaUserId,
       },
     });
 
@@ -261,6 +270,25 @@ export class MetaIntegrationService {
   }
 
   /**
+   * DUMMY CONNECTION STATUS - Returns connected state for testing
+   * Remove this and uncomment above method when backend is ready
+   */
+  // async checkConnectionStatus(): Promise<MetaConnectionStatus> {
+  //   console.log('[MetaIntegration] Using DUMMY status - always returns connected');
+    
+  //   // Simulate API delay
+  //   await new Promise(resolve => setTimeout(resolve, 500));
+    
+  //   return {
+  //     isConnected: true,
+  //     accountId: 'act_123456789',
+  //     accountName: 'Demo Meta Ads Account',
+  //     lastSync: new Date().toISOString(),
+  //     status: 'connected',
+  //   };
+  // }
+
+  /**
    * Disconnect Meta account
    */
   async disconnectMeta(): Promise<void> {
@@ -270,6 +298,7 @@ export class MetaIntegrationService {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': this.dummyUserId,
         },
       });
 
@@ -292,6 +321,7 @@ export class MetaIntegrationService {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': this.dummyUserId,
         },
       });
 
@@ -314,6 +344,7 @@ export class MetaIntegrationService {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': this.dummyUserId,
         },
       });
 
