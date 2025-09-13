@@ -30,7 +30,8 @@ import {
   Wallet,
   Database,
 } from 'lucide-react';
-import { Campaign, PlatformMetrics, PerformanceInsight, DashboardFilters } from '../types';
+import { Campaign, PlatformMetrics, DashboardFilters } from '../types';
+import { AdInsight } from '../types/insights';
 import { AnalyticsService } from '../services/analyticsService';
 import { AIChatService } from '../services/aiChatService';
 import MIAMetricsCards from './MIAMetricsCards';
@@ -39,6 +40,8 @@ import MIACampaignTable from './MIACampaignTable';
 import MIAInsightsPanel from './MIAInsightsPanel';
 import MIAChatInterface from './MIAChatInterface';
 import MIAIntegrationStatus from './MIAIntegrationStatus';
+import MIAMetaIntegration from './MIAMetaIntegration';
+import MIAGoogleIntegration from './MIAGoogleIntegration';
 
 interface MIADashboardProps {
   userId: string;
@@ -48,7 +51,7 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [platformMetrics, setPlatformMetrics] = useState<PlatformMetrics[]>([]);
-  const [insights, setInsights] = useState<PerformanceInsight[]>([]);
+  const [insights, setInsights] = useState<AdInsight[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -64,6 +67,27 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
 
   const { toast } = useToast();
   const aiChatService = new AIChatService(campaigns);
+
+  // Convert PerformanceInsight to AdInsight for compatibility
+  const convertToAdInsights = (performanceInsights: any[]): AdInsight[] => {
+    return performanceInsights.map((insight, index) => ({
+      id: `insight_${index + 1}`,
+      type: insight.type as any,
+      severity: insight.severity as any,
+      title: insight.title,
+      description: insight.description,
+      recommendation: insight.recommendation,
+      estimatedImpact: insight.estimatedImpact || 'Medium',
+      confidence: 85, // Default confidence
+      dataPoints: ['performance_metrics'],
+      platform: 'cross-platform' as const,
+      campaignId: insight.campaignId,
+      adSetId: insight.adGroupId,
+      timeframe: '30 days',
+      actionable: true,
+      automationPossible: false
+    }));
+  };
 
   useEffect(() => {
     loadDashboardData();
@@ -185,7 +209,7 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
 
       setCampaigns(filteredCampaigns);
       setPlatformMetrics(metrics);
-      setInsights(generatedInsights);
+      setInsights(convertToAdInsights(generatedInsights));
       aiChatService.updateData(filteredCampaigns);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -370,10 +394,7 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
         </TabsContent>
 
         <TabsContent value="chat" className="space-y-8 mt-8">
-          <MIAChatInterface 
-            aiChatService={aiChatService} 
-            userId={userId} 
-          />
+          <MIAChatInterface />
         </TabsContent>
       </Tabs>
     </>
@@ -515,17 +536,59 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
 
   const SourcesPanel: React.FC = () => (
     <div className="space-y-6">
+      {/* Meta Integration - Fully Functional */}
+      <MIAMetaIntegration 
+        onConnectionChange={(connected) => {
+          console.log('Meta connection status changed:', connected);
+          // You can update dashboard state here if needed
+        }}
+      />
+
+      {/* Google Ads Integration - Newly Added */}
+      <MIAGoogleIntegration 
+        onConnectionChange={(connected) => {
+          console.log('Google connection status changed:', connected);
+          // You can update dashboard state here if needed
+        }}
+      />
+
+      {/* Other Data Sources - Coming Soon */}
       <Card className="bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20 shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Database className="w-5 h-5 text-viz-accent" /> Data Sources</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="w-5 h-5 text-viz-accent" /> 
+            Other Data Sources
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {['Meta Ads','Google Ads','GA4','LinkedIn Ads','TikTok Ads','CRM','Revenue'].map((c) => (
-            <Button key={c} variant="outline" className="justify-start">
-              <Database className="w-4 h-4 mr-2 text-viz-accent" /> Connect {c}
-            </Button>
+          {[
+            { name: 'GA4', icon: '�', status: 'coming-soon' },
+            { name: 'LinkedIn Ads', icon: '�', status: 'coming-soon' },
+            { name: 'TikTok Ads', icon: '🎵', status: 'coming-soon' },
+            { name: 'CRM', icon: '👥', status: 'coming-soon' },
+            { name: 'Revenue', icon: '�', status: 'coming-soon' },
+            { name: 'Pinterest Ads', icon: '�', status: 'coming-soon' },
+          ].map((source) => (
+            <div key={source.name} className="relative">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start opacity-60 cursor-not-allowed"
+                disabled
+              >
+                <span className="mr-2">{source.icon}</span>
+                Connect {source.name}
+              </Button>
+              <Badge 
+                className="absolute -top-2 -right-2 bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 text-xs"
+              >
+                Soon
+              </Badge>
+            </div>
           ))}
-          <div className="col-span-full text-xs text-slate-500">Connections are placeholders. APIs to be wired later.</div>
+          <div className="col-span-full text-xs text-slate-500 mt-4 p-3 rounded-lg bg-slate-50 dark:bg-viz-dark/40">
+            <strong>Meta Ads and Google Ads integrations are live!</strong> Other platform integrations are coming soon. 
+            Contact support if you need priority access to specific platforms.
+          </div>
         </CardContent>
       </Card>
     </div>

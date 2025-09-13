@@ -13,23 +13,27 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { IntegrationConfig } from '../types';
+import { useMetaIntegration } from '../hooks/useMetaIntegration';
 
 const MIAIntegrationStatus: React.FC = () => {
-  // Mock integration status - in real app, this would come from props or context
+  const { connectionStatus: metaStatus } = useMetaIntegration();
+
+  // Create integrations array with real Meta data and mock data for others
   const integrations: IntegrationConfig[] = [
     {
       platform: 'meta',
-      isConnected: true,
-      lastSync: '2024-01-20T10:30:00Z',
-      syncStatus: 'success',
-      accountId: 'act_123456789',
+      isConnected: metaStatus.isConnected,
+      lastSync: metaStatus.lastSync,
+      syncStatus: metaStatus.status === 'connected' ? 'success' : 
+                  metaStatus.status === 'connecting' ? 'syncing' : 
+                  metaStatus.status === 'error' ? 'error' : 'idle',
+      accountId: metaStatus.accountId,
+      errorMessage: metaStatus.errorMessage,
     },
     {
       platform: 'google',
-      isConnected: true,
-      lastSync: '2024-01-20T09:15:00Z',
-      syncStatus: 'success',
-      accountId: '123-456-7890',
+      isConnected: false,
+      syncStatus: 'idle',
     },
     {
       platform: 'linkedin',
