@@ -146,24 +146,6 @@ export class MetaIntegrationService {
     }
   }
 //
-  /**
-   * Initiate Meta OAuth connection
-   * Opens a popup window for Meta authentication
-   */
-  // async connectMeta(): Promise<void> {
-  //   try {
-  //     const authUrl = `${this.baseUrl}/auth/meta/start`;
-  //     // POST to backend to get the real OAuth URL
-  //     const response = await fetch(authUrl, {
-  //       method: 'POST',
-  //       headers: { 'Content-Type': 'application/json' },
-  //       credentials: 'include',
-  //     });
-  //     if (!response.ok) throw new Error('Failed to get OAuth URL from backend');
-  //     const { url } = await response.json();
-  //     if (!url) throw new Error('No URL returned from backend');
-
-  //     // Open the returned URL in a popup
   //     const popup = window.open(
   //       url,
   //       'meta-auth',

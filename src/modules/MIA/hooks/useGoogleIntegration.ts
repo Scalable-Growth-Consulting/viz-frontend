@@ -48,9 +48,13 @@ export const useGoogleIntegration = () => {
       return await checkStatus();
     } catch (error) {
       console.error('Google connection failed:', error);
+      const baseDesc = error instanceof Error ? error.message : "Failed to connect to Google Ads. Please try again.";
+      const hint = baseDesc.includes('404')
+        ? " • Backend route missing: ensure your API exposes POST /auth/google/start (see Backend_routes.md)."
+        : '';
       toast({
         title: "Connection Failed",
-        description: error instanceof Error ? error.message : "Failed to connect to Google Ads. Please try again.",
+        description: `${baseDesc}${hint}`,
         variant: "destructive",
       });
       throw error;
