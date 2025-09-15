@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { googleIntegrationService, GoogleConnectionStatus, GoogleAccount, GoogleCampaign, GoogleAd, GoogleMetrics } from '../services/googleIntegrationService.ts';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const useGoogleIntegration = () => {
+  const { user } = useAuth();
   const [connectionStatus, setConnectionStatus] = useState<GoogleConnectionStatus>({
     connected: false,
     status: 'disconnected'
@@ -12,11 +14,16 @@ export const useGoogleIntegration = () => {
 
   // Set toast for the service
   googleIntegrationService.setToast(toast);
+  // Always provide app user id (for x-user-id header)
+  useEffect(() => {
+    googleIntegrationService.setAppUserId(user?.id);
+  }, [user?.id]);
 
-  // Check connection status on mount
+  // Check connection status on mount and when user changes
   useEffect(() => {
     checkStatus();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const checkStatus = async (): Promise<GoogleConnectionStatus> => {
     try {
@@ -37,6 +44,14 @@ export const useGoogleIntegration = () => {
   const connect = async (): Promise<GoogleConnectionStatus> => {
     try {
       setLoading(true);
+      if (!user?.id) {
+        toast({
+          title: 'Sign-in required',
+          description: 'Please sign in to connect Google Ads.',
+          variant: 'destructive',
+        });
+        throw new Error('Missing authenticated user id');
+      }
       await googleIntegrationService.connectGoogle();
       
       toast({

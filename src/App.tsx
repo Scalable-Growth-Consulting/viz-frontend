@@ -25,6 +25,7 @@ import MIAAccessGuard from '@/components/mia/MIAAccessGuard';
 import MIAPrivacy from './pages/MIAPrivacy';
 import MIADataDeletion from './pages/MIADataDeletion';
 import MIATerms from './pages/MIATerms';
+import SEO from './pages/SEO';
 import './App.css';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -66,6 +67,8 @@ function App() {
 <Route path="/home" element={<ProtectedRoute><Index /></ProtectedRoute>} />
           <Route path="/data-control" element={<ProtectedRoute><DataControl /></ProtectedRoute>} />
           <Route path="/table-explorer" element={<ProtectedRoute><TableExplorer /></ProtectedRoute>} />
+          <Route path="/seo" element={<ProtectedRoute><SEO /></ProtectedRoute>} />
+          <Route path="/seo-geo-ai-tool" element={<ProtectedRoute><SEO /></ProtectedRoute>} />
           <Route path="/dufa" element={<ProtectedRoute><DUFAAccessGuard><DUFA /></DUFAAccessGuard></ProtectedRoute>} />
           <Route path="/dufa-coming-soon" element={<ProtectedRoute><DUFAComingSoon /></ProtectedRoute>} />
           <Route path="/tips" element={<ProtectedRoute><Tips /></ProtectedRoute>} />

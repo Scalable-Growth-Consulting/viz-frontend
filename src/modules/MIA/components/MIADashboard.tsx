@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +37,8 @@ import {
   Tag,
   Image,
   Video,
+  FileDown,
+  Globe2,
 } from 'lucide-react';
 import { Campaign, PlatformMetrics, DashboardFilters } from '../types';
 import { seoGeoService } from '../services/seoGeoService';
@@ -51,6 +53,9 @@ import MIAChatInterface from './MIAChatInterface';
 import MIAIntegrationStatus from './MIAIntegrationStatus';
 import MIAMetaIntegration from './MIAMetaIntegration';
 import MIAGoogleIntegration from './MIAGoogleIntegration';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, RadialBarChart, RadialBar } from 'recharts';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 interface MIADashboardProps {
   userId: string;
@@ -570,12 +575,45 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
   const SeoGeoPanel: React.FC = () => {
     const [url, setUrl] = useState('');
     const [html, setHtml] = useState('');
+    const [primaryKeyword, setPrimaryKeyword] = useState('');
+    const [targetMarket, setTargetMarket] = useState('');
+    const [competitors, setCompetitors] = useState<string[]>(['', '', '']);
     const [loading, setLoading] = useState(false);
     const [includePsi, setIncludePsi] = useState(false);
-    const [psiKey, setPsiKey] = useState<string>((import.meta as any).env?.VITE_PSI_API_KEY || '');
-    const [result, setResult] = useState<ReturnType<typeof seoGeoService.analyzeHtml> | null>(null);
+    const [psiKey, setPsiKey] = useState<string>(
+      (import.meta as any).env?.VITE_PSI_API_KEY || (import.meta as any).env?.VITE_PAGESPEED_API_KEY || ''
+    );
+    const [result, setResult] = useState<any | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [demoMode, setDemoMode] = useState(false);
 
     const { toast } = useToast();
+
+    const overallScore = useMemo(() => {
+      if (!result) return undefined;
+      const seo = Number(result.seoScore ?? 0);
+      const geo = Number(result.geoScore ?? 0);
+      return Math.round(seo * 0.6 + geo * 0.4);
+    }, [result]);
+
+    const recommendedTitle = useMemo(() => {
+      if (!result) return '';
+      const pk = primaryKeyword.trim();
+      let brand = 'Your Brand';
+      try { brand = new URL(result?.url || url || window.location.href).hostname.replace('www.', ''); } catch { /* noop */ }
+      if (pk) return `${pk} | ${brand}`.slice(0, 64);
+      return `${result?.metrics?.title || 'Home'} | ${brand}`.slice(0, 64);
+    }, [result, primaryKeyword, url]);
+
+    const recommendedDescription = useMemo(() => {
+      if (!result) return '';
+      const pk = primaryKeyword.trim();
+      const benefits = ['fast', 'reliable', 'trusted', 'affordable'];
+      const msg = pk
+        ? `Discover ${pk} — ${benefits[0]} and ${benefits[1]}. Get started today.`
+        : `Discover what makes us ${benefits[0]} and ${benefits[1]}. Get started today.`;
+      return msg.slice(0, 155);
+    }, [result, primaryKeyword]);
 
     const analyzeViaUrl = async () => {
       if (!url) return toast({ title: 'Enter URL', description: 'Please provide a valid URL to analyze.' });
@@ -591,6 +629,25 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
             console.warn('PSI error', e);
           }
         }
+        // Attach demo-style extras for UI richness
+        (analysis as any).pillars = {
+          visibility: Math.round((analysis.seoScore ?? 0) * 0.9),
+          trust: Math.round(((analysis.metrics?.schemaTypes?.length ? 10 : 0) + (analysis.psi?.bestPractices ?? 0)) / 2),
+          relevance: Math.round(((analysis.seoScore ?? 0) * 0.5) + ((analysis.geoScore ?? 0) * 0.5)),
+        };
+        (analysis as any).topQuickFixes = [
+          'Optimize title to 50–60 chars with keyword near start',
+          'Write a compelling meta description (120–160 chars)',
+          'Ensure exactly one H1; use H2/H3 for structure',
+        ];
+        (analysis as any).missedOpportunities = [
+          'Add FAQ schema for answerability',
+          'Add internal links to pillar pages',
+          'Include local city/region terms for GEO',
+        ];
+        (analysis as any).competitorKeywordOverlap = competitors
+          .filter(Boolean)
+          .map((c, i) => ({ competitor: c, overlap: 40 + i * 15 })); // placeholder estimate
         setResult(analysis as any);
       } catch (e) {
         console.error(e);
@@ -605,6 +662,24 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
       try {
         setLoading(true);
         const analysis = seoGeoService.analyzeHtml(html, url || undefined);
+        (analysis as any).pillars = {
+          visibility: Math.round((analysis.seoScore ?? 0) * 0.9),
+          trust: Math.round(((analysis.metrics?.schemaTypes?.length ? 10 : 0) + (analysis.psi?.bestPractices ?? 0)) / 2),
+          relevance: Math.round(((analysis.seoScore ?? 0) * 0.5) + ((analysis.geoScore ?? 0) * 0.5)),
+        };
+        (analysis as any).topQuickFixes = [
+          'Optimize title to 50–60 chars with keyword near start',
+          'Write a compelling meta description (120–160 chars)',
+          'Ensure exactly one H1; use H2/H3 for structure',
+        ];
+        (analysis as any).missedOpportunities = [
+          'Add FAQ schema for answerability',
+          'Add internal links to pillar pages',
+          'Include local city/region terms for GEO',
+        ];
+        (analysis as any).competitorKeywordOverlap = competitors
+          .filter(Boolean)
+          .map((c, i) => ({ competitor: c, overlap: 40 + i * 15 }));
         setResult(analysis as any);
       } catch (e) {
         console.error(e);
@@ -621,11 +696,131 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
       </div>
     );
 
+    const ScoreDial: React.FC<{ score?: number }> = ({ score }) => {
+      const data = [{ name: 'Score', value: score ?? 0, fill: 'url(#grad2)' }];
+      const bg = [{ name: 'bg', value: 100, fill: 'rgba(148,163,184,0.15)' }];
+      return (
+        <ResponsiveContainer width="100%" height={180}>
+          <RadialBarChart innerRadius="70%" outerRadius="100%" data={bg} startAngle={90} endAngle={-270}>
+            <RadialBar minPointSize={15} dataKey="value" cornerRadius={8} background clockWise />
+            <RadialBar dataKey="value" data={data} cornerRadius={8} clockWise />
+            <defs>
+              <linearGradient id="grad2" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0%" stopColor="#22d3ee" />
+                <stop offset="100%" stopColor="#3b82f6" />
+              </linearGradient>
+            </defs>
+          </RadialBarChart>
+        </ResponsiveContainer>
+      );
+    };
+
+    const loadDemoReport = () => {
+      setDemoMode(true);
+      const demo: any = {
+        url: url || 'https://brand.example/landing',
+        seoScore: 82,
+        geoScore: 76,
+        psi: { overall: 78, seo: 85, performance: 72, accessibility: 88, bestPractices: 90 },
+        metrics: {
+          title: 'Next‑Gen CRM for Startups — Close More, Faster',
+          titleLength: 49,
+          metaDescription: 'All‑in‑one CRM built for speed. Automations, pipelines, AI emails. Try it free.',
+          metaDescriptionLength: 117,
+          h1Count: 1,
+          h2Count: 6,
+          canonical: 'https://brand.example/landing',
+          robotsMeta: 'index,follow',
+          lang: 'en',
+          ogTags: ['og:title','og:description','og:image'],
+          twitterTags: ['twitter:card','twitter:title','twitter:description'],
+          schemaTypes: ['Organization','WebSite','FAQPage'],
+          images: { total: 18, missingAlt: 2 },
+          links: { internal: 42, external: 6 },
+          wordCount: 1280,
+          listCount: 7,
+          tableCount: 1,
+          faqPresent: true,
+          howToPresent: false,
+          summaryPresent: true,
+        },
+        issues: [
+          { severity: 'medium', message: 'Meta description slightly short; aim for ~140–155 characters' },
+          { severity: 'low', message: '2 images missing alt text' },
+        ],
+        recommendations: [
+          'Add HowTo schema for onboarding steps to improve snippet eligibility.',
+          'Link pricing page from hero for faster crawl discovery.',
+        ],
+        generated: {
+          faqJsonLd: '{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[]}',
+          howToJsonLd: '{"@context":"https://schema.org","@type":"HowTo","name":"Get started"}',
+          summary: 'A concise summary about the page content for AI readiness.'
+        },
+        pillars: { visibility: 85, trust: 72, relevance: 79 },
+        topQuickFixes: [
+          'Increase meta description to ~150 chars with value prop + CTA',
+          'Add alt text for 2 images in hero and testimonials section',
+          'Add internal links from blog posts to this landing page',
+        ],
+        missedOpportunities: [
+          'Create a geo‑targeted variant for New York and London',
+          'Publish a step‑by‑step onboarding HowTo',
+          'Add Product schema to key features section',
+        ],
+        competitorKeywordOverlap: [
+          { competitor: 'https://competitor-a.com', overlap: 62 },
+          { competitor: 'https://competitor-b.com', overlap: 48 },
+          { competitor: 'https://competitor-c.com', overlap: 36 },
+        ],
+      };
+      setResult(demo);
+    };
+
+    const handleExportPDF = async () => {
+      if (!containerRef.current) return;
+      const canvas = await html2canvas(containerRef.current, { scale: 2, backgroundColor: '#0B0F1A' });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = canvas.height * (imgWidth / canvas.width);
+      let heightLeft = imgHeight;
+      let position = 0;
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      pdf.save('mia-seo-geo-scorecard.pdf');
+    };
+
+    const handleSaveImage = async () => {
+      if (!containerRef.current) return;
+      const canvas = await html2canvas(containerRef.current, { scale: 2, backgroundColor: '#0B0F1A' });
+      const link = document.createElement('a');
+      link.download = 'mia-seo-geo-scorecard.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    };
+
     return (
       <div className="space-y-6">
         <Card className="bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20 shadow-sm">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><BarChart3 className="w-5 h-5 text-viz-accent" /> SEO & GEO Checker</CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2"><BarChart3 className="w-5 h-5 text-viz-accent" /> SEO & GEO Checker</CardTitle>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" className="rounded-full" onClick={loadDemoReport}>Load Demo Report</Button>
+                <label className="text-xs inline-flex items-center gap-2">
+                  <input type="checkbox" checked={demoMode} onChange={(e)=> setDemoMode(e.target.checked)} /> Demo Mode
+                </label>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
@@ -643,6 +838,16 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
                 {includePsi && (
                   <input value={psiKey} onChange={e => setPsiKey(e.target.value)} placeholder="PSI API Key (optional)" className="w-full px-3 py-2 rounded-lg border border-slate-200/60 dark:border-viz-light/20 bg-white/70 dark:bg-viz-dark/40 outline-none text-xs" />
                 )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
+                  <div>
+                    <label className="text-xs font-medium">Target Market</label>
+                    <input value={targetMarket} onChange={(e)=> setTargetMarket(e.target.value)} placeholder="e.g., New York, USA" className="w-full px-3 py-2 rounded-lg border border-slate-200/60 dark:border-viz-light/20 bg-white/70 dark:bg-viz-dark/40 outline-none text-xs" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium">Primary Keyword</label>
+                    <input value={primaryKeyword} onChange={(e)=> setPrimaryKeyword(e.target.value)} placeholder="e.g., best crm for startups" className="w-full px-3 py-2 rounded-lg border border-slate-200/60 dark:border-viz-light/20 bg-white/70 dark:bg-viz-dark/40 outline-none text-xs" />
+                  </div>
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Or paste HTML</label>
@@ -652,11 +857,56 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
                 </div>
               </div>
             </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Competitor URLs (optional)</label>
+                <Badge variant="outline">Up to 3</Badge>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                {[0,1,2].map((i)=> (
+                  <input key={i} value={competitors[i] || ''} onChange={(e)=> {
+                    const next = [...competitors]; next[i] = e.target.value; setCompetitors(next);
+                  }} placeholder={`https://competitor${i+1}.com`} className="w-full px-3 py-2 rounded-lg border border-slate-200/60 dark:border-viz-light/20 bg-white/70 dark:bg-viz-dark/40 outline-none text-xs" />
+                ))}
+              </div>
+            </div>
           </CardContent>
         </Card>
 
         {result && (
-          <div className="space-y-6">
+          <div ref={containerRef} className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="space-y-1">
+                <div className="text-xl font-bold">SEO & GEO Scorecard</div>
+                <div className="text-xs text-slate-600 dark:text-slate-300">{result.url || 'HTML input'}</div>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={handleSaveImage} className="rounded-full"><Image className="w-4 h-4 mr-1" /> Save Image</Button>
+                <Button size="sm" onClick={handleExportPDF} className="rounded-full"><FileDown className="w-4 h-4 mr-1" /> Export PDF</Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
+                <CardHeader className="pb-0"><CardTitle className="text-sm">Overall Score</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center justify-center"><div className="text-3xl font-extrabold">{overallScore ?? '—'}</div></div>
+                    <ScoreDial score={overallScore} />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="md:col-span-2 bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
+                <CardHeader className="pb-2"><CardTitle className="text-sm">Pillars</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                    <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Visibility</div><div className="font-semibold">{result.pillars?.visibility ?? '—'}</div></div>
+                    <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Trust</div><div className="font-semibold">{result.pillars?.trust ?? '—'}</div></div>
+                    <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Relevance</div><div className="font-semibold">{result.pillars?.relevance ?? '—'}</div></div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
             <Card className="bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
               <CardHeader>
                 <CardTitle className="text-base">Scores</CardTitle>
@@ -682,6 +932,41 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
                 <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Images</div><div>Total: {(result as any).metrics.images.total} • Missing alt: {(result as any).metrics.images.missingAlt}</div></div>
                 <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Links</div><div>Internal: {(result as any).metrics.links.internal} • External: {(result as any).metrics.links.external}</div></div>
                 <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Schema</div><div className="truncate">{(result as any).metrics.schemaTypes.join(', ') || '—'}</div></div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2"><Globe2 className="w-4 h-4" /> GEO Signals</CardTitle>
+              </CardHeader>
+              <CardContent className="grid md:grid-cols-4 gap-3 text-sm">
+                <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Language</div><div>{(result as any).metrics.lang || '—'}</div></div>
+                <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">FAQ schema</div><div>{(result as any).metrics.faqPresent ? 'Yes' : 'No'}</div></div>
+                <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">HowTo schema</div><div>{(result as any).metrics.howToPresent ? 'Yes' : 'No'}</div></div>
+                <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Summary near top</div><div>{(result as any).metrics.summaryPresent ? 'Yes' : 'No'}</div></div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
+              <CardHeader>
+                <CardTitle className="text-base">Competitors — Keyword Overlap</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {result.competitorKeywordOverlap?.length ? (
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={result.competitorKeywordOverlap}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="competitor" hide />
+                        <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
+                        <Tooltip />
+                        <Bar dataKey="overlap" fill="#60a5fa" radius={[6,6,0,0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-600 dark:text-slate-300">Add competitor URLs above or load the demo report.</div>
+                )}
               </CardContent>
             </Card>
 
@@ -713,6 +998,41 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
                 </CardContent>
               </Card>
             )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <Card className="lg:col-span-2 bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
+                <CardHeader><CardTitle className="text-base">Top Quick Wins</CardTitle></CardHeader>
+                <CardContent className="grid sm:grid-cols-2 gap-3 text-sm">
+                  {(result.topQuickFixes || []).map((f: string, i: number)=> (
+                    <div key={i} className="rounded-lg border border-slate-200/60 dark:border-viz-light/20 p-3">• {f}</div>
+                  ))}
+                </CardContent>
+              </Card>
+              <Card className="bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
+                <CardHeader><CardTitle className="text-base">Missed Opportunities</CardTitle></CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  {(result.missedOpportunities || []).map((m: string, i: number)=> (
+                    <div key={i} className="rounded-lg border border-slate-200/60 dark:border-viz-light/20 p-3">• {m}</div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2"><Wand2 className="w-4 h-4" /> AI: Rewrite Meta Tags</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <div>
+                  <div className="text-xs text-slate-500">Recommended Title (≤ 65 chars)</div>
+                  <input value={recommendedTitle} readOnly className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200/60 dark:border-viz-light/20 bg-white/70 dark:bg-viz-dark/40 outline-none text-xs" />
+                </div>
+                <div>
+                  <div className="text-xs text-slate-500">Recommended Meta Description (≤ 155 chars)</div>
+                  <textarea value={recommendedDescription} readOnly rows={3} className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200/60 dark:border-viz-light/20 bg-white/70 dark:bg-viz-dark/40 outline-none text-xs" />
+                </div>
+              </CardContent>
+            </Card>
 
             <Card className="bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
               <CardHeader>

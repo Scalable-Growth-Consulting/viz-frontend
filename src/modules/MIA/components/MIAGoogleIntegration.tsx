@@ -130,21 +130,6 @@ const MIAGoogleIntegration: React.FC<MIAGoogleIntegrationProps> = ({ onConnectio
     }
   };
 
-  const handleUseMock = async () => {
-    try {
-      // Enable mock mode for Google integration
-      localStorage.setItem('googleMockMode', 'true');
-      localStorage.setItem('googleUserId', 'test-user-123');
-      await checkStatus();
-      toast({
-        title: 'Mock Mode Enabled',
-        description: 'Using mock Google Ads data for demo. Disable by disconnecting or clearing site data.',
-      });
-    } catch (err) {
-      console.error('Failed to enable mock mode:', err);
-    }
-  };
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -311,16 +296,6 @@ const MIAGoogleIntegration: React.FC<MIAGoogleIntegrationProps> = ({ onConnectio
                   </>
                 )}
               </Button>
-              {(import.meta.env.DEV || String((import.meta as any).env?.VITE_ENABLE_GOOGLE_MOCK ?? '') === 'true') && (
-                <Button
-                  onClick={handleUseMock}
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full"
-                >
-                  Use Mock
-                </Button>
-              )}
             </div>
 
             <div className="mt-3">

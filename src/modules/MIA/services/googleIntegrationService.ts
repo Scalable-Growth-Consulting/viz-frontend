@@ -49,6 +49,7 @@ export class GoogleIntegrationService {
   private baseUrl: string;
   private toast: any;
   private enableMock: boolean;
+  private appUserId?: string;
   
   // Build a direct Google OAuth URL as a final fallback when backend route is missing
   private buildDirectAuthUrl(state: string): string | null {
@@ -77,11 +78,26 @@ export class GoogleIntegrationService {
 
   constructor() {
     this.baseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
-    this.enableMock = String((import.meta as any).env?.VITE_ENABLE_GOOGLE_MOCK ?? '') === 'true';
+    // Mock mode disabled: enforce real backend-only behavior
+    this.enableMock = false;
   }
 
   setToast(toast: any) {
     this.toast = toast;
+  }
+
+  setAppUserId(userId?: string) {
+    this.appUserId = userId || undefined;
+    if (userId) localStorage.setItem('appUserId', userId);
+  }
+
+  private makeHeaders(extra?: Record<string, string>): HeadersInit {
+    const appId = this.appUserId || localStorage.getItem('appUserId') || undefined;
+    return {
+      'Content-Type': 'application/json',
+      ...(appId ? { 'x-user-id': appId } : {}),
+      ...(extra || {}),
+    };
   }
 
   /**
@@ -89,24 +105,14 @@ export class GoogleIntegrationService {
    */
   async checkConnectionStatus(): Promise<GoogleConnectionStatus> {
     try {
-      // Use dummy user ID for testing as requested
-      const userId = localStorage.getItem('googleUserId') || 'test-user-123';
-
       const response = await fetch(`${this.baseUrl}/auth/google/status`, {
         method: 'GET',
-        headers: {
-          'x-user-id': userId,
-          'Content-Type': 'application/json'
-        },
+        headers: this.makeHeaders(),
       });
 
       if (!response.ok) {
         // Treat unauthorized/not found as disconnected in pre-auth state
         if (response.status === 401 || response.status === 404) {
-          // If mock mode enabled, pretend connected to keep UI functional
-          if (this.enableMock || localStorage.getItem('googleMockMode') === 'true') {
-            return { connected: true, accountId: 'test-user-123', accountName: 'Mock Google Ads', status: 'connected' };
-          }
           return { connected: false, status: 'disconnected' };
         }
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -121,9 +127,6 @@ export class GoogleIntegrationService {
       };
     } catch (error) {
       console.error('Google connection status check failed:', error);
-      if (this.enableMock || localStorage.getItem('googleMockMode') === 'true') {
-        return { connected: true, accountId: 'test-user-123', accountName: 'Mock Google Ads', status: 'connected' };
-      }
       return { connected: false, status: 'error' };
     }
   }
@@ -133,16 +136,14 @@ export class GoogleIntegrationService {
    */
   async connectGoogle(): Promise<void> {
     try {
-      // Use dummy user ID for testing as requested
-      const dummyUserId = 'test-user-123';
-      
+      // Real OAuth flow only
       // Step 1: Try POST /auth/google/start (preferred)
       let authUrl: string | undefined;
       let oauthState: string | undefined;
       try {
         const postResp = await fetch(`${this.baseUrl}/auth/google/start`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: this.makeHeaders(),
           body: JSON.stringify({ state: 'test' })
         });
         if (postResp.ok) {
@@ -158,18 +159,9 @@ export class GoogleIntegrationService {
       if (!authUrl) {
         const getResp = await fetch(`${this.baseUrl}/auth/google/start`, {
           method: 'GET',
-          headers: {
-            'x-user-id': dummyUserId,
-            'Content-Type': 'application/json'
-          }
+          headers: this.makeHeaders(),
         });
         if (!getResp.ok) {
-          // If mock mode is enabled, simulate connection
-          if (this.enableMock || localStorage.getItem('googleMockMode') === 'true') {
-            localStorage.setItem('googleUserId', dummyUserId);
-            localStorage.setItem('googleMockMode', 'true');
-            return;
-          }
           throw new Error(`Failed to initiate OAuth: ${getResp.status}`);
         }
         const j = await getResp.json();
@@ -182,10 +174,6 @@ export class GoogleIntegrationService {
         const direct = this.buildDirectAuthUrl(oauthState || 'test');
         if (direct) {
           authUrl = direct;
-        } else if (this.enableMock || localStorage.getItem('googleMockMode') === 'true') {
-          localStorage.setItem('googleUserId', dummyUserId);
-          localStorage.setItem('googleMockMode', 'true');
-          return;
         } else {
           throw new Error('No auth URL returned from backend');
         }
@@ -210,20 +198,36 @@ export class GoogleIntegrationService {
         throw new Error('Popup blocked. Please allow popups for this site and try again.');
       }
 
-      // Step 3: Monitor popup for completion
+      // Step 3: Monitor popup for completion with two strategies
       return new Promise<void>((resolve, reject) => {
+        // a) Preferred: listen for postMessage from backend callback carrying userId
+        const onMessage = async (evt: MessageEvent) => {
+          try {
+            const data: any = evt?.data;
+            if (data && data.type === 'GOOGLE_AUTH_SUCCESS' && data.userId) {
+              window.removeEventListener('message', onMessage);
+              try { popup.close(); } catch {}
+              localStorage.setItem('googleUserId', String(data.userId));
+              // Confirm status now that we have userId
+              const status = await this.checkConnectionStatus();
+              if (status.connected) return resolve();
+              return resolve();
+            }
+          } catch {}
+        };
+        window.addEventListener('message', onMessage);
+
+        // b) Fallback: poll for popup close then call status
         const checkInterval = setInterval(() => {
           try {
-            // Check if popup was closed
             if (popup.closed) {
               clearInterval(checkInterval);
-              
+              window.removeEventListener('message', onMessage);
               // Wait a moment then check connection status
               setTimeout(async () => {
                 try {
                   const status = await this.checkConnectionStatus();
                   if (status.connected && status.accountId) {
-                    // Store the Google user ID from the backend response
                     localStorage.setItem('googleUserId', status.accountId);
                     resolve();
                   } else {
@@ -233,19 +237,17 @@ export class GoogleIntegrationService {
                   reject(error);
                 }
               }, 1000);
-              
               return;
             }
 
-            // Check if we can access popup URL (will throw if cross-origin)
+            // Attempt to detect callback URL and auto-close
             try {
               const popupUrl = popup.location.href;
               if (popupUrl.includes('/auth/google/callback')) {
-                // OAuth callback completed, close popup and check status
                 popup.close();
               }
             } catch (e) {
-              // Cross-origin error is expected during OAuth flow
+              // Cross-origin expected
             }
           } catch (error) {
             console.error('Error monitoring popup:', error);
@@ -253,11 +255,10 @@ export class GoogleIntegrationService {
         }, 1000);
 
         // Timeout after 5 minutes
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           clearInterval(checkInterval);
-          if (!popup.closed) {
-            popup.close();
-          }
+          window.removeEventListener('message', onMessage);
+          try { if (!popup.closed) popup.close(); } catch {}
           reject(new Error('Authentication timeout. Please try again.'));
         }, 300000);
       });
@@ -272,13 +273,13 @@ export class GoogleIntegrationService {
    */
   async disconnectGoogle(): Promise<void> {
     try {
-      const userId = localStorage.getItem('googleUserId') || 'test-user-123';
+      const userId = localStorage.getItem('googleUserId') || undefined;
 
       const response = await fetch(`${this.baseUrl}/auth/google/disconnect`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': userId,
+          ...(userId ? { 'x-user-id': userId } : {}),
         }
       });
 
@@ -289,6 +290,7 @@ export class GoogleIntegrationService {
       // Remove stored user ID
       localStorage.removeItem('googleUserId');
       sessionStorage.removeItem('google_oauth_state');
+      // Clear any legacy mock flags, if present
       localStorage.removeItem('googleMockMode');
     } catch (error) {
       console.error('Google disconnect error:', error);
@@ -301,14 +303,14 @@ export class GoogleIntegrationService {
    */
   async getAccounts(): Promise<GoogleAccount[]> {
     try {
-      // Use the actual Google user ID or fallback to dummy
-      const userId = localStorage.getItem('googleUserId') || 'test-user-123';
+      // Use the actual Google user ID (no dummy fallback)
+      const userId = localStorage.getItem('googleUserId') || undefined;
 
       // Try generic accounts route first
       const response = await fetch(`${this.baseUrl}/accounts?provider=google`, {
         method: 'GET',
         headers: {
-          'x-user-id': userId,
+          ...(userId ? { 'x-user-id': userId } : {}),
           'Content-Type': 'application/json'
         },
       });
@@ -330,7 +332,7 @@ export class GoogleIntegrationService {
       const legacyResp = await fetch(`${this.baseUrl}/auth/google/customers`, {
         method: 'GET',
         headers: {
-          'x-user-id': userId,
+          ...(userId ? { 'x-user-id': userId } : {}),
           'Content-Type': 'application/json'
         }
       });
@@ -348,11 +350,6 @@ export class GoogleIntegrationService {
       return accounts;
     } catch (error) {
       console.error('Google accounts fetch error:', error);
-      if (this.enableMock || localStorage.getItem('googleMockMode') === 'true') {
-        return [
-          { id: 'test-user-123', name: 'Mock Google Ads Account', currency: 'USD', timezone: 'America/New_York', status: 'ENABLED' }
-        ];
-      }
       throw error;
     }
   }
@@ -362,13 +359,13 @@ export class GoogleIntegrationService {
    */
   async refreshToken(): Promise<void> {
     try {
-      const userId = localStorage.getItem('googleUserId') || 'test-user-123';
+      const userId = localStorage.getItem('googleUserId') || undefined;
 
       const response = await fetch(`${this.baseUrl}/auth/google/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': userId,
+          ...(userId ? { 'x-user-id': userId } : {}),
         },
         body: JSON.stringify({})
       });
@@ -389,29 +386,31 @@ export class GoogleIntegrationService {
   // Synchronize Google Ads data from backend; safe no-op fallback
   async syncData(): Promise<void> {
     try {
-      const userId = localStorage.getItem('googleUserId') || 'test-user-123';
+      const userId = localStorage.getItem('googleUserId') || undefined;
+      if (!userId) throw new Error('Missing googleUserId. Connect Google first.');
       const res = await fetch(`${this.baseUrl}/api/google/sync`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': userId,
+          ...(userId ? { 'x-user-id': userId } : {}),
         },
       });
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
     } catch (e) {
-      console.warn('Google sync endpoint unavailable, continuing with local state.', e);
+      console.warn('Google sync failed.', e);
+      throw e;
     }
   }
 
   // Backend-first with mock fallback
   async getCampaigns(customerId: string): Promise<GoogleCampaign[]> {
-    const userId = localStorage.getItem('googleUserId') || 'test-user-123';
+    const userId = localStorage.getItem('googleUserId') || undefined;
     try {
       const url = `${this.baseUrl}/campaigns?provider=google&customerId=${encodeURIComponent(customerId)}`;
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'x-user-id': userId,
+          ...(userId ? { 'x-user-id': userId } : {}),
           'Content-Type': 'application/json',
         },
       });
@@ -430,24 +429,22 @@ export class GoogleIntegrationService {
           }));
         }
       }
+      throw new Error('No campaigns returned');
     } catch (err) {
-      console.warn('getCampaigns: backend unavailable, using mock.', err);
+      console.warn('getCampaigns error', err);
+      throw err;
     }
-    return [
-      { id: '1', name: 'Google Search - Brand', status: 'ENABLED', type: 'SEARCH', budget: 1200, startDate: '2024-01-01', biddingStrategy: 'MAXIMIZE_CLICKS' },
-      { id: '2', name: 'Google Performance Max', status: 'ENABLED', type: 'PERFORMANCE_MAX', budget: 800, startDate: '2024-01-15', biddingStrategy: 'TARGET_ROAS' },
-    ];
   }
 
   async getAds(customerId: string, campaignId?: string): Promise<GoogleAd[]> {
-    const userId = localStorage.getItem('googleUserId') || 'test-user-123';
+    const userId = localStorage.getItem('googleUserId') || undefined;
     try {
       const params = new URLSearchParams({ provider: 'google', customerId, ...(campaignId ? { campaignId } : {}) });
       const url = `${this.baseUrl}/ads?${params.toString()}`;
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'x-user-id': userId,
+          ...(userId ? { 'x-user-id': userId } : {}),
           'Content-Type': 'application/json',
         },
       });
@@ -468,24 +465,22 @@ export class GoogleIntegrationService {
           }));
         }
       }
+      throw new Error('No ads returned');
     } catch (err) {
-      console.warn('getAds: backend unavailable, using mock.', err);
+      console.warn('getAds error', err);
+      throw err;
     }
-    return [
-      { id: 'a1', adGroupId: 'ag1', adGroupName: 'Ad Group 1', campaignId: campaignId ?? '1', name: 'Text Ad A', status: 'ENABLED', type: 'TEXT_AD', headline: 'Shop Now', description1: 'Best prices' },
-      { id: 'a2', adGroupId: 'ag1', adGroupName: 'Ad Group 1', campaignId: campaignId ?? '1', name: 'Text Ad B', status: 'ENABLED', type: 'TEXT_AD', headline: 'New Arrivals', description1: 'Discover more' },
-    ];
   }
 
   async getMetricsOverview(customerId: string, dateRange?: string): Promise<GoogleMetrics> {
-    const userId = localStorage.getItem('googleUserId') || 'test-user-123';
+    const userId = localStorage.getItem('googleUserId') || undefined;
     try {
       const params = new URLSearchParams({ provider: 'google', customerId, ...(dateRange ? { dateRange } : {}) });
       const url = `${this.baseUrl}/metrics/overview?${params.toString()}`;
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'x-user-id': userId,
+          ...(userId ? { 'x-user-id': userId } : {}),
           'Content-Type': 'application/json',
         },
       });
@@ -503,18 +498,11 @@ export class GoogleIntegrationService {
           };
         }
       }
+      throw new Error('No metrics returned');
     } catch (err) {
-      console.warn('getMetricsOverview: backend unavailable, using mock.', err);
+      console.warn('getMetricsOverview error', err);
+      throw err;
     }
-    return {
-      impressions: 125000,
-      clicks: 8750,
-      cost: 2150.5,
-      conversions: 245,
-      ctr: 7.0,
-      cpc: 0.25,
-      conversionRate: 2.8,
-    };
   }
 }
 

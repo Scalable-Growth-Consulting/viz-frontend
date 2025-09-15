@@ -15,6 +15,7 @@ import {
 import { IntegrationConfig } from '../types';
 import { useMetaIntegration } from '../hooks/useMetaIntegration';
 import { useGoogleIntegration } from '../hooks/useGoogleIntegration';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 const MIAIntegrationStatus: React.FC = () => {
   const { 
@@ -32,6 +33,20 @@ const MIAIntegrationStatus: React.FC = () => {
     sync: syncGoogle,
     loading: googleLoading,
   } = useGoogleIntegration();
+
+  // Responsive slides to scroll (1/2/4) for the carousel arrows
+  const [slidesToScroll, setSlidesToScroll] = React.useState(4);
+  React.useEffect(() => {
+    const compute = () => {
+      const w = window.innerWidth;
+      if (w < 640) setSlidesToScroll(1);
+      else if (w < 1024) setSlidesToScroll(2);
+      else setSlidesToScroll(4);
+    };
+    compute();
+    window.addEventListener('resize', compute);
+    return () => window.removeEventListener('resize', compute);
+  }, []);
 
   // Create integrations array with real Meta data and mock data for others
   const integrations: IntegrationConfig[] = [
@@ -173,72 +188,78 @@ const MIAIntegrationStatus: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {integrations.map((integration) => (
-              <div
-                key={integration.platform}
-                className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(integration)}
-                    <span className="font-medium">{getPlatformName(integration.platform)}</span>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  {getStatusBadge(integration)}
-                  
-                  {integration.isConnected ? (
-                    <div className="space-y-2">
-                      <div className="space-y-1 text-xs text-muted-foreground">
-                        <div>Account: {integration.accountId || '—'}</div>
-                        <div>Last sync: {formatLastSync(integration.lastSync)}</div>
-                        {integration.errorMessage && (
-                          <div className="text-red-600 dark:text-red-400">
-                            Error: {integration.errorMessage}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => handleSync(integration.platform)}
-                        >
-                          <RefreshCw className="w-3.5 h-3.5 mr-1" />
-                          Sync
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => handleDisconnect(integration.platform)}
-                        >
-                          Disconnect
-                        </Button>
+          <Carousel
+            opts={{ align: 'start', dragFree: false, containScroll: 'trimSnaps', slidesToScroll }}
+            className="px-2"
+          >
+            <CarouselContent>
+              {integrations.map((integration) => (
+                <CarouselItem key={integration.platform} className="basis-full sm:basis-1/2 lg:basis-1/4">
+                  <div className="h-full border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3 bg-white/85 dark:bg-viz-medium/80 hover:shadow-sm transition">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {getStatusIcon(integration)}
+                        <span className="font-medium">{getPlatformName(integration.platform)}</span>
                       </div>
                     </div>
-                  ) : (
-                    <Button
-                      onClick={() => handleConnect(integration.platform)}
-                      size="sm"
-                      className={`${integration.platform === 'meta' 
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                        : integration.platform === 'google' 
-                          ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white' 
-                          : 'opacity-60 cursor-not-allowed'} rounded-full px-4 min-w-[200px] justify-center w-full text-xs`}
-                      disabled={integration.platform !== 'meta' && integration.platform !== 'google'}
-                    >
-                      <Plus className="w-3 h-3 mr-1" />
-                      Connect
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+
+                    <div className="space-y-2">
+                      {getStatusBadge(integration)}
+
+                      {integration.isConnected ? (
+                        <div className="space-y-2">
+                          <div className="space-y-1 text-xs text-muted-foreground">
+                            <div>Account: {integration.accountId || '—'}</div>
+                            <div>Last sync: {formatLastSync(integration.lastSync)}</div>
+                            {integration.errorMessage && (
+                              <div className="text-red-600 dark:text-red-400">
+                                Error: {integration.errorMessage}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => handleSync(integration.platform)}
+                            >
+                              <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                              Sync
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => handleDisconnect(integration.platform)}
+                            >
+                              Disconnect
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <Button
+                          onClick={() => handleConnect(integration.platform)}
+                          size="sm"
+                          className={`${integration.platform === 'meta' 
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                            : integration.platform === 'google' 
+                              ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white' 
+                              : 'opacity-60 cursor-not-allowed'} rounded-full px-4 min-w-[200px] justify-center w-full text-xs`}
+                          disabled={integration.platform !== 'meta' && integration.platform !== 'google'}
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          Connect
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="left-2 top-1/2 -translate-y-1/2" />
+            <CarouselNext className="right-2 top-1/2 -translate-y-1/2" />
+          </Carousel>
         </CardContent>
       </Card>
 

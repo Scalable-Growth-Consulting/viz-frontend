@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChartIcon, LightbulbIcon, DatabaseIcon, UserIcon, LogOut, TrendingUp, Menu, HeartPulse, Home as HomeIcon } from 'lucide-react';
+import { BarChartIcon, LightbulbIcon, DatabaseIcon, UserIcon, LogOut, TrendingUp, Menu, HeartPulse, Home as HomeIcon, Sparkles } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from './ui/button';
@@ -104,6 +104,12 @@ const Header: React.FC<HeaderProps> = ({ showDataSection = true }) => {
                     <Link to="/tips" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/20 dark:hover:bg-viz-light">
                       <LightbulbIcon className="w-4 h-4 text-viz-accent" />
                       <span className="text-sm">Tips</span>
+                    </Link>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Link to="/seo-geo-ai-tool" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/20 dark:hover:bg-viz-light">
+                      <Sparkles className="w-4 h-4 text-viz-accent" />
+                      <span className="text-sm">SEO-GEO AI Tool</span>
                     </Link>
                   </SheetClose>
                   {user && (
