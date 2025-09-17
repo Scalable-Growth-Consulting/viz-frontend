@@ -63,6 +63,7 @@ function App() {
 <Route path="/riz/dufa" element={<ProtectedRoute><RIZ /></ProtectedRoute>} />
 <Route path="/riz/inventory" element={<ProtectedRoute><RIZ /></ProtectedRoute>} />
 <Route path="/riz/mia" element={<ProtectedRoute><RIZ /></ProtectedRoute>} />
+<Route path="/riz/brandlenz" element={<ProtectedRoute><RIZ /></ProtectedRoute>} />
 {/* Legacy home for compatibility */}
 <Route path="/home" element={<ProtectedRoute><Index /></ProtectedRoute>} />
           <Route path="/data-control" element={<ProtectedRoute><DataControl /></ProtectedRoute>} />

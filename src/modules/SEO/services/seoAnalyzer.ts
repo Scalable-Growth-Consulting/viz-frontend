@@ -103,14 +103,7 @@ function parseHtml(html: string, baseUrl?: string) {
     pageSpeed: null,
   };
 
-  const geo: GeoSignals = {
-    language: lang,
-    hreflangTags,
-    nap: phoneMatch || addressHints ? { phone: phoneMatch?.[0] } : undefined,
-    localKeywords: [],
-    serverLocation: null,
-    googleBusinessPresent: null,
-  };
+  const geo: GeoSignals = analyzeGeoSignals(onPage, text, undefined);
 
   return { onPage, geo };
 }
@@ -136,14 +129,115 @@ function scoreOnPage(m: OnPageMetrics): number {
   return clamp(Math.round(score));
 }
 
+function analyzeGeoSignals(onPage: OnPageMetrics, text: string, targetMarket?: string): GeoSignals {
+  // AI Visibility Rate: Based on content structure and clarity
+  let aiVisibilityRate = 0;
+  if (onPage.title && onPage.title.length >= 35 && onPage.title.length <= 65) aiVisibilityRate += 25;
+  if (onPage.metaDescription && onPage.metaDescription.length >= 120) aiVisibilityRate += 20;
+  if (onPage.h1Count === 1 && onPage.h2Count >= 2) aiVisibilityRate += 25;
+  if (onPage.wordCount >= 800) aiVisibilityRate += 20;
+  if (onPage.schemaPresent) aiVisibilityRate += 10;
+
+  // Citation Frequency: Based on factual content structure
+  let citationFrequency = 0;
+  const hasStats = /\d+%|\d+\.\d+%|\$\d+|statistics|study|research|data shows/i.test(text);
+  const hasQuotes = /"[^"]{20,}"/g.test(text);
+  const hasSources = /source:|according to|study by|research from/i.test(text);
+  if (hasStats) citationFrequency += 35;
+  if (hasQuotes) citationFrequency += 25;
+  if (hasSources) citationFrequency += 25;
+  if (onPage.externalLinks >= 3) citationFrequency += 15;
+
+  // Brand Mention Score: Based on brand authority signals
+  let brandMentionScore = 0;
+  const hasAboutSection = /about us|our story|our mission|who we are/i.test(text);
+  const hasTeamInfo = /team|founder|ceo|leadership|expert/i.test(text);
+  const hasCredentials = /certified|accredited|award|recognition|years of experience/i.test(text);
+  if (hasAboutSection) brandMentionScore += 30;
+  if (hasTeamInfo) brandMentionScore += 25;
+  if (hasCredentials) brandMentionScore += 25;
+  if (onPage.schemaPresent) brandMentionScore += 20;
+
+  // Sentiment Accuracy: Based on clear, positive messaging
+  let sentimentAccuracy = 0;
+  const hasPositiveLanguage = /best|leading|top|excellent|trusted|reliable|proven/i.test(text);
+  const hasClearBenefits = /benefit|advantage|solution|help|improve|increase|reduce/i.test(text);
+  const hasTestimonials = /testimonial|review|customer|client says|feedback/i.test(text);
+  if (hasPositiveLanguage) sentimentAccuracy += 30;
+  if (hasClearBenefits) sentimentAccuracy += 35;
+  if (hasTestimonials) sentimentAccuracy += 35;
+
+  // Structured Data Score
+  let structuredDataScore = onPage.schemaPresent ? 60 : 0;
+  if (onPage.h1Count === 1) structuredDataScore += 20;
+  if (onPage.h2Count >= 3) structuredDataScore += 20;
+
+  // Contextual Relevance: Based on topic depth
+  let contextualRelevance = 0;
+  if (onPage.wordCount >= 1000) contextualRelevance += 40;
+  if (onPage.h2Count >= 4) contextualRelevance += 30;
+  if (onPage.keywordDensity.length >= 10) contextualRelevance += 30;
+
+  // Authority Signals
+  let authoritySignals = 0;
+  const hasExpertise = /expert|professional|specialist|consultant|advisor/i.test(text);
+  const hasExperience = /years|experience|since|established|founded/i.test(text);
+  if (hasExpertise) authoritySignals += 40;
+  if (hasExperience) authoritySignals += 30;
+  if (onPage.externalLinks >= 5) authoritySignals += 30;
+
+  // Conversational Optimization
+  let conversationalOptimization = 0;
+  const hasQuestions = /\?/g.test(text);
+  const hasDirectAddress = /you|your|we help|let us/i.test(text);
+  const hasClearStructure = onPage.h2Count >= 3 && onPage.h3Count >= 2;
+  if (hasQuestions) conversationalOptimization += 35;
+  if (hasDirectAddress) conversationalOptimization += 35;
+  if (hasClearStructure) conversationalOptimization += 30;
+
+  // Factual Accuracy
+  let factualAccuracy = 0;
+  if (hasStats) factualAccuracy += 40;
+  if (hasSources) factualAccuracy += 30;
+  if (onPage.externalLinks >= 3) factualAccuracy += 30;
+
+  // Topic Coverage
+  let topicCoverage = 0;
+  if (onPage.wordCount >= 1200) topicCoverage += 50;
+  if (onPage.h2Count >= 5) topicCoverage += 30;
+  if (onPage.keywordDensity.length >= 15) topicCoverage += 20;
+
+  return {
+    aiVisibilityRate: Math.min(100, aiVisibilityRate),
+    citationFrequency: Math.min(100, citationFrequency),
+    brandMentionScore: Math.min(100, brandMentionScore),
+    sentimentAccuracy: Math.min(100, sentimentAccuracy),
+    structuredDataScore: Math.min(100, structuredDataScore),
+    contextualRelevance: Math.min(100, contextualRelevance),
+    authoritySignals: Math.min(100, authoritySignals),
+    conversationalOptimization: Math.min(100, conversationalOptimization),
+    factualAccuracy: Math.min(100, factualAccuracy),
+    topicCoverage: Math.min(100, topicCoverage),
+    language: undefined,
+    hreflangTags: [],
+    localKeywords: targetMarket ? [targetMarket] : [],
+  };
+}
+
 function scoreGeo(g: GeoSignals): number {
-  let score = 0;
-  const clamp = (x:number)=> Math.max(0, Math.min(100, x));
-  if (g.language) score += 20;
-  if (g.hreflangTags?.length) score += Math.min(20, g.hreflangTags.length * 5);
-  if (g.nap?.phone) score += 20;
-  if (g.localKeywords?.length) score += Math.min(40, g.localKeywords.length * 5);
-  return clamp(Math.round(score));
+  const scores = [
+    g.aiVisibilityRate,
+    g.citationFrequency,
+    g.brandMentionScore,
+    g.sentimentAccuracy,
+    g.structuredDataScore,
+    g.contextualRelevance,
+    g.authoritySignals,
+    g.conversationalOptimization,
+    g.factualAccuracy,
+    g.topicCoverage
+  ];
+  return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
 }
 
 function scoreOffPage(o: OffPageIndicators): number {
@@ -186,16 +280,30 @@ export async function analyzeSEOGeo(input: AnalysisInput): Promise<AnalysisResul
       keywordDensity: [], imageCount: 0, imagesWithAlt: 0, schemaPresent: false, internalLinks: 0, externalLinks: 0, pageSpeed: null,
     };
     const pillars: PillarScores = { visibility: 10, trust: 10, relevance: 10 };
+    const emptyGeo: GeoSignals = {
+      aiVisibilityRate: 0,
+      citationFrequency: 0,
+      brandMentionScore: 0,
+      sentimentAccuracy: 0,
+      structuredDataScore: 0,
+      contextualRelevance: 0,
+      authoritySignals: 0,
+      conversationalOptimization: 0,
+      factualAccuracy: 0,
+      topicCoverage: 0,
+      hreflangTags: [],
+      localKeywords: []
+    };
     return {
       url: input.url,
       computedAt: new Date().toISOString(),
       overallScore: 15,
       pillars,
       onPage: empty,
-      geo: { hreflangTags: [], localKeywords: [] },
+      geo: emptyGeo,
       offPage: {},
       topQuickFixes: ['Paste raw HTML so we can analyze on-page content accurately', 'Add a concise, keyword-focused title tag', 'Write a compelling meta description (120–160 chars)'],
-      missedOpportunities: ['Set language and hreflang for GEO targeting', 'Add schema markup (Organization, WebPage)', 'Add internal links to pillar pages'],
+      missedOpportunities: ['Add AI-friendly structured content for generative engines', 'Include factual data and statistics for AI citations', 'Optimize content for conversational AI responses'],
     };
   }
 
@@ -211,14 +319,12 @@ export async function analyzeSEOGeo(input: AnalysisInput): Promise<AnalysisResul
     onPage.keywordDensity = computeKeywordDensity(textApprox + ' ' + input.primaryKeyword, input.primaryKeyword);
   }
 
-  // Geo local keyword detection (simple): look for targetMarket or region words inside title/description/body tokens
-  const concatText = [onPage.title || '', onPage.metaDescription || ''].join(' ').toLowerCase();
-  const locs: string[] = [];
-  if (input.targetMarket) {
-    const tm = input.targetMarket.toLowerCase();
-    if (concatText.includes(tm)) locs.push(input.targetMarket);
-  }
-  geo.localKeywords = Array.from(new Set([...(geo.localKeywords||[]), ...locs]));
+  // Update GEO analysis with full text and target market
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const fullText = extractText(doc);
+  const updatedGeo = analyzeGeoSignals(onPage, fullText, input.targetMarket);
+  Object.assign(geo, updatedGeo);
 
   const onPageScore = scoreOnPage(onPage);
   const geoScore = scoreGeo(geo);
@@ -266,9 +372,11 @@ export async function analyzeSEOGeo(input: AnalysisInput): Promise<AnalysisResul
   if (onPage.internalLinks < 10) fixes.push('Add internal links to relevant pillar and cluster pages');
 
   const opportunities: string[] = [];
-  if (!geo.language) opportunities.push('Set <html lang> and ensure language metadata is correct');
-  if (!(geo.hreflangTags?.length)) opportunities.push('Add hreflang tags for multilingual or multi-region targeting');
-  if (!(geo.localKeywords?.length)) opportunities.push('Include local city/region terms in headings and body content');
+  if (geo.aiVisibilityRate < 70) opportunities.push('Optimize content structure for AI visibility - improve headings and meta descriptions');
+  if (geo.citationFrequency < 60) opportunities.push('Add more factual data, statistics, and credible sources for AI citations');
+  if (geo.brandMentionScore < 50) opportunities.push('Strengthen brand authority signals - add team info, credentials, and about sections');
+  if (geo.sentimentAccuracy < 60) opportunities.push('Enhance positive messaging and clear benefit statements for AI understanding');
+  if (geo.conversationalOptimization < 50) opportunities.push('Format content for conversational AI - add questions and direct addressing');
 
   return {
     url: input.url,

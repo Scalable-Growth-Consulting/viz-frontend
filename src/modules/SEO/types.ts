@@ -27,16 +27,26 @@ export type OnPageMetrics = {
 };
 
 export type GeoSignals = {
+  // Core GEO metrics for Generative AI Engine Optimization
+  aiVisibilityRate: number; // 0-100: likelihood of appearing in AI responses
+  citationFrequency: number; // 0-100: how often content gets cited by AI
+  brandMentionScore: number; // 0-100: brand recognition in AI responses
+  sentimentAccuracy: number; // 0-100: positive/accurate AI portrayal
+  
+  // Content structure for AI optimization
+  structuredDataScore: number; // 0-100: AI-friendly content structure
+  contextualRelevance: number; // 0-100: content alignment with AI reasoning
+  authoritySignals: number; // 0-100: expertise/trust indicators for AI
+  
+  // AI platform readiness
+  conversationalOptimization: number; // 0-100: content formatted for AI conversations
+  factualAccuracy: number; // 0-100: clear, verifiable information
+  topicCoverage: number; // 0-100: comprehensive topic coverage
+  
+  // Legacy fields (kept for compatibility)
   language?: string;
   hreflangTags: Array<{ lang: string; href: string }>; 
-  nap?: {
-    name?: string;
-    address?: string;
-    phone?: string;
-  };
-  localKeywords: string[]; // detected city/region
-  serverLocation?: string | null; // placeholder
-  googleBusinessPresent?: boolean | null; // placeholder
+  localKeywords: string[];
 };
 
 export type OffPageIndicators = {

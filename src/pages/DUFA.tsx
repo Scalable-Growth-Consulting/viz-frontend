@@ -1015,6 +1015,7 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
                     </div>
                   )}
 
+
                   {/* Footer navigation removed: StageTabs now controls navigation */}
                 </div>
               )}
