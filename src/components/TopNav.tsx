@@ -1,12 +1,12 @@
 import React from 'react';
-import { BarChart2 as BarChartIcon, DatabaseIcon, LightbulbIcon, LogOut, Menu, HeartPulse, Home as HomeIcon, Sparkles } from 'lucide-react';
+import { BarChart2 as BarChartIcon, DatabaseIcon, LightbulbIcon, LogOut, Menu, HeartPulse, Home as HomeIcon, Sparkles, Brain } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from './ui/sheet';
 
-type ZoneType = 'home' | 'biz' | 'riz';
+type ZoneType = 'home' | 'biz' | 'riz' | 'mia';
 
 interface TopNavProps {
   zone: ZoneType;
@@ -67,6 +67,18 @@ const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
                       <span className="opacity-80">→</span>
                     </Link>
                   </SheetClose>
+                  <SheetClose asChild>
+                    <Link 
+                      to="/mia" 
+                      className="flex items-center justify-between bg-gradient-to-r from-purple-500 to-violet-600 text-white px-4 py-3 rounded-lg shadow hover:opacity-90 transition"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Brain className="w-5 h-5" />
+                        <span className="font-medium">MIA</span>
+                      </div>
+                      <span className="opacity-80">→</span>
+                    </Link>
+                  </SheetClose>
                   <div className="flex items-center justify-between bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-3 rounded-lg shadow opacity-60 cursor-not-allowed">
                     <div className="flex items-center gap-2">
                       <BarChartIcon className="w-5 h-5" />
@@ -94,7 +106,7 @@ const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
                       <span className="text-sm">Home</span>
                     </Link>
                   </SheetClose>
-                  {showData && zone !== 'riz' && (
+                  {showData && zone !== 'riz' && zone !== 'mia' && (
                     <SheetClose asChild>
                       <Link to="/data-control" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/20 dark:hover:bg-viz-light">
                         <DatabaseIcon className="w-4 h-4 text-viz-accent" />
@@ -109,7 +121,7 @@ const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
                     </Link>
                   </SheetClose>
                   <SheetClose asChild>
-                    <Link to="/seo-geo-ai-tool" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/20 dark:hover:bg-viz-light">
+                    <Link to="/mia/seo-geo" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/20 dark:hover:bg-viz-light">
                       <Sparkles className="w-4 h-4 text-viz-accent" />
                       <span className="text-sm">SEO-GEO AI Tool</span>
                     </Link>
@@ -169,9 +181,9 @@ const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
             <Link 
               to={zone === 'biz' ? "/data-control" : "#"}
               className={`flex items-center space-x-1 ${
-                zone === 'riz' ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/30 dark:hover:bg-viz-light'
+                zone === 'riz' || zone === 'mia' ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/30 dark:hover:bg-viz-light'
               } bg-white/20 dark:bg-viz-medium px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105`}
-              title={zone === 'riz' ? 'Data management not available in RIZ' : 'Manage Data'}
+              title={zone === 'riz' || zone === 'mia' ? 'Data management not available in this zone' : 'Manage Data'}
             >
               <DatabaseIcon className="w-4 h-4 text-viz-accent" />
               <span className="text-sm font-medium hidden lg:inline text-slate-700 dark:text-white">Data</span>
