@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertCircle, ArrowLeft, ArrowRight, Database, Download, FileText, Loader2, Play, RotateCcw, Settings, Target, TrendingUp, Upload, X, Zap, Trash2, Clock, LineChart, BarChart3, Activity, Wand2, CalendarDays, MessageSquare, Share2 } from 'lucide-react';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend, Filler } from 'chart.js';
+import GlobalFooter from '@/components/GlobalFooter';
 
 import { datasetService, DatasetSummary } from '@/services/datasetService';
 import DUFASettingsModal from '@/components/dufa/DUFASettingsModal';
@@ -1024,6 +1025,9 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
         </div>
       </div>
       {/* Floating navigation removed: Sidebar + StageTabs are primary navigators */}
+      
+      {/* Global Footer */}
+      <GlobalFooter />
     </div>
   );
 };

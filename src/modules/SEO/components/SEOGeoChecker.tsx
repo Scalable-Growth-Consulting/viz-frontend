@@ -219,9 +219,9 @@ export const SEOGeoChecker: React.FC = () => {
   }, [result, input.primaryKeyword]);
 
   return (
-    <div className="space-y-8">
+    <div className="w-full max-w-none space-y-6 sm:space-y-8">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-6 sm:mb-8">
           <TabsList className="grid w-full max-w-md grid-cols-3 bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-indigo-500/10 backdrop-blur-sm border border-violet-200/20 dark:border-purple-400/20 rounded-2xl p-1">
             <TabsTrigger 
               value="input" 
@@ -257,27 +257,27 @@ export const SEOGeoChecker: React.FC = () => {
           >
             <Card className="relative overflow-hidden bg-gradient-to-br from-white/90 via-white/70 to-white/50 dark:from-gray-800/90 dark:via-gray-800/70 dark:to-gray-900/50 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 shadow-2xl rounded-3xl">
               <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-purple-500/5 to-indigo-500/5 pointer-events-none" />
-              <CardHeader className="relative">
+              <CardHeader className="relative px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
                 <div className="flex items-center gap-3 mb-2">
                   <motion.div
                     animate={{ rotate: [0, 360] }}
                     transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                    className="p-3 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl shadow-lg"
+                    className="p-2 sm:p-3 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl shadow-lg"
                   >
-                    <Rocket className="w-6 h-6 text-white" />
+                    <Rocket className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </motion.div>
                   <div>
-                    <CardTitle className="text-2xl font-black bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                    <CardTitle className="text-xl sm:text-2xl font-black bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
                       Launch Analysis
                     </CardTitle>
-                    <CardDescription className="text-gray-600 dark:text-gray-300">
+                    <CardDescription className="text-sm sm:text-base text-gray-600 dark:text-gray-300">
                       Unleash the power of Master SEO and GEO
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="relative space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <CardContent className="relative space-y-4 sm:space-y-6 px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                   <motion.div 
                     className="space-y-4"
                     initial={{ opacity: 0, x: -20 }}
@@ -359,7 +359,7 @@ export const SEOGeoChecker: React.FC = () => {
                       Up to 3 rivals
                     </Badge>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                     {[0,1,2].map((idx)=> (
                       <Input 
                         key={idx} 
@@ -377,7 +377,7 @@ export const SEOGeoChecker: React.FC = () => {
                 </motion.div>
 
                 <motion.div 
-                  className="flex items-center justify-between pt-6"
+                  className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 pt-4 sm:pt-6"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.8, duration: 0.6 }}
@@ -385,31 +385,32 @@ export const SEOGeoChecker: React.FC = () => {
                   <Button 
                     variant="outline" 
                     onClick={()=> setInput({ competitors: [] })}
-                    className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-gray-200/50 dark:border-gray-600/50 rounded-xl hover:bg-white dark:hover:bg-gray-700 transition-all duration-300"
+                    className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-gray-200/50 dark:border-gray-600/50 rounded-xl hover:bg-white dark:hover:bg-gray-700 transition-all duration-300 flex-shrink-0"
                   >
                     <RefreshCcw className="w-4 h-4 mr-2" />
                     Reset
                   </Button>
                   
                   <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex-1 sm:flex-initial"
                   >
                     <Button 
                       disabled={!canAnalyze || loading} 
                       onClick={handleAnalyze} 
-                      className="bg-gradient-to-r from-violet-500 via-purple-600 to-indigo-600 hover:from-violet-600 hover:via-purple-700 hover:to-indigo-700 text-white border-0 rounded-xl px-8 py-3 font-bold text-lg shadow-2xl transition-all duration-300"
+                      className="w-full sm:w-auto bg-gradient-to-r from-violet-500 via-purple-600 to-indigo-600 hover:from-violet-600 hover:via-purple-700 hover:to-indigo-700 text-white border-0 rounded-xl px-6 sm:px-8 py-3 font-bold text-base sm:text-lg shadow-2xl transition-all duration-300"
                     >
                       {loading ? (
                         <>
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                          <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" />
                           Analyzing...
                         </>
                       ) : (
                         <>
-                          <Zap className="w-5 h-5 mr-2" />
+                          <Zap className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                           Launch Analysis
-                          <ArrowRight className="w-5 h-5 ml-2" />
+                          <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
                         </>
                       )}
                     </Button>
@@ -419,7 +420,7 @@ export const SEOGeoChecker: React.FC = () => {
                 <Alert className="bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 border-2 border-violet-200/50 dark:border-purple-400/30 rounded-xl">
                   <Sparkles className="w-4 h-4 text-violet-500" />
                   <AlertDescription className="text-sm text-violet-700 dark:text-violet-300">
-                    <strong>Pro Tip:</strong> For maximum AI precision, paste raw HTML from your CMS or crawler. We never store your data.
+                    <strong>Pro Tip:</strong> For maximum AI precision, paste raw HTML from your CMS or crawler.
                   </AlertDescription>
                 </Alert>
               </CardContent>
@@ -433,19 +434,23 @@ export const SEOGeoChecker: React.FC = () => {
               <CardContent className="py-12 text-center text-sm text-muted-foreground">No report yet. Run an analysis from the Input tab.</CardContent>
             </Card>
           ) : (
-            <div ref={containerRef} className="space-y-4">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div ref={containerRef} className="space-y-4 sm:space-y-6 p-2 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                 <div className="space-y-1">
-                  <h2 className="text-xl font-bold">SEO & GEO Scorecard</h2>
-                  <p className="text-xs text-muted-foreground">{result.url || 'HTML input'} • Computed {new Date(result.computedAt).toLocaleString()}</p>
+                  <h2 className="text-lg sm:text-xl font-bold">SEO & GEO Scorecard</h2>
+                  <p className="text-xs text-muted-foreground break-all sm:break-normal">{result.url || 'HTML input'} • Computed {new Date(result.computedAt).toLocaleString()}</p>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleSaveImage} className="gap-2"><ImageIcon className="w-4 h-4" /> Save Image</Button>
-                  <Button size="sm" onClick={handleExportPDF} className="gap-2"><FileDown className="w-4 h-4" /> Export PDF</Button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button variant="outline" size="sm" onClick={handleSaveImage} className="gap-2 w-full sm:w-auto">
+                    <ImageIcon className="w-4 h-4" /> Save Image
+                  </Button>
+                  <Button size="sm" onClick={handleExportPDF} className="gap-2 w-full sm:w-auto">
+                    <FileDown className="w-4 h-4" /> Export PDF
+                  </Button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                 <Card className="col-span-1 bg-white/90 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
                   <CardHeader className="pb-0">
                     <CardTitle className="text-sm font-semibold">Overall Score</CardTitle>
@@ -461,13 +466,13 @@ export const SEOGeoChecker: React.FC = () => {
                   </CardContent>
                 </Card>
 
-                <Card className="col-span-1 md:col-span-2 bg-white/90 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
+                <Card className="col-span-1 lg:col-span-2 bg-white/90 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-semibold">Pillars</CardTitle>
                     <CardDescription className="text-xs">Visibility • Trust • Relevance</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <GlassPill label="Visibility" value={result.pillars.visibility} color="from-violet-400 to-violet-600" icon={<Eye className="w-4 h-4 text-white" />} />
                       <GlassPill label="Trust" value={result.pillars.trust} color="from-purple-400 to-purple-600" icon={<Star className="w-4 h-4 text-white" />} />
                       <GlassPill label="Relevance" value={result.pillars.relevance} color="from-indigo-400 to-indigo-600" icon={<Target className="w-4 h-4 text-white" />} />

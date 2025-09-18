@@ -1,5 +1,6 @@
 import React from 'react';
 import Header from '../components/Header';
+import GlobalFooter from '@/components/GlobalFooter';
 import { LightbulbIcon, SearchIcon, BarChartIcon, DatabaseIcon } from 'lucide-react';
 
 const Tips = () => {
@@ -71,9 +72,9 @@ const Tips = () => {
           </div>
         </div>
       </main>
-      <footer className="bg-viz-dark text-white text-center py-4 text-sm">
-        <p className="text-viz-text-secondary">© 2025 Viz • Powered by Advanced Business Intelligence AI</p>
-      </footer>
+      
+      {/* Global Footer */}
+      <GlobalFooter />
     </div>
   );
 };

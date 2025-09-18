@@ -27,6 +27,7 @@ import MIAPrivacy from './pages/MIAPrivacy';
 import MIADataDeletion from './pages/MIADataDeletion';
 import MIATerms from './pages/MIATerms';
 import SEO from './pages/SEO';
+import Brandlenz from './pages/Brandlenz';
 import './App.css';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -64,6 +65,8 @@ function App() {
 <Route path="/riz/dufa" element={<ProtectedRoute><RIZ /></ProtectedRoute>} />
 <Route path="/riz/inventory" element={<ProtectedRoute><RIZ /></ProtectedRoute>} />
 <Route path="/riz/brandlenz" element={<ProtectedRoute><RIZ /></ProtectedRoute>} />
+          {/* Independent Brandlenz route */}
+          <Route path="/brandlenz" element={<ProtectedRoute><Brandlenz /></ProtectedRoute>} />
 {/* Legacy home for compatibility */}
 <Route path="/home" element={<ProtectedRoute><Index /></ProtectedRoute>} />
           <Route path="/data-control" element={<ProtectedRoute><DataControl /></ProtectedRoute>} />

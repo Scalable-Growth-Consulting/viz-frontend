@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { TrendingUp, BarChart as BarChartIcon, Target, Zap } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import TopNav from '@/components/TopNav';
+import GlobalFooter from '@/components/GlobalFooter';
 import DUFA from './DUFA';
 import DUFAAccessGuard from '@/components/dufa/DUFAAccessGuard';
 import InventorySuite from './InventorySuite';
@@ -213,6 +214,9 @@ const RIZ: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      {/* Global Footer */}
+      <GlobalFooter />
     </div>
   );
 };

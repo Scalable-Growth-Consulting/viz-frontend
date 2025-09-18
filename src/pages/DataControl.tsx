@@ -4,6 +4,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import SchemaEditor from '@/components/SchemaEditor';
 import { TableSchema } from './TableExplorer';
 import Header from '@/components/Header';
+import GlobalFooter from '@/components/GlobalFooter';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useSchema } from '@/contexts/SchemaContext';
@@ -488,6 +489,9 @@ const DataControl = () => {
           </TabsContent>
         </Tabs>
       </div>
+      
+      {/* Global Footer */}
+      <GlobalFooter />
     </div>
   );
 };

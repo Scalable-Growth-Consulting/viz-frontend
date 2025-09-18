@@ -15,6 +15,7 @@ import {
 import { IntegrationConfig } from '../types';
 import { useMetaIntegration } from '../hooks/useMetaIntegration';
 import { useGoogleIntegration } from '../hooks/useGoogleIntegration';
+import { useWooCommerceIntegration } from '../hooks/useWooCommerceIntegration';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 const MIAIntegrationStatus: React.FC = () => {
@@ -33,6 +34,14 @@ const MIAIntegrationStatus: React.FC = () => {
     sync: syncGoogle,
     loading: googleLoading,
   } = useGoogleIntegration();
+
+  const {
+    connectionStatus: woocommerceStatus,
+    connect: connectWooCommerce,
+    disconnect: disconnectWooCommerce,
+    sync: syncWooCommerce,
+    loading: woocommerceLoading,
+  } = useWooCommerceIntegration();
 
   // Responsive slides to scroll (1/2/4) for the carousel arrows
   const [slidesToScroll, setSlidesToScroll] = React.useState(4);
@@ -69,7 +78,15 @@ const MIAIntegrationStatus: React.FC = () => {
     { platform: 'linkedin', isConnected: false, syncStatus: 'idle' },
     { platform: 'tiktok', isConnected: false, syncStatus: 'idle' },
     { platform: 'shopify', isConnected: false, syncStatus: 'idle' },
-    { platform: 'woocommerce', isConnected: false, syncStatus: 'idle' },
+    {
+      platform: 'woocommerce',
+      isConnected: woocommerceStatus.connected,
+      lastSync: woocommerceStatus.connected ? new Date().toISOString() : undefined,
+      syncStatus: woocommerceStatus.status === 'connected' ? 'success' : 
+                  woocommerceStatus.status === 'error' ? 'error' : 'idle',
+      accountId: woocommerceStatus.siteName || woocommerceStatus.siteUrl,
+      errorMessage: woocommerceStatus.errorMessage,
+    },
     { platform: 'x', isConnected: false, syncStatus: 'idle' },
     { platform: 'ga4', isConnected: false, syncStatus: 'idle' },
   ];
@@ -156,18 +173,21 @@ const MIAIntegrationStatus: React.FC = () => {
   const handleConnect = async (platform: string) => {
     if (platform === 'meta') return connectMeta();
     if (platform === 'google') return connectGoogle();
+    if (platform === 'woocommerce') return connectWooCommerce();
     return Promise.resolve();
   };
 
   const handleSync = async (platform: string) => {
     if (platform === 'meta') return syncMeta();
     if (platform === 'google') return syncGoogle();
+    if (platform === 'woocommerce') return syncWooCommerce();
     return Promise.resolve();
   };
 
   const handleDisconnect = async (platform: string) => {
     if (platform === 'meta') return disconnectMeta();
     if (platform === 'google') return disconnectGoogle();
+    if (platform === 'woocommerce') return disconnectWooCommerce();
     return Promise.resolve();
   };
 
@@ -244,9 +264,11 @@ const MIAIntegrationStatus: React.FC = () => {
                           className={`${integration.platform === 'meta' 
                             ? 'bg-blue-600 hover:bg-blue-700 text-white' 
                             : integration.platform === 'google' 
-                              ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white' 
-                              : 'opacity-60 cursor-not-allowed'} rounded-full px-4 min-w-[200px] justify-center w-full text-xs`}
-                          disabled={integration.platform !== 'meta' && integration.platform !== 'google'}
+                              ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white'
+                              : integration.platform === 'woocommerce'
+                                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white'
+                                : 'opacity-60 cursor-not-allowed'} rounded-full px-4 min-w-[200px] justify-center w-full text-xs`}
+                          disabled={integration.platform !== 'meta' && integration.platform !== 'google' && integration.platform !== 'woocommerce'}
                         >
                           <Plus className="w-3 h-3 mr-1" />
                           Connect

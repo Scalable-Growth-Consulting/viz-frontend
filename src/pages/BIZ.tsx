@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import Header from '../components/Header';
 import ChatInterface from '../components/ChatInterface';
 import ResultsArea from '../components/ResultsArea';
+import GlobalFooter from '@/components/GlobalFooter';
 import { Link } from 'react-router-dom';
 import { useSchema } from '@/contexts/SchemaContext';
 
@@ -534,6 +535,9 @@ const BIZ: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Global Footer */}
+      <GlobalFooter />
     </div>
   );
 };

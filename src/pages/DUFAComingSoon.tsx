@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Header from '@/components/Header';
+import GlobalFooter from '@/components/GlobalFooter';
 
 interface Props { showHeader?: boolean }
 
@@ -229,6 +230,9 @@ const DUFAComingSoon: React.FC<Props> = ({ showHeader = true }) => {
           </p>
         </div>
       </div>
+      
+      {/* Global Footer */}
+      <GlobalFooter />
     </div>
   );
 };
