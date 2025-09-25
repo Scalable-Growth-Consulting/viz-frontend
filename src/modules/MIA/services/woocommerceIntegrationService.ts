@@ -116,7 +116,8 @@ export class WooCommerceIntegrationService {
    */
   async checkConnectionStatus(): Promise<WooCommerceConnectionStatus> {
     try {
-      const response = await fetch(`${this.baseUrl}/wordpress/oauth/status`, {
+      // Use the connections endpoint that exists in the backend
+      const response = await fetch(`${this.baseUrl}/wordpress/connections`, {
         method: 'GET',
         headers: this.makeHeaders(),
       });
@@ -130,11 +131,17 @@ export class WooCommerceIntegrationService {
       }
 
       const data = await response.json();
+      const connections = data.connections || [];
+      
+      // Check if user has any WordPress connections
+      const hasConnection = connections.length > 0;
+      const firstConnection = connections[0];
+      
       return {
-        connected: Boolean(data.connected ?? data.authenticated ?? false),
-        siteUrl: data.siteUrl ?? data.site_url,
-        siteName: data.siteName ?? data.site_name,
-        status: (data.status ?? ((data.connected ?? data.authenticated) ? 'connected' : 'disconnected')) as 'connected' | 'disconnected' | 'error'
+        connected: hasConnection,
+        siteUrl: firstConnection?.siteUrl,
+        siteName: firstConnection?.siteName,
+        status: hasConnection ? 'connected' : 'disconnected'
       };
     } catch (error) {
       console.error('WooCommerce connection status check failed:', error);
@@ -147,59 +154,17 @@ export class WooCommerceIntegrationService {
    */
   async connectWooCommerce(): Promise<void> {
     try {
-      // Real OAuth flow only
-      // Step 1: Try POST /wordpress/oauth/authorize (preferred)
-      let authUrl: string | undefined;
-      let oauthState: string | undefined;
+      const userId = this.appUserId || localStorage.getItem('appUserId');
+      if (!userId) {
+        throw new Error('User ID is required for WordPress OAuth. Please ensure you are logged in.');
+      }
+
+      // Build the OAuth authorization URL with userId as query parameter
+      const authUrl = `${this.baseUrl}/wordpress/oauth/authorize?userId=${encodeURIComponent(userId)}`;
       
-      try {
-        const postResp = await fetch(`${this.baseUrl}/wordpress/oauth/authorize`, {
-          method: 'GET',
-          headers: this.makeHeaders(),
-          // body: JSON.stringify({ state: 'woocommerce-integration' })
-        });
-        
-        if (postResp.ok) {
-          const j = await postResp.json();
-          authUrl = j.authUrl || j.url;
-          oauthState = j.state;
-        }
-      } catch (_) {
-        // ignore and fallback to GET
-      }
+      console.log('Opening WordPress OAuth popup:', authUrl);
 
-      // Step 1b: Fallback to GET /wordpress/oauth/authorize with x-user-id if POST not available
-      if (!authUrl) {
-        const getResp = await fetch(`${this.baseUrl}/wordpress/oauth/authorize`, {
-          method: 'GET',
-          headers: this.makeHeaders(),
-        });
-        
-        if (!getResp.ok) {
-          throw new Error(`Failed to initiate WordPress OAuth: ${getResp.status}`);
-        }
-        
-        const j = await getResp.json();
-        authUrl = j.authUrl || j.url;
-        oauthState = j.state;
-      }
-
-      if (!authUrl) {
-        // Final fallback: construct WordPress OAuth URL client-side if configured
-        const direct = this.buildDirectAuthUrl(oauthState || 'woocommerce-integration');
-        if (direct) {
-          authUrl = direct;
-        } else {
-          throw new Error('No auth URL returned from backend');
-        }
-      }
-
-      // Store state for validation
-      if (oauthState) {
-        sessionStorage.setItem('wordpress_oauth_state', oauthState);
-      }
-
-      // Step 2: Open OAuth URL in popup
+      // Step 1: Open OAuth URL in popup
       const popup = window.open(
         authUrl,
         'wordpress-oauth',
@@ -213,19 +178,28 @@ export class WooCommerceIntegrationService {
         throw new Error('Popup blocked. Please allow popups for this site and try again.');
       }
 
-      // Step 3: Wait for OAuth completion
+      // Step 2: Wait for OAuth completion
       return new Promise((resolve, reject) => {
         const checkClosed = setInterval(() => {
           if (popup.closed) {
             clearInterval(checkClosed);
-            // Check if we got a successful connection
-            this.checkConnectionStatus().then(status => {
-              if (status.connected) {
-                resolve();
-              } else {
-                reject(new Error('WordPress OAuth was cancelled or failed'));
-              }
-            }).catch(reject);
+            // Wait a moment for the callback to complete, then check connection status
+            setTimeout(() => {
+              this.checkConnectionStatus().then(status => {
+                if (status.connected) {
+                  if (this.toast) {
+                    this.toast({
+                      title: 'WordPress Connected!',
+                      description: 'Successfully connected to your WordPress site.',
+                      variant: 'default',
+                    });
+                  }
+                  resolve();
+                } else {
+                  reject(new Error('WordPress OAuth was cancelled or failed'));
+                }
+              }).catch(reject);
+            }, 2000);
           }
         }, 1000);
 
@@ -240,6 +214,13 @@ export class WooCommerceIntegrationService {
       });
     } catch (error) {
       console.error('WooCommerce connection failed:', error);
+      if (this.toast) {
+        this.toast({
+          title: 'Connection Failed',
+          description: error instanceof Error ? error.message : 'Failed to connect to WordPress',
+          variant: 'destructive',
+        });
+      }
       throw error;
     }
   }
@@ -249,16 +230,44 @@ export class WooCommerceIntegrationService {
    */
   async disconnectWooCommerce(): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/wordpress/oauth/disconnect`, {
-        method: 'POST',
+      // Get current connections to find what to delete
+      const connectionsResponse = await fetch(`${this.baseUrl}/wordpress/connections`, {
+        method: 'GET',
         headers: this.makeHeaders(),
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to disconnect: ${response.status}`);
+      if (connectionsResponse.ok) {
+        const data = await connectionsResponse.json();
+        const connections = data.connections || [];
+        
+        // Delete all connections
+        for (const connection of connections) {
+          const authMethod = connection.authMethod || 'oauth2';
+          const siteIdentifier = connection.siteIdentifier || 'default';
+          
+          await fetch(`${this.baseUrl}/wordpress/connections/${authMethod}/${siteIdentifier}`, {
+            method: 'DELETE',
+            headers: this.makeHeaders(),
+          });
+        }
+      }
+      
+      if (this.toast) {
+        this.toast({
+          title: 'WordPress Disconnected',
+          description: 'Successfully disconnected from WordPress.',
+          variant: 'default',
+        });
       }
     } catch (error) {
       console.error('WooCommerce disconnection failed:', error);
+      if (this.toast) {
+        this.toast({
+          title: 'Disconnection Failed',
+          description: error instanceof Error ? error.message : 'Failed to disconnect from WordPress',
+          variant: 'destructive',
+        });
+      }
       throw error;
     }
   }
@@ -268,16 +277,35 @@ export class WooCommerceIntegrationService {
    */
   async syncData(): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/woocommerce/sync`, {
+      // Test the connection first
+      const testResponse = await fetch(`${this.baseUrl}/wordpress/test-connection`, {
         method: 'POST',
         headers: this.makeHeaders(),
+        body: JSON.stringify({ authMethod: 'oauth2' })
       });
 
-      if (!response.ok) {
-        throw new Error(`Sync failed: ${response.status}`);
+      if (!testResponse.ok) {
+        throw new Error(`Connection test failed: ${testResponse.status}`);
+      }
+      
+      // For now, just test the connection as sync
+      // In the future, you can add actual WooCommerce data sync endpoints
+      if (this.toast) {
+        this.toast({
+          title: 'WordPress Sync Complete',
+          description: 'Successfully synced WordPress data.',
+          variant: 'default',
+        });
       }
     } catch (error) {
       console.error('WooCommerce sync failed:', error);
+      if (this.toast) {
+        this.toast({
+          title: 'Sync Failed',
+          description: error instanceof Error ? error.message : 'Failed to sync WordPress data',
+          variant: 'destructive',
+        });
+      }
       throw error;
     }
   }

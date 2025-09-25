@@ -247,15 +247,21 @@ export interface BrandlenzDashboardData {
 export interface IntegrationStatus {
   platform: Platform;
   connected: boolean;
-  lastSync: string;
+  lastSync?: string;
   status: 'active' | 'error' | 'syncing' | 'paused';
+  error?: string;
   errorMessage?: string;
-  dataPoints: {
+  accountInfo?: {
+    name?: string;
+    username?: string;
+    id?: string;
+  };
+  dataPoints?: {
     totalMentions: number;
     lastMentionDate: string;
     avgDailyMentions: number;
   };
-  configuration: {
+  configuration?: {
     keywords: string[];
     languages: string[];
     regions: string[];
@@ -299,12 +305,14 @@ export interface BrandlenzApiResponse<T> {
 // Hook Return Types
 export interface UseBrandlenzReturn {
   dashboardData: BrandlenzDashboardData | null;
-  loading: boolean;
+  integrationStatuses: IntegrationStatus[];
+  loading: Record<string, boolean>;
   error: string | null;
   refreshData: () => Promise<void>;
   updateConfig: (config: Partial<BrandlenzConfig>) => Promise<void>;
   connectPlatform: (platform: Platform) => Promise<void>;
   disconnectPlatform: (platform: Platform) => Promise<void>;
+  syncPlatform: (platform: Platform) => Promise<void>;
 }
 
 export interface UseMentionsReturn {

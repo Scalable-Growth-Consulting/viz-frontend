@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { analyzeSEOGeo } from '../services/seoAnalyzer';
+import { useAWSLambdaAnalysis } from '../hooks/useAWSLambdaAnalysis';
 import type { AnalysisInput, AnalysisResult } from '../types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,7 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowRight, FileDown, Image as ImageIcon, Loader2, RefreshCcw, Sparkles, Globe2, Target, Users, Brain, Zap, Rocket, TrendingUp, Eye, Star } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { ArrowRight, FileDown, Image as ImageIcon, Loader2, RefreshCcw, Sparkles, Globe2, Target, Users, Brain, Zap, Rocket, TrendingUp, Eye, Star, X, RotateCcw, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { useToast } from '@/components/ui/use-toast';
@@ -83,26 +85,98 @@ function SectionHeader({ title, description, icon }: { title: string; descriptio
 
 export const SEOGeoChecker: React.FC = () => {
   const [input, setInput] = useState<AnalysisInput>({ competitors: [] });
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
   const [activeTab, setActiveTab] = useState('input');
+  const [useCloudAnalysis, setUseCloudAnalysis] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  
+  // AWS Lambda integration
+  const {
+    loading: awsLoading,
+    analyzing: awsAnalyzing,
+    currentJob,
+    result: awsResult,
+    error: awsError,
+    progress,
+    startAnalysis: startAWSAnalysis,
+    cancelAnalysis,
+    clearResults: clearAWSResults,
+    validateUrl,
+    retryAnalysis,
+  } = useAWSLambdaAnalysis();
+  
+  // Local analysis state (fallback)
+  const [localLoading, setLocalLoading] = useState(false);
+  const [localResult, setLocalResult] = useState<AnalysisResult | null>(null);
+  
+  // Determine which result to use
+  const result = useCloudAnalysis ? awsResult : localResult;
+  const loading = useCloudAnalysis ? awsLoading : localLoading;
+  const analyzing = useCloudAnalysis ? awsAnalyzing : localLoading;
 
   const canAnalyze = useMemo(() => {
-    return Boolean((input.url && input.url.trim().length > 0) || (input.rawHtml && input.rawHtml.trim().length > 0));
-  }, [input.url, input.rawHtml]);
+    if (useCloudAnalysis) {
+      // Cloud analysis requires a valid URL
+      return Boolean(input.url && input.url.trim().length > 0 && validateUrl(input.url.trim()).isValid);
+    } else {
+      // Local analysis can use URL or raw HTML
+      return Boolean((input.url && input.url.trim().length > 0) || (input.rawHtml && input.rawHtml.trim().length > 0));
+    }
+  }, [input.url, input.rawHtml, useCloudAnalysis, validateUrl]);
+  
+  const urlValidation = useMemo(() => {
+    if (!input.url || input.url.trim().length === 0) {
+      return { isValid: true }; // Don't show error for empty URL
+    }
+    return validateUrl(input.url.trim());
+  }, [input.url, validateUrl]);
 
   const handleAnalyze = async () => {
-    try {
-      setLoading(true);
-      const res = await analyzeSEOGeo(input);
-      setResult(res);
-      setActiveTab('report');
-    } catch (e: any) {
-      toast({ title: 'Analysis failed', description: e?.message || 'Unable to analyze the page', variant: 'destructive' });
-    } finally {
-      setLoading(false);
+    if (useCloudAnalysis) {
+      // Use AWS Lambda for analysis
+      try {
+        await startAWSAnalysis(input, () => {
+          // Switch to report tab when analysis completes
+          setActiveTab('report');
+        });
+      } catch (error) {
+        console.error('AWS analysis failed:', error);
+      }
+    } else {
+      // Use local analysis as fallback
+      try {
+        setLocalLoading(true);
+        const res = await analyzeSEOGeo(input);
+        setLocalResult(res);
+        setActiveTab('report');
+      } catch (e: any) {
+        toast({ title: 'Analysis failed', description: e?.message || 'Unable to analyze the page', variant: 'destructive' });
+      } finally {
+        setLocalLoading(false);
+      }
+    }
+  };
+  
+  const handleCancelAnalysis = async () => {
+    if (useCloudAnalysis) {
+      await cancelAnalysis();
+    }
+  };
+  
+  const handleClearResults = () => {
+    if (useCloudAnalysis) {
+      clearAWSResults();
+    } else {
+      setLocalResult(null);
+    }
+    setActiveTab('input');
+  };
+  
+  const handleRetryAnalysis = async () => {
+    if (useCloudAnalysis) {
+      await retryAnalysis();
+    } else {
+      await handleAnalyze();
     }
   };
 
@@ -376,51 +450,170 @@ export const SEOGeoChecker: React.FC = () => {
                   </div>
                 </motion.div>
 
+                {/* Analysis Mode Toggle */}
+                <motion.div 
+                  className="flex items-center justify-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200/50 dark:border-blue-400/30"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7, duration: 0.6 }}
+                >
+                  <div className="flex items-center gap-2">
+                    <Brain className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">Analysis Mode:</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="analysisMode"
+                        checked={useCloudAnalysis}
+                        onChange={() => setUseCloudAnalysis(true)}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Cloud AI (Recommended)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="analysisMode"
+                        checked={!useCloudAnalysis}
+                        onChange={() => setUseCloudAnalysis(false)}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Local Analysis</span>
+                    </label>
+                  </div>
+                </motion.div>
+
+                {/* URL Validation Error */}
+                {useCloudAnalysis && input.url && !urlValidation.isValid && (
+                  <Alert className="bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 border-2 border-red-200/50 dark:border-red-400/30 rounded-xl">
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                    <AlertDescription className="text-sm text-red-700 dark:text-red-300">
+                      <strong>Invalid URL:</strong> {urlValidation.error}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Progress Bar for Cloud Analysis */}
+                {useCloudAnalysis && analyzing && (
+                  <motion.div 
+                    className="space-y-3 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200/50 dark:border-green-400/30"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-green-600 animate-pulse" />
+                        <span className="text-sm font-semibold text-green-700 dark:text-green-300">
+                          {currentJob?.status === 'pending' && 'Queuing analysis...'}
+                          {currentJob?.status === 'queued' && 'Starting analysis...'}
+                          {currentJob?.status === 'fetched' && 'Content retrieved...'}
+                          {currentJob?.status === 'processing' && 'Analyzing SEO & GEO signals...'}
+                          {!currentJob && 'Initializing...'}
+                        </span>
+                      </div>
+                      <span className="text-sm font-bold text-green-600">{progress}%</span>
+                    </div>
+                    <Progress value={progress} className="h-2" />
+                    {currentJob?.job_id && (
+                      <div className="text-xs text-green-600 dark:text-green-400">
+                        Job ID: {currentJob.job_id}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
+                {/* Error Display */}
+                {useCloudAnalysis && awsError && (
+                  <Alert className="bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 border-2 border-red-200/50 dark:border-red-400/30 rounded-xl">
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                    <AlertDescription className="text-sm text-red-700 dark:text-red-300">
+                      <strong>Analysis Failed:</strong> {awsError}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 <motion.div 
                   className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 pt-4 sm:pt-6"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.8, duration: 0.6 }}
                 >
-                  <Button 
-                    variant="outline" 
-                    onClick={()=> setInput({ competitors: [] })}
-                    className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-gray-200/50 dark:border-gray-600/50 rounded-xl hover:bg-white dark:hover:bg-gray-700 transition-all duration-300 flex-shrink-0"
-                  >
-                    <RefreshCcw className="w-4 h-4 mr-2" />
-                    Reset
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={()=> setInput({ competitors: [] })}
+                      className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-gray-200/50 dark:border-gray-600/50 rounded-xl hover:bg-white dark:hover:bg-gray-700 transition-all duration-300 flex-shrink-0"
+                    >
+                      <RefreshCcw className="w-4 h-4 mr-2" />
+                      Reset
+                    </Button>
+                    
+                    {result && (
+                      <Button 
+                        variant="outline" 
+                        onClick={handleClearResults}
+                        className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-gray-200/50 dark:border-gray-600/50 rounded-xl hover:bg-white dark:hover:bg-gray-700 transition-all duration-300 flex-shrink-0"
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Clear Results
+                      </Button>
+                    )}
+                    
+                    {useCloudAnalysis && awsError && (
+                      <Button 
+                        variant="outline" 
+                        onClick={handleRetryAnalysis}
+                        className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-orange-200/50 dark:border-orange-600/50 rounded-xl hover:bg-white dark:hover:bg-gray-700 transition-all duration-300 flex-shrink-0"
+                      >
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        Retry
+                      </Button>
+                    )}
+                  </div>
                   
                   <motion.div
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className="flex-1 sm:flex-initial"
                   >
-                    <Button 
-                      disabled={!canAnalyze || loading} 
-                      onClick={handleAnalyze} 
-                      className="w-full sm:w-auto bg-gradient-to-r from-violet-500 via-purple-600 to-indigo-600 hover:from-violet-600 hover:via-purple-700 hover:to-indigo-700 text-white border-0 rounded-xl px-6 sm:px-8 py-3 font-bold text-base sm:text-lg shadow-2xl transition-all duration-300"
-                    >
-                      {loading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" />
-                          Analyzing...
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                          Launch Analysis
-                          <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
-                        </>
-                      )}
-                    </Button>
+                    {analyzing ? (
+                      <Button 
+                        onClick={handleCancelAnalysis}
+                        variant="destructive"
+                        className="w-full sm:w-auto rounded-xl px-6 sm:px-8 py-3 font-bold text-base sm:text-lg shadow-2xl transition-all duration-300"
+                      >
+                        <X className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                        Cancel Analysis
+                      </Button>
+                    ) : (
+                      <Button 
+                        disabled={!canAnalyze || loading} 
+                        onClick={handleAnalyze} 
+                        className="w-full sm:w-auto bg-gradient-to-r from-violet-500 via-purple-600 to-indigo-600 hover:from-violet-600 hover:via-purple-700 hover:to-indigo-700 text-white border-0 rounded-xl px-6 sm:px-8 py-3 font-bold text-base sm:text-lg shadow-2xl transition-all duration-300"
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" />
+                            Analyzing...
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                            Launch Analysis
+                            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </motion.div>
                 </motion.div>
 
                 <Alert className="bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 border-2 border-violet-200/50 dark:border-purple-400/30 rounded-xl">
                   <Sparkles className="w-4 h-4 text-violet-500" />
                   <AlertDescription className="text-sm text-violet-700 dark:text-violet-300">
-                    <strong>Pro Tip:</strong> For maximum AI precision, paste raw HTML from your CMS or crawler.
+                    <strong>Pro Tip:</strong> {useCloudAnalysis ? 'Cloud AI analysis provides the most comprehensive SEO & GEO insights using advanced algorithms.' : 'For maximum AI precision, paste raw HTML from your CMS or crawler.'}
                   </AlertDescription>
                 </Alert>
               </CardContent>

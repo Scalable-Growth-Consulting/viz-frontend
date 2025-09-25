@@ -64,9 +64,8 @@ function App() {
 <Route path="/riz" element={<ProtectedRoute><Navigate to="/riz/dufa" replace /></ProtectedRoute>} />
 <Route path="/riz/dufa" element={<ProtectedRoute><RIZ /></ProtectedRoute>} />
 <Route path="/riz/inventory" element={<ProtectedRoute><RIZ /></ProtectedRoute>} />
-<Route path="/riz/brandlenz" element={<ProtectedRoute><RIZ /></ProtectedRoute>} />
-          {/* Independent Brandlenz route */}
-          <Route path="/brandlenz" element={<ProtectedRoute><Brandlenz /></ProtectedRoute>} />
+          {/* Redirect Brandlenz to MIA */}
+          <Route path="/brandlenz" element={<Navigate to="/mia/brandlenz" replace />} />
 {/* Legacy home for compatibility */}
 <Route path="/home" element={<ProtectedRoute><Index /></ProtectedRoute>} />
           <Route path="/data-control" element={<ProtectedRoute><DataControl /></ProtectedRoute>} />
@@ -80,6 +79,8 @@ function App() {
           {/* Independent MIA routes */}
           <Route path="/mia" element={<ProtectedRoute><MIAIndependent /></ProtectedRoute>} />
           <Route path="/mia/seo-geo" element={<ProtectedRoute><MIAIndependent /></ProtectedRoute>} />
+          <Route path="/mia/creative" element={<ProtectedRoute><MIAIndependent /></ProtectedRoute>} />
+          <Route path="/mia/brandlenz" element={<ProtectedRoute><MIAIndependent /></ProtectedRoute>} />
           <Route path="/mia/privacy" element={<ProtectedRoute><MIAPrivacy /></ProtectedRoute>} />
           <Route path="/mia/data-deletion" element={<ProtectedRoute><MIADataDeletion /></ProtectedRoute>} />
           <Route path="/mia/terms" element={<ProtectedRoute><MIATerms /></ProtectedRoute>} />

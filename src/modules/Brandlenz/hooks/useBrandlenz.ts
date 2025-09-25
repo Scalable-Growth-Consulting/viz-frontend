@@ -3,6 +3,7 @@ import {
   BrandlenzDashboardData, 
   BrandlenzConfig, 
   Platform, 
+  IntegrationStatus,
   UseBrandlenzReturn 
 } from '../types';
 import { brandlenzAnalyticsService } from '../services/analyticsService';
@@ -13,7 +14,8 @@ import { useAuth } from '@/contexts/AuthContext';
 export const useBrandlenz = (): UseBrandlenzReturn => {
   const { user } = useAuth();
   const [dashboardData, setDashboardData] = useState<BrandlenzDashboardData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [integrationStatuses, setIntegrationStatuses] = useState<IntegrationStatus[]>([]);
+  const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
 
   // Set user context for services
@@ -25,10 +27,11 @@ export const useBrandlenz = (): UseBrandlenzReturn => {
     }
   }, [user?.id]);
 
-  // Load dashboard data on mount
+  // Load dashboard data and integration statuses on mount
   useEffect(() => {
     if (user?.id) {
       refreshData();
+      loadIntegrationStatuses();
     }
   }, [user?.id]);
 
@@ -36,7 +39,7 @@ export const useBrandlenz = (): UseBrandlenzReturn => {
     if (!user?.id) return;
 
     try {
-      setLoading(true);
+      setLoading(prev => ({ ...prev, dashboard: true }));
       setError(null);
       
       const data = await brandlenzAnalyticsService.getDashboardData();
@@ -50,13 +53,27 @@ export const useBrandlenz = (): UseBrandlenzReturn => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setLoading(prev => ({ ...prev, dashboard: false }));
+    }
+  }, [user?.id]);
+
+  const loadIntegrationStatuses = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      setLoading(prev => ({ ...prev, integrations: true }));
+      const statuses = await brandlenzIntegrationService.getIntegrationStatuses();
+      setIntegrationStatuses(statuses);
+    } catch (err) {
+      console.error('Failed to load integration statuses:', err);
+    } finally {
+      setLoading(prev => ({ ...prev, integrations: false }));
     }
   }, [user?.id]);
 
   const updateConfig = useCallback(async (config: Partial<BrandlenzConfig>) => {
     try {
-      setLoading(true);
+      setLoading(prev => ({ ...prev, config: true }));
       
       // Update configuration via API
       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'}/api/brandlenz/config`, {
@@ -89,13 +106,13 @@ export const useBrandlenz = (): UseBrandlenzReturn => {
       });
       throw err;
     } finally {
-      setLoading(false);
+      setLoading(prev => ({ ...prev, config: false }));
     }
   }, [user?.id, refreshData]);
 
   const connectPlatform = useCallback(async (platform: Platform) => {
     try {
-      setLoading(true);
+      setLoading(prev => ({ ...prev, [platform]: true }));
       
       await brandlenzIntegrationService.connectPlatform(platform);
       
@@ -104,8 +121,8 @@ export const useBrandlenz = (): UseBrandlenzReturn => {
         description: `Successfully connected to ${platform}. Data sync will begin shortly.`,
       });
 
-      // Refresh dashboard data to show new integration
-      await refreshData();
+      // Refresh integration statuses
+      await loadIntegrationStatuses();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : `Failed to connect to ${platform}`;
       setError(errorMessage);
@@ -116,13 +133,13 @@ export const useBrandlenz = (): UseBrandlenzReturn => {
       });
       throw err;
     } finally {
-      setLoading(false);
+      setLoading(prev => ({ ...prev, [platform]: false }));
     }
-  }, [refreshData]);
+  }, [loadIntegrationStatuses]);
 
   const disconnectPlatform = useCallback(async (platform: Platform) => {
     try {
-      setLoading(true);
+      setLoading(prev => ({ ...prev, [platform]: true }));
       
       await brandlenzIntegrationService.disconnectPlatform(platform);
       
@@ -131,8 +148,8 @@ export const useBrandlenz = (): UseBrandlenzReturn => {
         description: `Successfully disconnected from ${platform}.`,
       });
 
-      // Refresh dashboard data to reflect disconnection
-      await refreshData();
+      // Refresh integration statuses
+      await loadIntegrationStatuses();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : `Failed to disconnect from ${platform}`;
       setError(errorMessage);
@@ -143,17 +160,46 @@ export const useBrandlenz = (): UseBrandlenzReturn => {
       });
       throw err;
     } finally {
-      setLoading(false);
+      setLoading(prev => ({ ...prev, [platform]: false }));
     }
-  }, [refreshData]);
+  }, [loadIntegrationStatuses]);
+
+  const syncPlatform = useCallback(async (platform: Platform) => {
+    try {
+      setLoading(prev => ({ ...prev, [platform]: true }));
+      
+      await brandlenzIntegrationService.syncPlatform(platform);
+      
+      toast({
+        title: "Sync Complete",
+        description: `Successfully synced data from ${platform}.`,
+      });
+
+      // Refresh integration statuses and dashboard data
+      await Promise.all([loadIntegrationStatuses(), refreshData()]);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : `Failed to sync ${platform}`;
+      setError(errorMessage);
+      toast({
+        title: "Sync Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      throw err;
+    } finally {
+      setLoading(prev => ({ ...prev, [platform]: false }));
+    }
+  }, [loadIntegrationStatuses, refreshData]);
 
   return {
     dashboardData,
+    integrationStatuses,
     loading,
     error,
     refreshData,
     updateConfig,
     connectPlatform,
     disconnectPlatform,
+    syncPlatform,
   };
 };

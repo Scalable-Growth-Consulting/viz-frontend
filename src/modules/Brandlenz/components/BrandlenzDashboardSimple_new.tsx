@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,12 +9,38 @@ import {
   Heart, 
   AlertTriangle, 
   Target,
+  Eye,
+  Users,
+  Globe,
+  Zap,
+  Star,
   ArrowUp,
   ArrowDown,
+  Activity,
+  BarChart3,
+  PieChart,
+  Calendar,
+  Filter,
+  Download,
   RefreshCw,
   Settings,
+  Bell,
   Sparkles,
-  Award
+  Award,
+  Shield,
+  Lightbulb,
+  TrendingDown,
+  Clock,
+  MapPin,
+  Hash,
+  ExternalLink,
+  ChevronRight,
+  Plus,
+  Minus,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Info
 } from 'lucide-react';
 import BrandlenzIntegrationStatus from './BrandlenzIntegrationStatus';
 
@@ -51,7 +77,7 @@ const BrandlenzDashboardSimple: React.FC = () => {
             <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               <span>Live monitoring across 11 platforms</span>
-              <span>â€¢</span>
+              <span>•</span>
               <span>Last updated 2 minutes ago</span>
             </div>
           </div>

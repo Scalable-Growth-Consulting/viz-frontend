@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ADMIN_EMAIL, hasPremiumAccess } from '@/utils/adminAccess';
-import MIARegularUser from '@/modules/MIA/components/MIARegularUser';
+import MIAComingSoon from '@/pages/MIAComingSoon';
 
 interface MIAAccessGuardProps {
   children: React.ReactNode;
@@ -24,9 +24,9 @@ const MIAAccessGuard: React.FC<MIAAccessGuardProps> = ({ children }) => {
     return <>{children}</>;
   }
 
-  // Regular users see the Meta and Google integration page
-  console.log('[MIAAccessGuard] ✅ Regular user access - showing Meta and Google integration');
-  return <MIARegularUser />;
+  // Non-qualified users see the MIA Coming Soon page
+  console.log('[MIAAccessGuard] ✅ Non-qualified user access - showing MIA Coming Soon page');
+  return <MIAComingSoon showHeader={false} />;
 };
 
 export default MIAAccessGuard;

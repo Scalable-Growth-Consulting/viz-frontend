@@ -69,7 +69,7 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
-  type Section = 'quickwins' | 'insights' | 'actions' | 'sources' | 'quality' | 'seogeo' | 'budget' | 'creative' | 'attribution' | 'settings' | 'mmm' | 'audience' | 'chat';
+  type Section = 'quickwins' | 'insights' | 'actions' | 'sources' | 'quality' | 'seogeo' | 'budget' | 'attribution' | 'settings' | 'mmm' | 'audience' | 'chat';
   const [activeSection, setActiveSection] = useState<Section>('quickwins');
   const [filters, setFilters] = useState<DashboardFilters>({
     platforms: [],
@@ -1341,7 +1341,7 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
   );
 
   // Additional panels to ensure file compiles and keep navigation functional
-  const MMMPannel: React.FC = () => (
+  const MMMPanel: React.FC = () => (
     <div className="space-y-6">
       <Card className="bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
         <CardHeader>
@@ -1378,51 +1378,6 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
                     <div className="mt-2 flex gap-2"><Button size="sm">Apply</Button><Button size="sm" variant="outline">Details</Button></div>
                   </div>
                 ))}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
-  const CreativePanel: React.FC = () => (
-    <div className="space-y-6">
-      <Card className="bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Palette className="w-5 h-5 text-purple-600" /> Creative Lab</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 text-sm">
-          <div className="grid md:grid-cols-4 gap-4">
-            {['Hook rate','Hold rate','Thumb stop','Conversion driver'].map((m, i) => (
-              <div key={m} className="p-4 rounded-lg border border-slate-200/60 dark:border-viz-light/20">
-                <div className="font-medium">{m}</div>
-                <div className="text-slate-600 dark:text-slate-300 mt-1">Top percentile {80 - i * 5}% vs peers</div>
-              </div>
-            ))}
-          </div>
-          <div className="p-4 rounded-xl border border-slate-200/60 dark:border-viz-light/20 bg-white/70 dark:bg-viz-dark/40">
-            <div className="font-medium mb-2">AI Tools</div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20">
-                <div className="flex items-center gap-2 font-medium"><Image className="w-4 h-4 text-emerald-600" /> Thumbnail Creator (AI)</div>
-                <div className="text-xs text-slate-600 dark:text-slate-300 mt-1">Auto-generate scroll-stopping thumbnails</div>
-                <div className="mt-2 flex gap-2"><Button size="sm">Open</Button><Button size="sm" variant="outline">Guide</Button></div>
-              </div>
-              <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20">
-                <div className="flex items-center gap-2 font-medium"><Wand2 className="w-4 h-4 text-indigo-600" /> AI Image Creation</div>
-                <div className="text-xs text-slate-600 dark:text-slate-300 mt-1">Generate variants from best-performers</div>
-                <div className="mt-2 flex gap-2"><Button size="sm">Open</Button><Button size="sm" variant="outline">Prompt Lib</Button></div>
-              </div>
-              <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20">
-                <div className="flex items-center gap-2 font-medium"><Video className="w-4 h-4 text-rose-600" /> AI Video Creation</div>
-                <div className="text-xs text-slate-600 dark:text-slate-300 mt-1">Short-form video variants in minutes</div>
-                <div className="mt-2 flex gap-2"><Button size="sm">Open</Button><Button size="sm" variant="outline">Storyboards</Button></div>
-              </div>
-              <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20">
-                <div className="flex items-center gap-2 font-medium"><Palette className="w-4 h-4 text-purple-600" /> Brand Image Rework</div>
-                <div className="text-xs text-slate-600 dark:text-slate-300 mt-1">Consistency audit & refresh kit</div>
-                <div className="mt-2 flex gap-2"><Button size="sm">Open</Button><Button size="sm" variant="outline">Audit</Button></div>
               </div>
             </div>
           </div>
@@ -1628,11 +1583,10 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
               <NavButton id="quickwins" label="Home / QuickWins" icon={Zap} gradient="bg-gradient-to-r from-pink-500 to-viz-accent" desc="Top actions now" />
               <NavButton id="sources" label="Data Sources" icon={Database} gradient="bg-gradient-to-r from-emerald-500 to-green-600" desc="Connectors" />
               <NavButton id="quality" label="Data Validation" icon={CheckCircle} gradient="bg-gradient-to-r from-indigo-500 to-blue-600" desc="Health & fixes" />
-              <NavButton id="seogeo" label="SEO & GEO" icon={BarChart3} gradient="bg-gradient-to-r from-amber-500 to-rose-600" desc="Search & Gen AI readiness" />
+              {/* <NavButton id="seogeo" label="SEO & GEO" icon={BarChart3} gradient="bg-gradient-to-r from-amber-500 to-rose-600" desc="Search & Gen AI readiness" /> */}
               <NavButton id="insights" label="Insights" icon={BarChart3} gradient="bg-gradient-to-r from-viz-accent to-blue-600" desc="KPIs & drilldowns" />
               <NavButton id="actions" label="Actions" icon={Activity} gradient="bg-gradient-to-r from-amber-500 to-rose-600" desc="Playbooks & history" />
               <NavButton id="budget" label="Budget Autopilot" icon={Wallet} gradient="bg-gradient-to-r from-teal-500 to-emerald-600" desc="Targets & allocation" />
-              <NavButton id="creative" label="Creative Lab" icon={Palette} gradient="bg-gradient-to-r from-purple-500 to-indigo-600" desc="Scoring & variants" />
               <NavButton id="audience" label="Audience Intelligence" icon={Users} gradient="bg-gradient-to-r from-indigo-500 to-blue-600" desc="Segments & personas" />
               <NavButton id="attribution" label="Attribution" icon={PieChart} gradient="bg-gradient-to-r from-amber-500 to-rose-600" desc="Paths & models" />
               <NavButton id="settings" label="Settings" icon={Settings} gradient="bg-gradient-to-r from-purple-500 to-indigo-600" desc="Safety & defaults" />
@@ -1673,10 +1627,9 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
               {activeSection === 'actions' && <ActionsPanel />}
               {activeSection === 'sources' && <SourcesPanel />}
               {activeSection === 'quality' && <QualityPanel />}
-              {activeSection === 'seogeo' && <SeoGeoPanel />}
-              {activeSection === 'mmm' && <MMMPannel />}
+              {/* {activeSection === 'seogeo' && <SeoGeoPanel />} */}
+              {activeSection === 'mmm' && <MMMPanel />}
               {activeSection === 'budget' && <BudgetPanel />}
-              {activeSection === 'creative' && <CreativePanel />}
               {activeSection === 'audience' && <AudiencePanel />}
               {activeSection === 'attribution' && <AttributionPanel />}
               {activeSection === 'chat' && (
