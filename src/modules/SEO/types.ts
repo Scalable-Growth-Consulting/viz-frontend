@@ -67,6 +67,9 @@ export type AnalysisResult = {
   url?: string;
   computedAt: string;
   overallScore: number; // 0-100
+  // Raw scores for display purposes
+  seoScoreOutOf10?: number; // 0-10
+  geoScoreOutOf100?: number; // 0-100
   pillars: PillarScores; 
   onPage: OnPageMetrics;
   geo: GeoSignals;

@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { awsLambdaService, SEOJob, JobStatus, validateUrl } from '../services/awsLambdaService';
 import { AnalysisInput, AnalysisResult } from '../types';
 import { useToast } from '@/components/ui/use-toast';
@@ -19,6 +20,7 @@ export interface UseAWSLambdaAnalysisReturn {
   
   // Utilities
   validateUrl: (url: string) => { isValid: boolean; error?: string };
+  isAnalysisComplete: (job: SEOJob) => boolean;
   
   // Job management
   getJobHistory: () => Promise<SEOJob[]>;
@@ -34,6 +36,7 @@ export const useAWSLambdaAnalysis = (): UseAWSLambdaAnalysisReturn => {
   const [progress, setProgress] = useState(0);
   
   const { toast } = useToast();
+  const navigate = useNavigate();
   const lastInputRef = useRef<AnalysisInput | null>(null);
   const pollingRef = useRef<boolean>(false);
 
@@ -50,37 +53,71 @@ export const useAWSLambdaAnalysis = (): UseAWSLambdaAnalysisReturn => {
   }, []);
 
   /**
-   * Update progress based on job status
+   * Check if analysis is truly complete based on timestamps
+   */
+  const isAnalysisComplete = useCallback((job: SEOJob): boolean => {
+    // Check for GEO completion timestamps
+    const hasGeoScore = (job as any)?.item?.geo_scored_at !== undefined && (job as any)?.item?.geo_scored_at !== null;
+    const hasGeoScorecard = (job as any)?.scorecard?.generative_ai?.geo_scored_at !== undefined && (job as any)?.scorecard?.generative_ai?.geo_scored_at !== null;
+
+    // Check for SEO completion timestamp
+    const hasSeoScore = (job as any)?.item?.seo_score?.evaluated_at !== undefined && (job as any)?.item?.seo_score?.evaluated_at !== null;
+
+    // Job is complete when we have all required completion indicators
+    // Don't rely solely on status since backend might not update it correctly
+    if (hasGeoScore && hasGeoScorecard && hasSeoScore) {
+      return true;
+    }
+
+    // Also accept if status indicates completion AND we have at least some completion indicators
+    // This handles cases where backend status is correct but timestamps are still updating
+    const hasValidStatus = job.status === 'scored' || job.status === 'geo_scored';
+    if (hasValidStatus && (hasGeoScore || hasSeoScore)) {
+      return true;
+    }
+
+    return false;
+  }, []);
+
+  /**
+   * Update progress based on job status and completion state
    */
   const updateProgress = useCallback((job: SEOJob) => {
     let progressValue = 0;
     
-    switch (job.status) {
-      case 'pending':
-        progressValue = 10;
-        break;
-      case 'queued':
-        progressValue = 25;
-        break;
-      case 'fetched':
-        progressValue = 50;
-        break;
-      case 'processing':
-        progressValue = job.progress || 75;
-        break;
-      case 'completed':
-        progressValue = 100;
-        break;
-      case 'failed':
-      case 'error':
-        progressValue = 0;
-        break;
-      default:
-        progressValue = 0;
+    // Check if truly complete first
+    if (isAnalysisComplete(job)) {
+      progressValue = 100;
+    } else {
+      switch (job.status) {
+        case 'pending':
+          progressValue = 10;
+          break;
+        case 'queued':
+          progressValue = 25;
+          break;
+        case 'fetched':
+          progressValue = 50;
+          break;
+        case 'processing':
+          progressValue = job.progress || 65;
+          break;
+        case 'geo_scored':
+        case 'scored':
+          // Partial completion - waiting for all timestamps
+          progressValue = 85;
+          break;
+        case 'failed':
+        case 'error':
+          progressValue = 0;
+          break;
+        default:
+          progressValue = 0;
+      }
     }
     
     setProgress(progressValue);
-  }, []);
+  }, [isAnalysisComplete]);
 
   /**
    * Handle job status updates during polling
@@ -89,26 +126,36 @@ export const useAWSLambdaAnalysis = (): UseAWSLambdaAnalysisReturn => {
     setCurrentJob(job);
     updateProgress(job);
     
+    // Check if analysis is truly complete
+    const isComplete = isAnalysisComplete(job);
+    
     // Show status updates via toast
     const statusMessages: Record<JobStatus, string> = {
       pending: 'Analysis queued...',
       queued: 'Starting analysis...',
       fetched: 'Page content retrieved...',
       processing: 'Analyzing SEO & GEO signals...',
-      completed: 'Analysis completed!',
+      geo_scored: 'GEO analysis complete, finalizing SEO...',
+      scored: 'Analysis complete, processing results...',
       failed: 'Analysis failed',
       error: 'An error occurred',
     };
     
-    const message = statusMessages[job.status];
-    if (message && job.status !== 'completed') {
+    let message = statusMessages[job.status];
+    
+    // Override message if truly complete
+    if (isComplete) {
+      message = 'Analysis completed!';
+    }
+    
+    if (message && !isComplete) {
       toast({
         title: 'Analysis Progress',
         description: message,
         duration: 2000,
       });
     }
-  }, [toast, updateProgress]);
+  }, [toast, updateProgress, isAnalysisComplete]);
 
   /**
    * Start SEO analysis with AWS Lambda
@@ -165,19 +212,93 @@ export const useAWSLambdaAnalysis = (): UseAWSLambdaAnalysisReturn => {
         return;
       }
       
-      if (completedJob.result) {
-        setResult(completedJob.result);
-        toast({
-          title: 'Analysis Complete!',
-          description: 'Your SEO & GEO analysis is ready.',
-        });
-        
-        // Call completion callback if provided
-        if (onComplete) {
-          onComplete();
-        }
+      // Verify the job is truly complete
+      if (!isAnalysisComplete(completedJob)) {
+        throw new Error('Analysis polling completed but job is not fully processed');
+      }
+      
+      // Transform AWS Lambda response to expected AnalysisResult format
+      const transformAWSResponse = (job: any): AnalysisResult => {
+        const seoScore = job.item?.seo_score || {};
+        const geoSignals = job.scorecard?.generative_ai || {};
+        const onPageMetrics = job.scorecard?.on_page || {};
+
+        // Calculate overall score correctly: (SEO_score * 10 + GEO_score) / 2
+        // SEO is on scale of 10, GEO is on scale of 100
+        const seoScoreOutOf10 = seoScore.overall_score || 0;
+        const geoScoreOutOf100 = geoSignals.geo_overall_score || 0;
+        const calculatedOverallScore = Math.round((seoScoreOutOf10 * 10 + geoScoreOutOf100) / 2);
+
+        return {
+          url: job.item?.url || '',
+          computedAt: new Date().toISOString(),
+          overallScore: calculatedOverallScore,
+          // Store raw scores for display
+          seoScoreOutOf10: seoScoreOutOf10,
+          geoScoreOutOf100: geoScoreOutOf100,
+          pillars: {
+            visibility: Math.round((seoScore.canonical_score || 0 + seoScore.link_score || 0 + onPageMetrics.h1_count || 0) / 3),
+            trust: Math.round((seoScore.structured_score || 0 + geoSignals.authority_signals || 0) / 2),
+            relevance: Math.round((seoScore.content_score || 0 + geoSignals.contextual_relevance || 0) / 2),
+          },
+          onPage: {
+            title: job.item?.title || '',
+            titleLength: onPageMetrics.title_length || 0,
+            metaDescription: job.item?.meta_description || '',
+            metaDescriptionLength: onPageMetrics.meta_description_length || 0,
+            h1Count: onPageMetrics.h1_count || 0,
+            h2Count: onPageMetrics.h2_count || 0,
+            h3Count: onPageMetrics.h3_count || 0,
+            wordCount: onPageMetrics.word_count || 0,
+            keywordDensity: [],
+            imageCount: onPageMetrics.images?.count || 0,
+            imagesWithAlt: Math.round((onPageMetrics.images?.alt_coverage_percent || 0) * (onPageMetrics.images?.count || 0) / 100),
+            schemaPresent: onPageMetrics.schema_markup_present || false,
+            internalLinks: job.item?.internal_links?.length || 0,
+            externalLinks: job.item?.external_links?.length || 0,
+          },
+          geo: {
+            aiVisibilityRate: geoSignals.ai_visibility_rate || 0,
+            citationFrequency: geoSignals.citation_frequency || 0,
+            brandMentionScore: geoSignals.brand_mention_score || 0,
+            sentimentAccuracy: geoSignals.sentiment_accuracy || 0,
+            structuredDataScore: geoSignals.structured_data_score || 0,
+            contextualRelevance: geoSignals.contextual_relevance || 0,
+            authoritySignals: geoSignals.authority_signals || 0,
+            conversationalOptimization: geoSignals.conversational_ai_presence || 0,
+            factualAccuracy: geoSignals.factual_signal_score || 0,
+            topicCoverage: geoSignals.topic_coverage || 0,
+            hreflangTags: [],
+            localKeywords: [],
+          },
+          offPage: {
+            backlinkCountEstimate: null,
+            domainTrustScore: null,
+            competitorKeywordOverlap: [],
+          },
+          topQuickFixes: [],
+          missedOpportunities: [],
+          competitorSummaries: [],
+        };
+      };
+
+      // Transform the completed job to the expected format
+      const transformedResult = transformAWSResponse(completedJob);
+
+      // Set the transformed result
+      setResult(transformedResult);
+      
+      toast({
+        title: 'Analysis Complete!',
+        description: 'Your SEO & GEO analysis is ready.',
+      });
+      
+      // Call completion callback if provided (this should handle navigation)
+      if (onComplete) {
+        onComplete();
       } else {
-        throw new Error('Analysis completed but no results were returned');
+        // Default navigation to SEO page with results tab
+        navigate('/seo?tab=report');
       }
       
     } catch (err) {
@@ -269,6 +390,7 @@ export const useAWSLambdaAnalysis = (): UseAWSLambdaAnalysisReturn => {
     
     // Utilities
     validateUrl,
+    isAnalysisComplete,
     
     // Job management
     getJobHistory,

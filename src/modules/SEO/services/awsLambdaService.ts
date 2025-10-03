@@ -2,13 +2,14 @@ import { supabase } from '@/lib/supabase';
 import { AnalysisInput, AnalysisResult } from '../types';
 
 // AWS API Gateway configuration
-const AWS_API_BASE = 'https://nrl3k5c472.execute-api.ap-south-1.amazonaws.com/dev';
+const AWS_API_BASE = (import.meta.env.VITE_AWS_API_BASE as string) || 'https://nrl3k5c472.execute-api.ap-south-1.amazonaws.com/dev';
 
 // Job status types
-export type JobStatus = 'pending' | 'queued' | 'fetched' | 'processing' | 'completed' | 'failed' | 'error';
+export type JobStatus = 'pending' | 'queued' | 'fetched' | 'processing' | 'geo_scored' | 'scored' |'failed' | 'error';
 
 export interface SEOJob {
-  job_id: string;
+  job_id?: string;  // Standard snake_case
+  jobId?: string;   // Alternative camelCase
   status: JobStatus;
   url?: string;
   primary_keyword?: string;
@@ -19,6 +20,9 @@ export interface SEOJob {
   result?: AnalysisResult;
   error_message?: string;
   progress?: number;
+  // Optional scored timestamps from DynamoDB indicating completion of respective pipelines
+  seo_scored_at?: string | null;
+  geo_scored_at?: string | null;
 }
 
 export interface CreateJobRequest {
@@ -29,7 +33,8 @@ export interface CreateJobRequest {
 }
 
 export interface CreateJobResponse {
-  job_id: string;
+  job_id?: string;  // Standard snake_case
+  jobId?: string;   // Alternative camelCase
   status: JobStatus;
   message?: string;
 }
@@ -65,6 +70,22 @@ export const validateUrl = (url: string): { isValid: boolean; error?: string } =
     // Check for localhost or IP addresses (optional restriction)
     if (urlObj.hostname === 'localhost' || urlObj.hostname.match(/^\d+\.\d+\.\d+\.\d+$/)) {
       return { isValid: false, error: 'Please provide a public domain URL' };
+    }
+
+    // Check for common problematic domains that might block crawlers
+    const problematicDomains = [
+      'facebook.com', 'instagram.com', 'twitter.com', 'linkedin.com',
+      'youtube.com', 'tiktok.com', 'snapchat.com', 'pinterest.com'
+    ];
+    
+    const hostname = urlObj.hostname.toLowerCase();
+    for (const domain of problematicDomains) {
+      if (hostname === domain || hostname.endsWith('.' + domain)) {
+        return { 
+          isValid: false, 
+          error: `Social media platforms like ${domain} typically block automated analysis. Please try a regular website instead.` 
+        };
+      }
     }
 
     return { isValid: true };
@@ -105,42 +126,98 @@ export class AWSLambdaService {
    * Make authenticated request to AWS API Gateway
    */
   private async makeRequest<T>(
-    endpoint: string, 
-    options: RequestInit = {}
+    endpoint: string,
+    options: RequestInit & { timeoutMs?: number; retries?: number; retryDelayMs?: number } = {}
   ): Promise<T> {
     const token = await this.getAuthToken();
-    
-    const response = await fetch(`${AWS_API_BASE}${endpoint}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'X-Client-Info': 'viz-bi-agent/1.0.0',
-        ...options.headers,
-      },
-    });
 
-    if (!response.ok) {
-      let errorMessage = `API error ${response.status}: ${response.statusText}`;
-      
+    const { timeoutMs = 15000, retries = 2, retryDelayMs = 500, ...fetchOptions } = options as any;
+
+    const url = `${AWS_API_BASE}${endpoint}`;
+    console.log('Making request to:', url);
+    console.log('Method:', fetchOptions.method || 'GET');
+    console.log('Token present:', !!token);
+    console.log('Token preview:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
+
+    let lastError: any;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
-        const errorData = await response.text();
-        if (errorData) {
-          errorMessage = `API error ${response.status}: ${errorData}`;
+        const response = await fetch(url, {
+          ...fetchOptions,
+          signal: controller.signal,
+          headers: {
+            // Allow callers to add headers, but never override our Authorization
+            ...(fetchOptions.headers || {}),
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        clearTimeout(timer);
+
+        if (!response.ok) {
+          // Auth errors should not be retried here
+          if (response.status === 401 || response.status === 403) {
+            const errorBody = await response.text().catch(() => '');
+            throw new Error(`Auth error ${response.status}: ${errorBody || response.statusText}`);
+          }
+
+          // Retry on 5xx and network-ish conditions
+          if (response.status >= 500 && response.status < 600 && attempt < retries) {
+            await new Promise(r => setTimeout(r, retryDelayMs * Math.pow(2, attempt)));
+            continue;
+          }
+
+          let errorMessage = `API error ${response.status}: ${response.statusText}`;
+          try {
+            const errorData = await response.text();
+            const reqId = response.headers.get('x-amzn-requestid') || response.headers.get('x-amz-request-id') || '';
+            const apigwId = response.headers.get('x-amz-apigw-id') || '';
+            const suffix = [reqId && `reqId=${reqId}`, apigwId && `apiGwId=${apigwId}`].filter(Boolean).join(' ');
+            if (errorData) errorMessage = `API error ${response.status}: ${errorData}${suffix ? ` (${suffix})` : ''}`;
+          } catch {}
+          throw new Error(errorMessage);
         }
-      } catch (e) {
-        // If we can't parse error response, use the default message
+
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const jsonResponse = await response.json();
+
+          // Handle API Gateway proxy integration envelope
+          if (jsonResponse && jsonResponse.statusCode && jsonResponse.body) {
+            console.log('Detected API Gateway response format, parsing body...');
+            try {
+              const parsedBody = JSON.parse(jsonResponse.body);
+              return parsedBody as T;
+            } catch (parseError) {
+              console.error('Failed to parse API Gateway response body:', parseError);
+              throw new Error('Invalid JSON in API Gateway response body');
+            }
+          }
+
+          return jsonResponse as T;
+        }
+
+        return (await response.text()) as unknown as T;
+      } catch (err: any) {
+        clearTimeout(timer);
+        lastError = err;
+        // Retry AbortError and network errors
+        const message = err?.message || '';
+        const isAbort = err?.name === 'AbortError' || /aborted|timeout/i.test(message);
+        const isNetwork = /network|fetch failed|failed to fetch/i.test(message);
+        if ((isAbort || isNetwork) && attempt < retries) {
+          await new Promise(r => setTimeout(r, retryDelayMs * Math.pow(2, attempt)));
+          continue;
+        }
+        throw err;
       }
-      
-      throw new Error(errorMessage);
     }
 
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      return await response.json();
-    } else {
-      return await response.text() as T;
-    }
+    throw lastError || new Error('Unknown request error');
   }
 
   /**
@@ -170,9 +247,53 @@ export class AWSLambdaService {
         body: JSON.stringify(requestData),
       });
 
-      return response;
+      console.log('AWS Lambda createJob response (parsed):', response);
+
+      // Handle both job_id and jobId field names
+      const jobId = response?.job_id || response?.jobId;
+      
+      console.log('Extracted job ID:', jobId);
+      
+      // Validate response has required job ID
+      if (!response || !jobId) {
+        console.error('Invalid response from AWS Lambda:', response);
+        throw new Error('AWS Lambda did not return a valid job ID (expected job_id or jobId field). Please check your Lambda function.');
+      }
+
+      // Normalize response to always use job_id
+      const normalizedResponse = {
+        ...response,
+        job_id: jobId
+      };
+
+      console.log('Normalized response:', normalizedResponse);
+      return normalizedResponse;
     } catch (error) {
       console.error('Failed to create SEO analysis job:', error);
+      
+      // Handle specific error cases
+      if (error instanceof Error) {
+        // Check for robots.txt related errors
+        if (error.message.includes('robots') || error.message.includes('blocked') || error.message.includes('disallowed')) {
+          throw new Error(`The website ${input.url} blocks automated crawlers via robots.txt. Try analyzing a different page or contact the site owner for permission.`);
+        }
+        
+        // Check for authentication errors
+        if (error.message.includes('403') || error.message.includes('not authorized')) {
+          throw new Error('Authentication failed. Please ensure you are logged in and try again.');
+        }
+        
+        // Check for rate limiting
+        if (error.message.includes('429') || error.message.includes('rate limit')) {
+          throw new Error('Rate limit exceeded. Please wait a moment before trying again.');
+        }
+        
+        // Check for server errors
+        if (error.message.includes('500') || error.message.includes('502') || error.message.includes('503')) {
+          throw new Error('Server temporarily unavailable. Please try again in a few minutes.');
+        }
+      }
+      
       throw new Error(`Failed to start analysis: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -181,7 +302,10 @@ export class AWSLambdaService {
    * Get job status and results
    */
   public async getJob(jobId: string): Promise<SEOJob> {
+    console.log('getJob called with jobId:', jobId, 'type:', typeof jobId);
+    
     if (!jobId || jobId.trim().length === 0) {
+      console.error('Job ID validation failed:', { jobId, type: typeof jobId });
       throw new Error('Job ID is required');
     }
 
@@ -189,6 +313,11 @@ export class AWSLambdaService {
       const response = await this.makeRequest<SEOJob>(`/jobs/${encodeURIComponent(jobId.trim())}`, {
         method: 'GET',
       });
+
+      // Normalize response to always have job_id field
+      if (response && !response.job_id && response.jobId) {
+        response.job_id = response.jobId;
+      }
 
       return response;
     } catch (error) {
@@ -242,12 +371,31 @@ export class AWSLambdaService {
             onUpdate(job);
           }
 
-          // Check if job is complete
-          if (job.status === 'completed') {
+          // Check if job is complete - both SEO and GEO scoring must be finished
+          // Be more flexible with status since backend might not update it correctly
+          const hasValidStatus = job.status === 'scored' || job.status === 'geo_scored';
+          
+          // Check for GEO completion timestamps
+          const hasGeoScore = (job as any)?.item?.geo_scored_at !== undefined && (job as any)?.item?.geo_scored_at !== null;
+          const hasGeoScorecard = (job as any)?.scorecard?.generative_ai?.geo_scored_at !== undefined && (job as any)?.scorecard?.generative_ai?.geo_scored_at !== null;
+          
+          // Check for SEO completion timestamp
+          const hasSeoScore = (job as any)?.item?.seo_score?.evaluated_at !== undefined && (job as any)?.item?.seo_score?.evaluated_at !== null;
+          
+          // Job is complete when we have all required completion indicators
+          // Don't rely solely on status since backend might not update it correctly
+          if (hasGeoScore && hasGeoScorecard && hasSeoScore) {
             resolve(job);
             return;
           }
-
+          
+          // Also accept if status indicates completion AND we have at least some completion indicators
+          // This handles cases where backend status is correct but timestamps are still updating
+          if (hasValidStatus && (hasGeoScore || hasSeoScore)) {
+            resolve(job);
+            return;
+          }
+        
           // Check if job failed
           if (job.status === 'failed' || job.status === 'error') {
             reject(new Error(job.error_message || `Analysis failed with status: ${job.status}`));
@@ -255,7 +403,7 @@ export class AWSLambdaService {
           }
 
           // Continue polling for pending/queued/fetched/processing states
-          if (['pending', 'queued', 'fetched', 'processing'].includes(job.status)) {
+          if (['pending', 'queued', 'fetched', 'processing','parsed'].includes(job.status)) {
             setTimeout(poll, intervalMs);
             return;
           }
@@ -264,6 +412,29 @@ export class AWSLambdaService {
           reject(new Error(`Unknown job status: ${job.status}`));
         } catch (error) {
           console.error('Polling error:', error);
+          
+          // Handle specific error cases
+          if (error instanceof Error) {
+            // If it's a 403 error, it might be an auth issue with the GET endpoint
+            if (error.message.includes('403') || error.message.includes('not authorized')) {
+              reject(new Error('Authentication failed when checking job status. Please ensure your AWS Lambda GET endpoint is properly configured for authentication.'));
+              return;
+            }
+            
+            // If it's a 404 error, the job might not exist
+            if (error.message.includes('404')) {
+              reject(new Error('Job not found. The analysis job may have expired or been deleted.'));
+              return;
+            }
+            
+            // For other errors, retry a few times before giving up
+            if (attempts <= 3) {
+              console.log(`Polling attempt ${attempts} failed, retrying in ${intervalMs}ms...`);
+              setTimeout(poll, intervalMs);
+              return;
+            }
+          }
+          
           reject(error);
         }
       };
@@ -288,6 +459,64 @@ export class AWSLambdaService {
     } catch (error) {
       console.error('Failed to cancel job:', error);
       throw new Error(`Failed to cancel job: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Trigger competitor keyword fetch for a job via GET /comp/{jobId}
+   */
+  public async triggerCompetitorKeywords(
+    jobId: string,
+    options: { signal?: AbortSignal; timeoutMs?: number; retries?: number; retryDelayMs?: number } = {}
+  ): Promise<any> {
+    const id = jobId?.trim();
+    if (!id) throw new Error('Job ID is required');
+
+    try {
+      const { signal, timeoutMs = 15000, retries = 3, retryDelayMs = 600 } = options;
+      const response = await this.makeRequest<any>(`/comp/${encodeURIComponent(id)}`, {
+        method: 'GET',
+        signal,
+        timeoutMs,
+        retries,
+        retryDelayMs,
+      });
+      return response;
+    } catch (error) {
+      console.error('Failed to trigger competitor keyword fetch:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Submit competitor URLs for a job via POST /comp/{jobId}
+   */
+  public async submitCompetitors(
+    jobId: string,
+    competitors: string[],
+    options: { signal?: AbortSignal; timeoutMs?: number; retries?: number; retryDelayMs?: number } = {}
+  ): Promise<any> {
+    const id = jobId?.trim();
+    if (!id) throw new Error('Job ID is required');
+    const list = (competitors || [])
+      .map(c => (c || '').trim())
+      .filter(Boolean);
+    if (list.length === 0) return { ok: true, message: 'No competitors to submit' };
+
+    try {
+      const { signal, timeoutMs = 15000, retries = 3, retryDelayMs = 600 } = options;
+      const response = await this.makeRequest<any>(`/comp/${encodeURIComponent(id)}`, {
+        method: 'POST',
+        signal,
+        timeoutMs,
+        retries,
+        retryDelayMs,
+        body: JSON.stringify({ competitors: list }),
+      });
+      return response;
+    } catch (error) {
+      console.error('Failed to submit competitor URLs:', error);
+      throw error;
     }
   }
 
