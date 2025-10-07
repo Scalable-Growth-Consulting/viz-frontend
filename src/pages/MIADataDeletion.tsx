@@ -1,8 +1,15 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
+import GlobalFooter from '@/components/GlobalFooter';
 
 const MIADataDeletion: React.FC = () => {
+  const navigate = useNavigate();
+
+  const handleGoBack = () => {
+    navigate(-1);
+  };
+
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,rgba(15,23,42,0.06),transparent_50%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.06),transparent_50%)] text-slate-900 dark:text-slate-100">
       <Header showDataSection={false} />
@@ -10,13 +17,13 @@ const MIADataDeletion: React.FC = () => {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {/* Breadcrumb */}
         <div className="mb-6">
-          <Link
-            to="/riz/mia"
+          <button
+            onClick={handleGoBack}
             className="inline-flex items-center gap-1 text-sm font-medium text-viz-accent hover:text-viz-accent/80 transition-colors"
           >
             <span>←</span>
-            <span>Back to RIZ / MIA</span>
-          </Link>
+            <span>Back</span>
+          </button>
         </div>
 
         {/* Hero */}
@@ -113,6 +120,9 @@ const MIADataDeletion: React.FC = () => {
           </div>
         </div>
       </main>
+      
+      {/* Global Footer */}
+      <GlobalFooter variant="mia" />
     </div>
   );
 };

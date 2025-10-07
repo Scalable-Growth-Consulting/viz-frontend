@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
+import GlobalFooter from '@/components/GlobalFooter';
 import { useNavigate } from 'react-router-dom';
 
 const AVATAR_BUCKET = 'avatars';
@@ -180,6 +181,9 @@ const Profile: React.FC = () => {
           </Button>
         </form>
       </div>
+      
+      {/* Global Footer */}
+      <GlobalFooter />
     </div>
   );
 };

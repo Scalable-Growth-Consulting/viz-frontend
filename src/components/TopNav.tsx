@@ -1,12 +1,13 @@
 import React from 'react';
-import { BarChart2 as BarChartIcon, DatabaseIcon, LightbulbIcon, LogOut, Menu, HeartPulse, Home as HomeIcon } from 'lucide-react';
+import { BarChart2 as BarChartIcon, DatabaseIcon, LightbulbIcon, LogOut, Menu, HeartPulse, Home as HomeIcon, Sparkles, Brain } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasPremiumAccess } from '@/utils/adminAccess';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from './ui/sheet';
 
-type ZoneType = 'home' | 'biz' | 'riz';
+type ZoneType = 'home' | 'biz' | 'riz' | 'mia';
 
 interface TopNavProps {
   zone: ZoneType;
@@ -15,6 +16,7 @@ interface TopNavProps {
 
 const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
   const { user, signOut } = useAuth();
+  const isPrivileged = hasPremiumAccess(user);
 
   const handleSignOut = async () => {
     await signOut();
@@ -55,32 +57,50 @@ const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
                       <span className="opacity-80">→</span>
                     </Link>
                   </SheetClose>
+                  {isPrivileged && (
+                    <SheetClose asChild>
+                      <Link 
+                        to="/riz/inventory" 
+                        className="flex items-center justify-between bg-gradient-to-r from-pink-500 to-viz-accent text-white px-4 py-3 rounded-lg shadow hover:opacity-90 transition"
+                      >
+                        <div className="flex items-center gap-2">
+                          <DatabaseIcon className="w-5 h-5" />
+                          <span className="font-medium">Retail Zone</span>
+                        </div>
+                        <span className="opacity-80">→</span>
+                      </Link>
+                    </SheetClose>
+                  )}
                   <SheetClose asChild>
                     <Link 
-                      to="/riz/inventory" 
-                      className="flex items-center justify-between bg-gradient-to-r from-pink-500 to-viz-accent text-white px-4 py-3 rounded-lg shadow hover:opacity-90 transition"
+                      to="/mia" 
+                      className="flex items-center justify-between bg-gradient-to-r from-purple-500 to-violet-600 text-white px-4 py-3 rounded-lg shadow hover:opacity-90 transition"
                     >
                       <div className="flex items-center gap-2">
-                        <DatabaseIcon className="w-5 h-5" />
-                        <span className="font-medium">Retail Zone</span>
+                        <Brain className="w-5 h-5" />
+                        <span className="font-medium">MIZ</span>
                       </div>
                       <span className="opacity-80">→</span>
                     </Link>
                   </SheetClose>
-                  <div className="flex items-center justify-between bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-3 rounded-lg shadow opacity-60 cursor-not-allowed">
-                    <div className="flex items-center gap-2">
-                      <BarChartIcon className="w-5 h-5" />
-                      <span className="font-medium">FIZ</span>
-                    </div>
-                    <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">Coming Soon</span>
-                  </div>
-                  <div className="flex items-center justify-between bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-4 py-3 rounded-lg shadow opacity-60 cursor-not-allowed">
-                    <div className="flex items-center gap-2">
-                      <HeartPulse className="w-5 h-5" />
-                      <span className="font-medium">HIZ</span>
-                    </div>
-                    <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">Coming Soon</span>
-                  </div>
+                  {isPrivileged && (
+                    <>
+                      <div className="flex items-center justify-between bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-3 rounded-lg shadow opacity-60 cursor-not-allowed">
+                        <div className="flex items-center gap-2">
+                          <BarChartIcon className="w-5 h-5" />
+                          <span className="font-medium">FIZ</span>
+                        </div>
+                        <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">Coming Soon</span>
+                      </div>
+                      <div className="flex items-center justify-between bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-4 py-3 rounded-lg shadow opacity-60 cursor-not-allowed">
+                        <div className="flex items-center gap-2">
+                          <HeartPulse className="w-5 h-5" />
+                          <span className="font-medium">HIZ</span>
+                        </div>
+                        <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">Coming Soon</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -94,7 +114,7 @@ const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
                       <span className="text-sm">Home</span>
                     </Link>
                   </SheetClose>
-                  {showData && zone !== 'riz' && (
+                  {showData && zone !== 'riz' && zone !== 'mia' && (
                     <SheetClose asChild>
                       <Link to="/data-control" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/20 dark:hover:bg-viz-light">
                         <DatabaseIcon className="w-4 h-4 text-viz-accent" />
@@ -106,6 +126,12 @@ const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
                     <Link to="/tips" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/20 dark:hover:bg-viz-light">
                       <LightbulbIcon className="w-4 h-4 text-viz-accent" />
                       <span className="text-sm">Tips</span>
+                    </Link>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Link to="/mia/seo-geo" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/20 dark:hover:bg-viz-light">
+                      <Sparkles className="w-4 h-4 text-viz-accent" />
+                      <span className="text-sm">SEO-GEO AI Tool</span>
                     </Link>
                   </SheetClose>
                   {user && (
@@ -163,9 +189,9 @@ const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
             <Link 
               to={zone === 'biz' ? "/data-control" : "#"}
               className={`flex items-center space-x-1 ${
-                zone === 'riz' ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/30 dark:hover:bg-viz-light'
+                zone === 'riz' || zone === 'mia' ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/30 dark:hover:bg-viz-light'
               } bg-white/20 dark:bg-viz-medium px-3 py-1.5 rounded-lg transition-all shadow-sm hover:shadow md:hover:scale-105`}
-              title={zone === 'riz' ? 'Data management not available in RIZ' : 'Manage Data'}
+              title={zone === 'riz' || zone === 'mia' ? 'Data management not available in this zone' : 'Manage Data'}
             >
               <DatabaseIcon className="w-4 h-4 text-viz-accent" />
               <span className="text-sm font-medium hidden lg:inline text-slate-700 dark:text-white">Data</span>

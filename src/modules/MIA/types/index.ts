@@ -73,7 +73,7 @@ export interface MarketingQuery {
 }
 
 export interface IntegrationConfig {
-  platform: 'meta' | 'google' | 'linkedin' | 'tiktok';
+  platform: 'meta' | 'google' | 'linkedin' | 'tiktok' | 'shopify' | 'woocommerce' | 'x' | 'ga4';
   isConnected: boolean;
   accessToken?: string;
   refreshToken?: string;
@@ -95,7 +95,7 @@ export interface DashboardFilters {
 
 export interface SyncJob {
   id: string;
-  platform: 'meta' | 'google' | 'linkedin' | 'tiktok';
+  platform: 'meta' | 'google' | 'linkedin' | 'tiktok' | 'shopify' | 'woocommerce' | 'x' | 'ga4';
   status: 'pending' | 'running' | 'completed' | 'failed';
   startTime: string;
   endTime?: string;

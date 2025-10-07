@@ -3,6 +3,7 @@ import Header from '../components/Header';
 import TableList from '../components/TableList';
 import SchemaEditor from '../components/SchemaEditor';
 import Loader from '../components/ui/loader';
+import GlobalFooter from '@/components/GlobalFooter';
 import { Button } from '@/components/ui/button';
 import { SaveIcon, RefreshCwIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -475,6 +476,9 @@ const TableExplorer = () => {
           </div>
         </div>
       </main>
+      
+      {/* Global Footer */}
+      <GlobalFooter />
     </div>
   );
 };
