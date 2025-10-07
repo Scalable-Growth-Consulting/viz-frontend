@@ -521,6 +521,40 @@ export class AWSLambdaService {
   }
 
   /**
+   * Get AI recommendations for a job via POST /recom/{jobId}
+   * Lambda returns API Gateway proxy format with a JSON body, handled by makeRequest
+   */
+  public async getRecommendations(
+    jobId: string,
+    options: { signal?: AbortSignal; timeoutMs?: number; retries?: number; retryDelayMs?: number; method?: 'POST' | 'GET' } = {}
+  ): Promise<any> {
+    const id = jobId?.trim();
+    if (!id) throw new Error('Job ID is required');
+
+    try {
+      const {
+        signal,
+        timeoutMs = 15000,
+        retries = 3,
+        retryDelayMs = 600,
+        method = 'POST',
+      } = options;
+
+      const response = await this.makeRequest<any>(`/recom/${encodeURIComponent(id)}`, {
+        method,
+        signal,
+        timeoutMs,
+        retries,
+        retryDelayMs,
+      });
+      return response;
+    } catch (error) {
+      console.error('Failed to fetch recommendations:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get user's job history (if supported by backend)
    */
   public async getJobHistory(limit: number = 10): Promise<SEOJob[]> {

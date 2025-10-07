@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Target, Brain, Zap, Search, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasPremiumAccess } from '@/utils/adminAccess';
 import TopNav from '@/components/TopNav';
 import GlobalFooter from '@/components/GlobalFooter';
 import MIADashboard from '@/modules/MIA/components/MIADashboard';
@@ -15,6 +16,7 @@ type ActiveTab = 'core' | 'seo-geo' | 'brandlenz' | 'creative';
 const MIAIndependent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('core');
   const { user } = useAuth();
+  const isPremium = hasPremiumAccess(user);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -121,54 +123,58 @@ const MIAIndependent: React.FC = () => {
                 {activeTab === 'seo-geo' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
               </button>
 
-              {/* Creative Labs Tab */}
-              <button
-                onClick={() => handleTabChange('creative')}
-                className={`w-full group flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 text-left ${
-                  activeTab === 'creative'
-                    ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-md border-transparent'
-                    : 'bg-white/60 dark:bg-viz-dark/50 text-slate-700 dark:text-viz-text-secondary hover:bg-white border border-slate-200/60 dark:border-viz-light/20'
-                }`}
-              >
-                <div
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                    activeTab === 'creative' ? 'bg-white/20' : 'bg-pink-500/10'
+              {/* Creative Labs Tab (Premium only) */}
+              {isPremium && (
+                <button
+                  onClick={() => handleTabChange('creative')}
+                  className={`w-full group flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 text-left ${
+                    activeTab === 'creative'
+                      ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-md border-transparent'
+                      : 'bg-white/60 dark:bg-viz-dark/50 text-slate-700 dark:text-viz-text-secondary hover:bg-white border border-slate-200/60 dark:border-viz-light/20'
                   }`}
                 >
-                  <Zap className={`w-5 h-5 ${activeTab === 'creative' ? 'text-white' : 'text-pink-500'}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium">Creative Labs</div>
-                </div>
-                {activeTab === 'creative' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-              </button>
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      activeTab === 'creative' ? 'bg-white/20' : 'bg-pink-500/10'
+                    }`}
+                  >
+                    <Zap className={`w-5 h-5 ${activeTab === 'creative' ? 'text-white' : 'text-pink-500'}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium">Creative Labs</div>
+                  </div>
+                  {activeTab === 'creative' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                </button>
+              )}
 
-              {/* Brandlenz Tab - FIXED */}
-              <button
-                onClick={() => handleTabChange('brandlenz')}
-                className={`w-full group flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 text-left ${
-                  activeTab === 'brandlenz'
-                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md border-transparent'
-                    : 'bg-white/60 dark:bg-viz-dark/50 text-slate-700 dark:text-viz-text-secondary hover:bg-white border border-slate-200/60 dark:border-viz-light/20'
-                }`}
-              >
-                <div
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                    activeTab === 'brandlenz' ? 'bg-white/20' : 'bg-indigo-500/10'
+              {/* Brandlenz Tab (Premium only) */}
+              {isPremium && (
+                <button
+                  onClick={() => handleTabChange('brandlenz')}
+                  className={`w-full group flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 text-left ${
+                    activeTab === 'brandlenz'
+                      ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md border-transparent'
+                      : 'bg-white/60 dark:bg-viz-dark/50 text-slate-700 dark:text-viz-text-secondary hover:bg-white border border-slate-200/60 dark:border-viz-light/20'
                   }`}
                 >
-                  <Sparkles
-                    className={`w-5 h-5 ${activeTab === 'brandlenz' ? 'text-white' : 'text-indigo-500'}`}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium">Brandlenz</div>
-                  {activeTab === 'brandlenz' && (
-                    <div className="text-sm text-white/85 line-clamp-2">Social Listening & Brand Intelligence</div>
-                  )}
-                </div>
-                {activeTab === 'brandlenz' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-              </button>
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      activeTab === 'brandlenz' ? 'bg-white/20' : 'bg-indigo-500/10'
+                    }`}
+                  >
+                    <Sparkles
+                      className={`w-5 h-5 ${activeTab === 'brandlenz' ? 'text-white' : 'text-indigo-500'}`}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium">Brandlenz</div>
+                    {activeTab === 'brandlenz' && (
+                      <div className="text-sm text-white/85 line-clamp-2">Social Listening & Brand Intelligence</div>
+                    )}
+                  </div>
+                  {activeTab === 'brandlenz' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                </button>
+              )}
             </nav>
           </div>
 
@@ -197,26 +203,30 @@ const MIAIndependent: React.FC = () => {
                 >
                   SEO-GEO
                 </button>
-                <button
-                  onClick={() => handleTabChange('creative')}
-                  className={`px-2 py-2 rounded-lg text-xs font-medium transition-all ${
-                    activeTab === 'creative'
-                      ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow'
-                      : 'bg-white dark:bg-viz-dark text-slate-700 dark:text-viz-text-secondary border border-slate-200/60 dark:border-viz-light/20'
-                  }`}
-                >
-                  Creative
-                </button>
-                <button
-                  onClick={() => handleTabChange('brandlenz')}
-                  className={`px-2 py-2 rounded-lg text-xs font-medium transition-all ${
-                    activeTab === 'brandlenz'
-                      ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow'
-                      : 'bg-white dark:bg-viz-dark text-slate-700 dark:text-viz-text-secondary border border-slate-200/60 dark:border-viz-light/20'
-                  }`}
-                >
-                  Brandlenz
-                </button>
+                {isPremium && (
+                  <button
+                    onClick={() => handleTabChange('creative')}
+                    className={`px-2 py-2 rounded-lg text-xs font-medium transition-all ${
+                      activeTab === 'creative'
+                        ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow'
+                        : 'bg-white dark:bg-viz-dark text-slate-700 dark:text-viz-text-secondary border border-slate-200/60 dark:border-viz-light/20'
+                    }`}
+                  >
+                    Creative
+                  </button>
+                )}
+                {isPremium && (
+                  <button
+                    onClick={() => handleTabChange('brandlenz')}
+                    className={`px-2 py-2 rounded-lg text-xs font-medium transition-all ${
+                      activeTab === 'brandlenz'
+                        ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow'
+                        : 'bg-white dark:bg-viz-dark text-slate-700 dark:text-viz-text-secondary border border-slate-200/60 dark:border-viz-light/20'
+                    }`}
+                  >
+                    Brandlenz
+                  </button>
+                )}
               </div>
             </div>
 

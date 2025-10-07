@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -20,6 +21,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGri
 import { useSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useCompetitorKeywords } from '../hooks/useCompetitorKeywords';
+import { useRecommendations } from '../hooks/useRecommendations';
 import { analyzeKeywordOverlap, type CompetitorKeywords } from '../utils/keywordOverlap';
 
 const GlassPill = ({ label, value, color, icon }: { label: string; value: number; color: string; icon: React.ReactNode }) => (
@@ -386,13 +388,46 @@ export const SEOGeoChecker: React.FC = () => {
     postOnly: true,
   });
 
-  // Build site keywords from analysis result (onPage.keywordDensity terms) and primary keyword tokens
+  // Recommendations (Priority Quick Wins, Growth Opportunities) via Lambda: POST /recom/{jobId}
+  const { data: recomData, loading: recomLoading, error: recomError, refetch: refetchRecom } = useRecommendations(jobId, {
+    enabled: useCloudAnalysis && activeTab === 'report' && Boolean(jobId),
+    timeoutMs: 15000,
+    retries: 2,
+    delayMsBeforeFirstTry: 1000,
+    method: 'POST',
+  });
+
+  const lambdaQuickWins = React.useMemo(() => {
+    const arr = recomData?.recommendations?.priority_quick_wins;
+    return Array.isArray(arr) ? arr : [];
+  }, [recomData]);
+  const lambdaGrowthOpps = React.useMemo(() => {
+    const arr = recomData?.recommendations?.growth_opportunities;
+    return Array.isArray(arr) ? arr : [];
+  }, [recomData]);
+
+  // Build site keywords from analysis result.
+  // Fallback for cloud results where keywordDensity is empty: derive tokens from title/meta/primary keyword.
   const siteKeywords: string[] = useMemo(() => {
     if (!result) return [];
-    const densityTerms = (result.onPage.keywordDensity || []).map((k: any) => String(k.term || ''));
-    const pk = (input.primaryKeyword || '').trim();
-    const pkTokens = pk ? pk.split(/\s+/) : [];
-    return Array.from(new Set([...densityTerms, ...pkTokens].filter(Boolean)));
+    const densityTerms = Array.isArray(result.onPage?.keywordDensity) && result.onPage.keywordDensity.length > 0
+      ? (result.onPage.keywordDensity as any[]).map((k: any) => String(k?.term || ''))
+      : [];
+
+    const fallbackTokens = () => {
+      const STOPWORDS = new Set<string>([
+        'the','and','is','to','in','of','a','for','on','with','this','that','by','as','from','it','at','be','or','an','are','we','you','your','our','us','their','they','he','she','them','its','but','if','will','can','about','more','all','not','out','up','so','what','when','how','why'
+      ]);
+      const text = [input.primaryKeyword || '', result.onPage?.title || '', result.onPage?.metaDescription || '']
+        .join(' ');
+      const tokens = text.match(/[A-Za-z0-9]+/g) || [];
+      // Filter short tokens and stopwords, uniq, cap length
+      const uniq = Array.from(new Set(tokens.filter((w) => w.length > 2 && !STOPWORDS.has(w.toLowerCase()))));
+      return uniq.slice(0, 60);
+    };
+
+    const base = densityTerms.length ? densityTerms : fallbackTokens();
+    return Array.from(new Set(base)).filter(Boolean);
   }, [result, input.primaryKeyword]);
 
   // Normalize competitor response into { domain, keywords[] }
@@ -424,6 +459,19 @@ export const SEOGeoChecker: React.FC = () => {
       if ((compData as any).keywordsByDomain && typeof (compData as any).keywordsByDomain === 'object') {
         const map = (compData as any).keywordsByDomain as Record<string, string[]>;
         for (const d of Object.keys(map)) pushItem(d, map[d]);
+      }
+      // Case: { data: { domain, keywords } } or { data: [{...}] }
+      if ((compData as any).data) {
+        const data = (compData as any).data;
+        if (Array.isArray(data)) {
+          for (const it of data) pushItem(String(it?.domain || ''), it?.keywords);
+        } else if (data && typeof data === 'object') {
+          if (Array.isArray((data as any).items)) {
+            for (const it of (data as any).items) pushItem(String(it?.domain || ''), it?.keywords);
+          } else if ((data as any).domain && Array.isArray((data as any).keywords)) {
+            pushItem(String((data as any).domain), (data as any).keywords);
+          }
+        }
       }
       // Case: { domain, keywords } single
       if ((compData as any).domain && Array.isArray((compData as any).keywords)) {
@@ -656,7 +704,7 @@ export const SEOGeoChecker: React.FC = () => {
               className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-violet-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-semibold transition-all duration-300"
             >
               <Brain className="w-4 h-4 mr-2" />
-              AI Insights
+              AI Strategy
             </TabsTrigger>
           </TabsList>
         </div>
@@ -1048,64 +1096,9 @@ export const SEOGeoChecker: React.FC = () => {
                 </Card>
               </div>
 
-              {/* NLP-based Overlap Analysis */}
-              <div className="mt-6">
-                <Card className="bg-white/90 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
-                  <CardHeader>
-                    <SectionHeader title="Keyword Overlap (NLP)" description="Stemmed comparison of site vs competitors" icon={<Users className="w-4 h-4" />} />
-                  </CardHeader>
-                  <CardContent className="text-xs space-y-5">
-                    {compLoading ? (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Analyzing keywords...
-                      </div>
-                    ) : competitorList.length === 0 ? (
-                      <div className="text-muted-foreground">Add competitor domains to see overlap.</div>
-                    ) : (
-                      <div className="space-y-6">
-                        {competitorList.map((c) => {
-                          const ov = (overlapByDomain as any)[c.domain] || { overlap: [], competitorOnly: [], siteOnly: [] };
-                          const chip = (w: string, color: string) => (
-                            <span key={w} className={`px-2 py-1 rounded-md border text-[11px] ${color}`}>{w}</span>
-                          );
-                          return (
-                            <div key={c.domain} className="p-3 rounded-xl border bg-gradient-to-br from-slate-50 to-white dark:from-slate-900/20 dark:to-slate-800/20">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="text-sm font-semibold">{c.domain}</div>
-                                <div className="text-[11px] text-muted-foreground">{ov.overlap.length} overlap • {ov.competitorOnly.length} gaps • {ov.siteOnly.length} owned</div>
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                <div>
-                                  <div className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 mb-1">Common</div>
-                                  <div className="flex flex-wrap gap-1">
-                                    {(ov.overlap.slice(0, 20)).map((w: string) => chip(w, 'bg-blue-50 dark:bg-blue-900/30 border-blue-200/60 dark:border-blue-800/50 text-blue-700 dark:text-blue-300'))}
-                                    {ov.overlap.length === 0 && <span className="text-muted-foreground">—</span>}
-                                  </div>
-                                </div>
-                                <div>
-                                  <div className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 mb-1">Competitor Only</div>
-                                  <div className="flex flex-wrap gap-1">
-                                    {(ov.competitorOnly.slice(0, 20)).map((w: string) => chip(w, 'bg-amber-50 dark:bg-amber-900/30 border-amber-200/60 dark:border-amber-800/50 text-amber-700 dark:text-amber-300'))}
-                                    {ov.competitorOnly.length === 0 && <span className="text-muted-foreground">—</span>}
-                                  </div>
-                                </div>
-                                <div>
-                                  <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mb-1">Site Only</div>
-                                  <div className="flex flex-wrap gap-1">
-                                    {(ov.siteOnly.slice(0, 20)).map((w: string) => chip(w, 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200/60 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300'))}
-                                    {ov.siteOnly.length === 0 && <span className="text-muted-foreground">—</span>}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
+
+              {/* NLP-based Overlap Analysis (moved below score cards) */}
+              {/* Placeholder removed here; card inserted after score cards grid */}
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                 <motion.div
@@ -1367,6 +1360,7 @@ export const SEOGeoChecker: React.FC = () => {
                 </motion.div>
               </div>
 
+              {false && (
               <div className="mt-8">
                 <Card className="bg-white/90 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
                   <CardHeader>
@@ -1393,22 +1387,67 @@ export const SEOGeoChecker: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Show returned keywords if available */}
-                    {!compLoading && !compError && Array.isArray((compData as any)?.keywords) && (compData as any)?.keywords.length > 0 && (
-                      <div>
-                        <div className="font-medium mb-2">Top Competitor Keywords</div>
-                        <ul className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                          {(compData as any).keywords.map((kw: string) => (
-                            <li key={kw} className="px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px]">
-                              {kw}
-                            </li>
-                          ))}
-                        </ul>
+                    {/* Show returned keywords if available (from parsed competitorList) */}
+                    {!compLoading && !compError && competitorList.some((c) => c.keywords.length > 0) && (
+                      <div className="space-y-4">
+                        <div className="font-medium">Competitor Keywords</div>
+                        {competitorList.map((c) => (
+                          <div key={c.domain} className="space-y-2">
+                            <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">{c.domain}</div>
+                            <ul className="flex flex-wrap gap-2">
+                              {c.keywords.slice(0, 60).map((kw) => (
+                                <li key={`${c.domain}-${kw}`} className="px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] border">
+                                  {kw}
+                                </li>
+                              ))}
+                              {c.keywords.length === 0 && (
+                                <li className="text-muted-foreground">No keywords returned yet</li>
+                              )}
+                            </ul>
+
+                            {/* Compact overlap summary within Competitors card */}
+                            {siteKeywords.length > 0 && (
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                {(() => {
+                                  const ov = (overlapByDomain as any)[c.domain] || { overlap: [], competitorOnly: [], siteOnly: [] };
+                                  const Chip = (w: string, cls: string) => (
+                                    <span key={`${c.domain}-ov-${w}`} className={`px-2 py-0.5 rounded border text-[11px] ${cls}`}>{w}</span>
+                                  );
+                                  return (
+                                    <>
+                                      <div>
+                                        <div className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 mb-1">Common</div>
+                                        <div className="flex flex-wrap gap-1">
+                                          {ov.overlap.slice(0, 15).map((w: string) => Chip(w, 'bg-blue-50 dark:bg-blue-900/30 border-blue-200/60 dark:border-blue-800/50 text-blue-700 dark:text-blue-300'))}
+                                          {ov.overlap.length === 0 && <span className="text-muted-foreground">—</span>}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <div className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 mb-1">Competitor Only</div>
+                                        <div className="flex flex-wrap gap-1">
+                                          {ov.competitorOnly.slice(0, 15).map((w: string) => Chip(w, 'bg-amber-50 dark:bg-amber-900/30 border-amber-200/60 dark:border-amber-800/50 text-amber-700 dark:text-amber-300'))}
+                                          {ov.competitorOnly.length === 0 && <span className="text-muted-foreground">—</span>}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mb-1">Site Only</div>
+                                        <div className="flex flex-wrap gap-1">
+                                          {ov.siteOnly.slice(0, 15).map((w: string) => Chip(w, 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200/60 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300'))}
+                                          {ov.siteOnly.length === 0 && <span className="text-muted-foreground">—</span>}
+                                        </div>
+                                      </div>
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
 
                     {/* Fallback to overlap visualization from local result if available */}
-                    {!compLoading && !compError && (!compData || !(compData as any)?.keywords?.length) && result.offPage.competitorKeywordOverlap?.length ? (
+                    {!compLoading && !compError && (!competitorList.some((c)=>c.keywords.length) ) && result.offPage.competitorKeywordOverlap?.length ? (
                       <div className="h-40">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={result.offPage.competitorKeywordOverlap}>
@@ -1423,8 +1462,75 @@ export const SEOGeoChecker: React.FC = () => {
                     ) : null}
 
                     {/* Empty state */}
-                    {!compLoading && !compError && (!result.offPage.competitorKeywordOverlap?.length && !(compData as any)?.keywords?.length) && (
+                    {!compLoading && !compError && (!result.offPage.competitorKeywordOverlap?.length && !competitorList.some((c)=>c.keywords.length)) && (
                       <div className="text-muted-foreground">No competitor data yet.</div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+              )}
+
+              {/* Keyword Overlap (NLP) — placed below score cards, above Quick Wins */}
+              <div className="mt-8">
+                <Card className="bg-gradient-to-br from-white/95 to-slate-50/95 dark:from-viz-medium/90 dark:to-viz-dark/90 border border-slate-200/60 dark:border-viz-light/20 shadow-xl">
+                  <CardHeader className="pb-4">
+                    <SectionHeader title="Keyword Overlap (NLP)" description="Full-word comparison of site vs competitors" icon={<Users className="w-4 h-4" />} />
+                  </CardHeader>
+                  <CardContent className="text-xs space-y-5">
+                    {compLoading ? (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Analyzing keywords...
+                      </div>
+                    ) : competitorList.length === 0 ? (
+                      <div className="text-muted-foreground">Add competitor domains to see overlap.</div>
+                    ) : (
+                      <div className="space-y-6">
+                        {competitorList.map((c, i) => {
+                          const ov = (overlapByDomain as any)[c.domain] || { overlap: [], competitorOnly: [], siteOnly: [] };
+                          const total = (ov.overlap?.length || 0) + (ov.competitorOnly?.length || 0) + (ov.siteOnly?.length || 0);
+                          const pct = total ? Math.round((ov.overlap.length / total) * 100) : 0;
+                          const Chip = (w: string, cls: string) => (
+                            <span key={`${c.domain}-${w}`} className={`px-2.5 py-1 rounded-full border text-[11px] shadow-sm ${cls}`}>{w}</span>
+                          );
+                          return (
+                            <div key={c.domain} className="p-4 rounded-2xl border bg-gradient-to-br from-white to-slate-50 dark:from-slate-900/40 dark:to-slate-800/40">
+                              <div className="flex items-center justify-between gap-3 mb-3">
+                                <div className="text-sm font-semibold">{c.domain}</div>
+                                <div className="flex items-center gap-2">
+                                  <span className="px-2 py-0.5 rounded-full text-[11px] border bg-blue-50/70 dark:bg-blue-900/30 border-blue-200/60 dark:border-blue-800/50 text-blue-700 dark:text-blue-300">{pct}% overlap</span>
+                                  <span className="px-2 py-0.5 rounded-full text-[11px] border bg-slate-50 dark:bg-slate-800 border-slate-200/60 dark:border-slate-700/60 text-slate-600 dark:text-slate-300">{ov.overlap.length} common</span>
+                                  <span className="px-2 py-0.5 rounded-full text-[11px] border bg-amber-50/60 dark:bg-amber-900/30 border-amber-200/60 dark:border-amber-800/50 text-amber-700 dark:text-amber-300">{ov.competitorOnly.length} gaps</span>
+                                  <span className="px-2 py-0.5 rounded-full text-[11px] border bg-emerald-50/60 dark:bg-emerald-900/30 border-emerald-200/60 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300">{ov.siteOnly.length} owned</span>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                  <div className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 mb-1">Common</div>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {ov.overlap.slice(0, 60).map((w: string) => Chip(w, 'bg-blue-50 dark:bg-blue-900/30 border-blue-200/60 dark:border-blue-800/50 text-blue-700 dark:text-blue-300'))}
+                                    {ov.overlap.length === 0 && <span className="text-muted-foreground">—</span>}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 mb-1">Competitor Only</div>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {ov.competitorOnly.slice(0, 60).map((w: string) => Chip(w, 'bg-amber-50 dark:bg-amber-900/30 border-amber-200/60 dark:border-amber-800/50 text-amber-700 dark:text-amber-300'))}
+                                    {ov.competitorOnly.length === 0 && <span className="text-muted-foreground">—</span>}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mb-1">Site Only</div>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {ov.siteOnly.slice(0, 60).map((w: string) => Chip(w, 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200/60 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300'))}
+                                    {ov.siteOnly.length === 0 && <span className="text-muted-foreground">—</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                   </CardContent>
                 </Card>
@@ -1453,22 +1559,90 @@ export const SEOGeoChecker: React.FC = () => {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {(result.topQuickFixes || []).map((f, i) => (
-                        <motion.div
-                          key={i}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3, delay: 0.1 * i }}
-                          className="group p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl border border-emerald-200/50 dark:border-emerald-400/30 hover:shadow-lg transition-all duration-300"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 w-6 h-6 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                              {i + 1}
+                      <ScrollArea className="h-[420px] pr-2">
+                        <div className="space-y-4">
+                          {recomLoading && (
+                            <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 text-sm">
+                              <Loader2 className="w-4 h-4 animate-spin" /> Loading quick wins...
                             </div>
-                            <div className="text-sm text-emerald-800 dark:text-emerald-200 leading-relaxed">{f}</div>
-                          </div>
-                        </motion.div>
-                      ))}
+                          )}
+                          {!recomLoading && recomError && (
+                            <div className="space-y-2">
+                              <Alert>
+                                <AlertDescription className="text-xs text-red-600">{recomError}</AlertDescription>
+                              </Alert>
+                              <Button size="sm" variant="outline" onClick={() => refetchRecom()}>Retry</Button>
+                            </div>
+                          )}
+                          {!recomLoading && !recomError && lambdaQuickWins.length > 0 && (
+                            <div className="space-y-3">
+                              {lambdaQuickWins.map((item: any, i: number) => (
+                                <motion.div
+                                  key={item.id || i}
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: 0.3, delay: 0.05 * i }}
+                                  className="p-4 rounded-xl border bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border-emerald-200/50 dark:border-emerald-400/30"
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="space-y-1.5">
+                                      <div className="flex items-center gap-2">
+                                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500 text-white text-xs font-bold">{i + 1}</span>
+                                        <div className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">{item.title || 'Quick win'}</div>
+                                      </div>
+                                      {item.description && (
+                                        <div className="text-xs text-emerald-800/80 dark:text-emerald-200/80 leading-relaxed">{item.description}</div>
+                                      )}
+                                      <div className="flex flex-wrap gap-2 mt-1">
+                                        {'impact_score' in item && (
+                                          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200 border-emerald-200/60 dark:border-emerald-700">Impact: {item.impact_score}</Badge>
+                                        )}
+                                        {'effort_score' in item && (
+                                          <Badge className="bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-200 border-teal-200/60 dark:border-teal-700">Effort: {item.effort_score}</Badge>
+                                        )}
+                                        {item.estimated_time && (
+                                          <Badge variant="outline" className="border-emerald-300 text-emerald-700 dark:text-emerald-200">ETA: {item.estimated_time}</Badge>
+                                        )}
+                                        {item.area && (
+                                          <Badge variant="outline" className="border-teal-300 text-teal-700 dark:text-teal-200">Area: {item.area}</Badge>
+                                        )}
+                                      </div>
+                                      {item.implementation && (
+                                        <div className="text-[11px] text-emerald-800/70 dark:text-emerald-200/70 mt-1"><span className="font-semibold">Steps:</span> {item.implementation}</div>
+                                      )}
+                                      {item.evidence && (
+                                        <div className="text-[11px] text-emerald-800/70 dark:text-emerald-200/70"><span className="font-semibold">Evidence:</span> {item.evidence}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Fallback to local result quick fixes if Lambda has none */}
+                          {!recomLoading && !recomError && lambdaQuickWins.length === 0 && (result.topQuickFixes || []).length > 0 && (
+                            <div className="space-y-3">
+                              {(result.topQuickFixes || []).map((f, i) => (
+                                <motion.div
+                                  key={i}
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: 0.3, delay: 0.1 * i }}
+                                  className="group p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl border border-emerald-200/50 dark:border-emerald-400/30 hover:shadow-lg transition-all duration-300"
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <div className="flex-shrink-0 w-6 h-6 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                      {i + 1}
+                                    </div>
+                                    <div className="text-sm text-emerald-800 dark:text-emerald-200 leading-relaxed">{f}</div>
+                                  </div>
+                                </motion.div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </ScrollArea>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -1495,22 +1669,91 @@ export const SEOGeoChecker: React.FC = () => {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {(result.missedOpportunities || []).map((m, i) => (
-                        <motion.div
-                          key={i}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3, delay: 0.1 * i }}
-                          className="group p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200/50 dark:border-blue-400/30 hover:shadow-lg transition-all duration-300"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                              {i + 1}
+                      <ScrollArea className="h-[420px] pr-2">
+                        <div className="space-y-4">
+                          {recomLoading && (
+                            <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 text-sm">
+                              <Loader2 className="w-4 h-4 animate-spin" /> Loading growth opportunities...
                             </div>
-                            <div className="text-sm text-blue-800 dark:text-blue-200 leading-relaxed">{m}</div>
-                          </div>
-                        </motion.div>
-                      ))}
+                          )}
+                          {!recomLoading && recomError && (
+                            <div className="space-y-2">
+                              <Alert>
+                                <AlertDescription className="text-xs text-red-600">{recomError}</AlertDescription>
+                              </Alert>
+                              <Button size="sm" variant="outline" onClick={() => refetchRecom()}>Retry</Button>
+                            </div>
+                          )}
+                          {!recomLoading && !recomError && lambdaGrowthOpps.length > 0 && (
+                            <div className="space-y-3">
+                              {lambdaGrowthOpps.map((item: any, i: number) => (
+                                <motion.div
+                                  key={item.id || i}
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: 0.3, delay: 0.05 * i }}
+                                  className="p-4 rounded-xl border bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200/50 dark:border-blue-400/30"
+                                >
+                                  <div className="space-y-1.5">
+                                    <div className="flex items-center gap-2">
+                                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500 text-white text-xs font-bold">{i + 1}</span>
+                                      <div className="text-sm font-semibold text-blue-800 dark:text-blue-200">{item.title || 'Growth opportunity'}</div>
+                                    </div>
+                                    {item.description && (
+                                      <div className="text-xs text-blue-800/80 dark:text-blue-200/80 leading-relaxed">{item.description}</div>
+                                    )}
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                      {'impact_score' in item && (
+                                        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 border-blue-200/60 dark:border-blue-700">Impact: {item.impact_score}</Badge>
+                                      )}
+                                      {'effort_score' in item && (
+                                        <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200 border-indigo-200/60 dark:border-indigo-700">Effort: {item.effort_score}</Badge>
+                                      )}
+                                      {item.estimated_time && (
+                                        <Badge variant="outline" className="border-blue-300 text-blue-700 dark:text-blue-200">ETA: {item.estimated_time}</Badge>
+                                      )}
+                                      {item.area && (
+                                        <Badge variant="outline" className="border-indigo-300 text-indigo-700 dark:text-indigo-200">Area: {item.area}</Badge>
+                                      )}
+                                      {item.expected_outcome && (
+                                        <Badge variant="outline" className="border-slate-300 text-slate-700 dark:text-slate-200">Outcome: {item.expected_outcome}</Badge>
+                                      )}
+                                    </div>
+                                    {item.strategy_steps && (
+                                      <div className="text-[11px] text-blue-800/70 dark:text-blue-200/70 mt-1"><span className="font-semibold">Strategy:</span> {item.strategy_steps}</div>
+                                    )}
+                                    {item.evidence && (
+                                      <div className="text-[11px] text-blue-800/70 dark:text-blue-200/70"><span className="font-semibold">Evidence:</span> {item.evidence}</div>
+                                    )}
+                                  </div>
+                                </motion.div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Fallback to local result opportunities if Lambda has none */}
+                          {!recomLoading && !recomError && lambdaGrowthOpps.length === 0 && (result.missedOpportunities || []).length > 0 && (
+                            <div className="space-y-3">
+                              {(result.missedOpportunities || []).map((m, i) => (
+                                <motion.div
+                                  key={i}
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: 0.3, delay: 0.1 * i }}
+                                  className="group p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200/50 dark:border-blue-400/30 hover:shadow-lg transition-all duration-300"
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <div className="flex-shrink-0 w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                      {i + 1}
+                                    </div>
+                                    <div className="text-sm text-blue-800 dark:text-blue-200 leading-relaxed">{m}</div>
+                                  </div>
+                                </motion.div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </ScrollArea>
                     </CardContent>
                   </Card>
                 </motion.div>

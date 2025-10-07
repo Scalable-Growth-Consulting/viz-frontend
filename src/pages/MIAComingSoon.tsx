@@ -77,7 +77,7 @@ const MIAComingSoon: React.FC<Props> = ({ showHeader = true }) => {
       description: 'AI-powered marketing analytics with multi-platform integration, unified dashboards, and intelligent campaign optimization.',
       gradient: 'from-purple-500 to-violet-600',
       features: ['Multi-Platform Integration', 'Unified Analytics', 'AI-Powered Chat', 'Smart Optimization'],
-      status: 'Available Now',
+      status: 'Premium Access',
       statusColor: 'bg-green-500',
     },
     {
@@ -92,44 +92,55 @@ const MIAComingSoon: React.FC<Props> = ({ showHeader = true }) => {
     },
     {
       icon: <Sparkles className="w-8 h-8" />,
-      name: 'Brandlenz',
-      title: 'Social Listening & Brand Intelligence',
-      description: 'Comprehensive brand monitoring across 11+ platforms with AI-powered sentiment analysis and competitive intelligence.',
-      gradient: 'from-indigo-500 to-purple-600',
-      features: ['Social Listening', 'Sentiment Analysis', 'Brand Health Scoring', 'Competitive Intelligence'],
-      status: 'Available Now',
-      statusColor: 'bg-green-500',
-    },
-    {
-      icon: <Target className="w-8 h-8" />,
-      name: 'Campaign Intelligence Agent',
-      title: 'Advanced Campaign Optimization',
-      description: 'Next-generation campaign management with predictive analytics, automated A/B testing, and cross-platform attribution.',
-      gradient: 'from-blue-500 to-indigo-600',
-      features: ['Predictive Analytics', 'Auto A/B Testing', 'Attribution Modeling', 'Budget Optimization'],
-      status: 'Coming Q1 2025',
+      name: 'More Agents',
+      title: 'More agents launching soon',
+      description: 'Campaign Intelligence, Customer Journey, Loyalty Intelligence and more are on the way.',
+      gradient: 'from-slate-400 to-slate-600',
+      features: ['Campaign Intelligence', 'Customer Journey', 'Loyalty Intelligence'],
+      status: 'Coming Soon',
       statusColor: 'bg-amber-500',
     },
-    {
-      icon: <Eye className="w-8 h-8" />,
-      name: 'Customer Journey Agent',
-      title: 'Journey Mapping & Personalization',
-      description: 'AI-driven customer journey analysis with personalization engines and conversion optimization recommendations.',
-      gradient: 'from-cyan-500 to-blue-600',
-      features: ['Journey Mapping', 'Personalization Engine', 'Conversion Optimization', 'Behavioral Analytics'],
-      status: 'Coming Q2 2025',
-      statusColor: 'bg-amber-500',
-    },
-    {
-      icon: <Heart className="w-8 h-8" />,
-      name: 'Loyalty Intelligence Agent',
-      title: 'Customer Retention & Loyalty',
-      description: 'Advanced loyalty program optimization with churn prediction, lifetime value modeling, and retention strategies.',
-      gradient: 'from-pink-500 to-rose-600',
-      features: ['Churn Prediction', 'LTV Modeling', 'Loyalty Programs', 'Retention Strategies'],
-      status: 'Coming Q3 2025',
-      statusColor: 'bg-amber-500',
-    },
+    // --- Temporarily hidden agents (retain for future enablement) ---
+    // {
+    //   icon: <Sparkles className="w-8 h-8" />,
+    //   name: 'Brandlenz',
+    //   title: 'Social Listening & Brand Intelligence',
+    //   description: 'Comprehensive brand monitoring across 11+ platforms with AI-powered sentiment analysis and competitive intelligence.',
+    //   gradient: 'from-indigo-500 to-purple-600',
+    //   features: ['Social Listening', 'Sentiment Analysis', 'Brand Health Scoring', 'Competitive Intelligence'],
+    //   status: 'Available Now',
+    //   statusColor: 'bg-green-500',
+    // },
+    // {
+    //   icon: <Target className="w-8 h-8" />,
+    //   name: 'Campaign Intelligence Agent',
+    //   title: 'Advanced Campaign Optimization',
+    //   description: 'Next-generation campaign management with predictive analytics, automated A/B testing, and cross-platform attribution.',
+    //   gradient: 'from-blue-500 to-indigo-600',
+    //   features: ['Predictive Analytics', 'Auto A/B Testing', 'Attribution Modeling', 'Budget Optimization'],
+    //   status: 'Coming Q1 2025',
+    //   statusColor: 'bg-amber-500',
+    // },
+    // {
+    //   icon: <Eye className="w-8 h-8" />,
+    //   name: 'Customer Journey Agent',
+    //   title: 'Journey Mapping & Personalization',
+    //   description: 'AI-driven customer journey analysis with personalization engines and conversion optimization recommendations.',
+    //   gradient: 'from-cyan-500 to-blue-600',
+    //   features: ['Journey Mapping', 'Personalization Engine', 'Conversion Optimization', 'Behavioral Analytics'],
+    //   status: 'Coming Q2 2025',
+    //   statusColor: 'bg-amber-500',
+    // },
+    // {
+    //   icon: <Heart className="w-8 h-8" />,
+    //   name: 'Loyalty Intelligence Agent',
+    //   title: 'Customer Retention & Loyalty',
+    //   description: 'Advanced loyalty program optimization with churn prediction, lifetime value modeling, and retention strategies.',
+    //   gradient: 'from-pink-500 to-rose-600',
+    //   features: ['Churn Prediction', 'LTV Modeling', 'Loyalty Programs', 'Retention Strategies'],
+    //   status: 'Coming Q3 2025',
+    //   statusColor: 'bg-amber-500',
+    // },
   ];
 
   const premiumFeatures = [
@@ -160,7 +171,7 @@ const MIAComingSoon: React.FC<Props> = ({ showHeader = true }) => {
     {
       icon: <Shield className="w-6 h-6" />,
       title: 'Enterprise Security',
-      description: 'SOC2 compliance, SSO, advanced permissions, and audit logs',
+      description: 'Enterprise-grade security with cloud-native best practices across providers (e.g., AWS/GCP), including SSO, advanced permissions, and audit logs',
       gradient: 'from-slate-500 to-gray-600',
     },
     {
@@ -259,7 +270,7 @@ const MIAComingSoon: React.FC<Props> = ({ showHeader = true }) => {
         <div className="mb-20">
           <div className="text-center mb-12">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
-              Six Specialized AI Agents
+              Featured AI Agents
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
               Each agent is designed to master a specific aspect of marketing intelligence, 
@@ -307,6 +318,16 @@ const MIAComingSoon: React.FC<Props> = ({ showHeader = true }) => {
                         </div>
                       ))}
                     </div>
+                    {agent.name === 'SEO-GEO Agent' && (
+                      <div className="pt-5">
+                        <Button
+                          onClick={() => navigate('/mia/seo-geo')}
+                          className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white"
+                        >
+                          Enter SEO-GEO
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

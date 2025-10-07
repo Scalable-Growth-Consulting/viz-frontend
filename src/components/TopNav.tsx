@@ -2,6 +2,7 @@ import React from 'react';
 import { BarChart2 as BarChartIcon, DatabaseIcon, LightbulbIcon, LogOut, Menu, HeartPulse, Home as HomeIcon, Sparkles, Brain } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasPremiumAccess } from '@/utils/adminAccess';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from './ui/sheet';
@@ -15,6 +16,7 @@ interface TopNavProps {
 
 const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
   const { user, signOut } = useAuth();
+  const isPrivileged = hasPremiumAccess(user);
 
   const handleSignOut = async () => {
     await signOut();
@@ -55,18 +57,20 @@ const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
                       <span className="opacity-80">→</span>
                     </Link>
                   </SheetClose>
-                  <SheetClose asChild>
-                    <Link 
-                      to="/riz/inventory" 
-                      className="flex items-center justify-between bg-gradient-to-r from-pink-500 to-viz-accent text-white px-4 py-3 rounded-lg shadow hover:opacity-90 transition"
-                    >
-                      <div className="flex items-center gap-2">
-                        <DatabaseIcon className="w-5 h-5" />
-                        <span className="font-medium">Retail Zone</span>
-                      </div>
-                      <span className="opacity-80">→</span>
-                    </Link>
-                  </SheetClose>
+                  {isPrivileged && (
+                    <SheetClose asChild>
+                      <Link 
+                        to="/riz/inventory" 
+                        className="flex items-center justify-between bg-gradient-to-r from-pink-500 to-viz-accent text-white px-4 py-3 rounded-lg shadow hover:opacity-90 transition"
+                      >
+                        <div className="flex items-center gap-2">
+                          <DatabaseIcon className="w-5 h-5" />
+                          <span className="font-medium">Retail Zone</span>
+                        </div>
+                        <span className="opacity-80">→</span>
+                      </Link>
+                    </SheetClose>
+                  )}
                   <SheetClose asChild>
                     <Link 
                       to="/mia" 
@@ -74,25 +78,29 @@ const TopNav: React.FC<TopNavProps> = ({ zone, showData = true }) => {
                     >
                       <div className="flex items-center gap-2">
                         <Brain className="w-5 h-5" />
-                        <span className="font-medium">MIA</span>
+                        <span className="font-medium">MIZ</span>
                       </div>
                       <span className="opacity-80">→</span>
                     </Link>
                   </SheetClose>
-                  <div className="flex items-center justify-between bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-3 rounded-lg shadow opacity-60 cursor-not-allowed">
-                    <div className="flex items-center gap-2">
-                      <BarChartIcon className="w-5 h-5" />
-                      <span className="font-medium">FIZ</span>
-                    </div>
-                    <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">Coming Soon</span>
-                  </div>
-                  <div className="flex items-center justify-between bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-4 py-3 rounded-lg shadow opacity-60 cursor-not-allowed">
-                    <div className="flex items-center gap-2">
-                      <HeartPulse className="w-5 h-5" />
-                      <span className="font-medium">HIZ</span>
-                    </div>
-                    <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">Coming Soon</span>
-                  </div>
+                  {isPrivileged && (
+                    <>
+                      <div className="flex items-center justify-between bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-3 rounded-lg shadow opacity-60 cursor-not-allowed">
+                        <div className="flex items-center gap-2">
+                          <BarChartIcon className="w-5 h-5" />
+                          <span className="font-medium">FIZ</span>
+                        </div>
+                        <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">Coming Soon</span>
+                      </div>
+                      <div className="flex items-center justify-between bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-4 py-3 rounded-lg shadow opacity-60 cursor-not-allowed">
+                        <div className="flex items-center gap-2">
+                          <HeartPulse className="w-5 h-5" />
+                          <span className="font-medium">HIZ</span>
+                        </div>
+                        <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">Coming Soon</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
