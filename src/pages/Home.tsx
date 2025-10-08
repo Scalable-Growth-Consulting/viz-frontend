@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { BarChartIcon, TrendingUp, Database, MessageSquare, ShoppingCart, Target, HeartPulse, Brain, Search, Sparkles, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -221,11 +221,9 @@ const Home: React.FC = () => {
 
         {/* Agents Section */}
         <section className="mt-16 max-w-7xl mx-auto">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-viz-dark dark:text-white">Agents</h2>
-              <p className="text-slate-600 dark:text-viz-text-secondary">Discover individual agents across zones</p>
-            </div>
+          <div className="text-center mb-8">
+            <h2 className="text-2xl md:text-3xl font-bold text-viz-dark dark:text-white mb-2">Agents</h2>
+            <p className="text-slate-600 dark:text-viz-text-secondary">Discover individual agents across zones</p>
           </div>
 
           <AgentsExplorer isPrivileged={isPrivileged} />
@@ -264,6 +262,7 @@ type AgentItem = {
 function AgentsExplorer({ isPrivileged }: { isPrivileged: boolean }) {
   const [query, setQuery] = useState('');
   const [activeTag, setActiveTag] = useState<'all' | 'analytics' | 'marketing' | 'seo' | 'dashboard'>('all');
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const agents = useMemo<AgentItem[]>(() => [
     {
@@ -293,18 +292,20 @@ function AgentsExplorer({ isPrivileged }: { isPrivileged: boolean }) {
   const visibleAgents = useMemo(() => agents.filter(a => a.access === 'public' || isPrivileged), [agents, isPrivileged]);
 
   const filtered = useMemo(() => {
+    let base = visibleAgents;
+    if (activeTag !== 'all') base = base.filter(a => a.tags.includes(activeTag));
     const q = query.trim().toLowerCase();
-    if (!q) return visibleAgents;
-    return visibleAgents.filter(a => {
+    if (!q) return base;
+    return base.filter(a => {
       const hay = [a.name, a.subtitle, a.description, ...a.tags].join(' ').toLowerCase();
       return hay.includes(q);
     });
-  }, [query, visibleAgents]);
+  }, [query, visibleAgents, activeTag]);
 
   return (
     <div className="space-y-8">
       {/* Glassy search with accent */}
-      <div className="relative max-w-2xl">
+      <div className="relative max-w-2xl mx-auto">
         <div className="pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-r from-viz-accent/20 via-purple-500/10 to-indigo-500/20 blur opacity-60" />
         <div className="relative rounded-2xl border border-slate-200/60 dark:border-viz-light/20 bg-white/80 dark:bg-viz-medium/70 backdrop-blur-sm">
           <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 flex items-center gap-1">
@@ -312,14 +313,16 @@ function AgentsExplorer({ isPrivileged }: { isPrivileged: boolean }) {
             <Sparkles className="w-4 h-4 text-viz-accent" />
           </div>
           <Input
+            ref={searchRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search agents (e.g., SEO, dashboard, marketing)"
             className="h-12 pl-12 pr-4 bg-transparent border-0 focus-visible:ring-0"
+            aria-label="Search agents"
           />
         </div>
         {/* Quick filters */}
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-2 justify-center">
           {(['all','analytics','marketing','seo','dashboard'] as const).map(tag => (
             <button
               key={tag}
@@ -334,52 +337,53 @@ function AgentsExplorer({ isPrivileged }: { isPrivileged: boolean }) {
             </button>
           ))}
         </div>
+        <div className="mt-2 text-xs text-slate-500 dark:text-viz-text-secondary text-center">{filtered.length} results</div>
       </div>
 
-      {/* Agents grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {filtered
-          .filter(a => activeTag === 'all' ? true : a.tags.includes(activeTag))
-          .map((a, i) => (
-          <Link key={a.id} to={a.route} className="group">
-            <motion.div
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: i * 0.06 }}
-              whileHover={{ y: -6 }}
-              className="relative h-full rounded-2xl"
-            >
-              {/* gradient glow border */}
-              <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-br from-viz-accent via-purple-500 to-indigo-600 opacity-60 blur-sm group-hover:opacity-90 transition-opacity" />
-              <Card className="relative h-full rounded-2xl bg-white/90 dark:bg-viz-medium/90 backdrop-blur border border-white/30 dark:border-white/10 overflow-hidden">
-                {/* subtle corner orb */}
-                <div className="pointer-events-none absolute -top-20 -right-20 w-56 h-56 rounded-full bg-gradient-to-br from-viz-accent/15 to-purple-500/15 blur-2xl" />
-                <CardContent className="relative p-6 flex flex-col h-full">
-                  <div className={`w-12 h-12 rounded-xl mb-4 flex items-center justify-center bg-gradient-to-br ${a.gradient} shadow-md group-hover:scale-110 transition-transform`}>
-                    {a.icon}
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-semibold text-viz-dark dark:text-white tracking-tight">{a.name}</h3>
-                    <div className="text-sm text-slate-600 dark:text-viz-text-secondary">{a.subtitle}</div>
-                  </div>
-                  <p className="text-sm text-slate-600 dark:text-viz-text-secondary mt-3 flex-1 leading-relaxed">{a.description}</p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {a.tags.slice(0, 4).map(t => (
-                      <span key={t} className="text-[11px] px-2 py-0.5 rounded-full border bg-slate-50/80 dark:bg-slate-800/60 border-slate-200/60 dark:border-slate-700/60 text-slate-600 dark:text-slate-300">{t}</span>
-                    ))}
-                  </div>
-                  <div className="mt-5 inline-flex items-center self-start rounded-full px-3 py-2 text-sm font-semibold bg-gradient-to-r from-viz-accent to-blue-600 text-white shadow hover:shadow-lg transition-shadow">
-                    Explore <ArrowRight className="w-4 h-4 ml-1" />
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </Link>
-        ))}
+      {/* Agents grid - centered with flexible layout */}
+      <div className="flex justify-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl">
+          {filtered.map((a, i) => (
+            <Link key={a.id} to={a.route} className="group" aria-label={`Open ${a.name}`}>
+              <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: i * 0.06 }}
+                whileHover={{ y: -6 }}
+                className="relative h-full rounded-2xl"
+              >
+                {/* gradient glow border */}
+                <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-br from-viz-accent via-purple-500 to-indigo-600 opacity-60 blur-sm group-hover:opacity-90 transition-opacity" />
+                <Card className="relative h-full rounded-2xl bg-white/90 dark:bg-viz-medium/90 backdrop-blur border border-white/30 dark:border-white/10 overflow-hidden focus-within:ring-2 focus-within:ring-viz-accent">
+                  {/* subtle corner orb */}
+                  <div className="pointer-events-none absolute -top-20 -right-20 w-56 h-56 rounded-full bg-gradient-to-br from-viz-accent/15 to-purple-500/15 blur-2xl" />
+                  <CardContent className="relative p-6 flex flex-col h-full">
+                    <div className={`w-12 h-12 rounded-xl mb-4 flex items-center justify-center bg-gradient-to-br ${a.gradient} shadow-md group-hover:scale-110 transition-transform`}>
+                      {a.icon}
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-semibold text-viz-dark dark:text-white tracking-tight">{a.name}</h3>
+                      <div className="text-sm text-slate-600 dark:text-viz-text-secondary">{a.subtitle}</div>
+                    </div>
+                    <p className="text-sm text-slate-600 dark:text-viz-text-secondary mt-3 flex-1 leading-relaxed">{a.description}</p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {a.tags.slice(0, 4).map(t => (
+                        <span key={t} className="text-[11px] px-2 py-0.5 rounded-full border bg-slate-50/80 dark:bg-slate-800/60 border-slate-200/60 dark:border-slate-700/60 text-slate-600 dark:text-slate-300">{t}</span>
+                      ))}
+                    </div>
+                    <div className="mt-5 inline-flex items-center self-start rounded-full px-3 py-2 text-sm font-semibold bg-gradient-to-r from-viz-accent to-blue-600 text-white shadow hover:shadow-lg transition-shadow">
+                      Explore <ArrowRight className="w-4 h-4 ml-1" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </Link>
+          ))}
+        </div>
       </div>
 
-      {filtered.filter(a => activeTag === 'all' ? true : a.tags.includes(activeTag)).length === 0 && (
-        <div className="text-sm text-slate-500 dark:text-viz-text-secondary">No agents match your search.</div>
+      {filtered.length === 0 && (
+        <div className="text-center text-sm text-slate-500 dark:text-viz-text-secondary">No agents match your search.</div>
       )}
     </div>
   );
