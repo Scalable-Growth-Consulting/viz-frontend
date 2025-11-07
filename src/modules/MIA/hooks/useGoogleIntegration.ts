@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { googleIntegrationService, GoogleConnectionStatus, GoogleAccount, GoogleCampaign, GoogleAd, GoogleMetrics } from '../services/googleIntegrationService.ts';
 import { toast } from '@/hooks/use-toast';
@@ -25,9 +26,20 @@ export const useGoogleIntegration = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+ 
   const checkStatus = async (): Promise<GoogleConnectionStatus> => {
     try {
       setLoading(true);
+
+      // If client has no stored googleUserId, consider disconnected immediately
+      const localGoogleUserId = localStorage.getItem('googleUserId');
+      if (!localGoogleUserId) {
+        const localDisconnected: GoogleConnectionStatus = { connected: false, status: 'disconnected' };
+        setConnectionStatus(localDisconnected);
+        return localDisconnected;
+      }
+
+      // Otherwise ask backend for authoritative status
       const status = await googleIntegrationService.checkConnectionStatus();
       setConnectionStatus(status);
       return status;
@@ -40,6 +52,7 @@ export const useGoogleIntegration = () => {
       setLoading(false);
     }
   };
+
 
   const connect = async (): Promise<GoogleConnectionStatus> => {
     try {
@@ -78,18 +91,27 @@ export const useGoogleIntegration = () => {
     }
   };
 
+  
   const disconnect = async (): Promise<GoogleConnectionStatus> => {
     try {
       setLoading(true);
       await googleIntegrationService.disconnectGoogle();
-      
+
+      // Immediately update UI to disconnected so it doesn't wait for server
+      const localDisconnected: GoogleConnectionStatus = { connected: false, status: 'disconnected' };
+      setConnectionStatus(localDisconnected);
+
       toast({
         title: "Google Ads Disconnected",
         description: "Successfully disconnected from Google Ads account.",
       });
 
-      // Refresh status after disconnection
-      return await checkStatus();
+      // Re-check server in background to reconcile state (non-blocking)
+      checkStatus().catch(() => {
+        // ignore background errors
+      });
+
+      return localDisconnected;
     } catch (error) {
       console.error('Google disconnection failed:', error);
       toast({
@@ -102,7 +124,7 @@ export const useGoogleIntegration = () => {
       setLoading(false);
     }
   };
-
+// ...existing code...
   const sync = async (): Promise<void> => {
     try {
       setSyncing(true);

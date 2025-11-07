@@ -134,57 +134,57 @@ export class GoogleIntegrationService {
   /**
    * Initiate Google OAuth connection
    */
+  // ...existing code...
+  /**
+   * Initiate Google OAuth connection
+   */
   async connectGoogle(): Promise<void> {
     try {
-      // Real OAuth flow only
-      // Step 1: Try POST /auth/google/start (preferred)
+      // Step 1: GET first (some backends expose GET only), fallback to POST
       let authUrl: string | undefined;
       let oauthState: string | undefined;
       try {
-        const postResp = await fetch(`${this.baseUrl}/auth/google/start`, {
-          method: 'POST',
-          headers: this.makeHeaders(),
-          body: JSON.stringify({ state: 'test' })
-        });
-        if (postResp.ok) {
-          const j = await postResp.json();
-          authUrl = j.authUrl || j.url;
-          oauthState = j.state;
-        }
-      } catch (_) {
-        // ignore and fallback to GET
-      }
-
-      // Step 1b: Fallback to GET /auth/google/start with x-user-id if POST not available
-      if (!authUrl) {
         const getResp = await fetch(`${this.baseUrl}/auth/google/start`, {
           method: 'GET',
           headers: this.makeHeaders(),
+          credentials: 'include'
         });
-        if (!getResp.ok) {
-          throw new Error(`Failed to initiate OAuth: ${getResp.status}`);
+        if (getResp.ok) {
+          const j = await getResp.json();
+          authUrl = j.authUrl || j.url;
+          oauthState = j.state;
         }
-        const j = await getResp.json();
-        authUrl = j.authUrl || j.url;
-        oauthState = j.state;
+      } catch (e) {
+        // ignore GET failure, try POST
       }
 
       if (!authUrl) {
-        // Final fallback: construct Google OAuth URL client-side if configured
-        const direct = this.buildDirectAuthUrl(oauthState || 'test');
-        if (direct) {
-          authUrl = direct;
-        } else {
-          throw new Error('No auth URL returned from backend');
+        try {
+          const postResp = await fetch(`${this.baseUrl}/auth/google/start`, {
+            method: 'POST',
+            headers: this.makeHeaders(),
+            credentials: 'include',
+            body: JSON.stringify({ state: 'test' })
+          });
+          if (postResp.ok) {
+            const j = await postResp.json();
+            authUrl = j.authUrl || j.url;
+            oauthState = j.state;
+          }
+        } catch (e) {
+          // will handle below if still no authUrl
         }
       }
 
-      // Store state for validation
-      if (oauthState) {
-        sessionStorage.setItem('google_oauth_state', oauthState);
+      if (!authUrl) {
+        const direct = this.buildDirectAuthUrl(oauthState || 'test');
+        if (!direct) throw new Error('No auth URL returned from backend');
+        authUrl = direct;
       }
 
-      // Step 2: Open OAuth URL in popup
+      if (oauthState) sessionStorage.setItem('google_oauth_state', oauthState);
+
+      // Step 2: Open popup
       const popup = window.open(
         authUrl,
         'google-oauth',
@@ -193,73 +193,60 @@ export class GoogleIntegrationService {
           ',top=' +
           (window.screen.height / 2 - 350)
       );
+      if (!popup) throw new Error('Popup blocked. Allow popups and try again.');
 
-      if (!popup) {
-        throw new Error('Popup blocked. Please allow popups for this site and try again.');
-      }
+      // Step 3: Preferred: wait for postMessage from callback. Fallback: poll backend status.
+      return await new Promise<void>((resolve, reject) => {
+        let settled = false;
 
-      // Step 3: Monitor popup for completion with two strategies
-      return new Promise<void>((resolve, reject) => {
-        // a) Preferred: listen for postMessage from backend callback carrying userId
+        const cleanup = () => {
+          settled = true;
+          window.removeEventListener('message', onMessage);
+          if (statusInterval) clearInterval(statusInterval);
+          if (timeoutId) clearTimeout(timeoutId);
+          try { popup.close(); } catch {}
+        };
+
         const onMessage = async (evt: MessageEvent) => {
           try {
-            const data: any = evt?.data;
-            if (data && data.type === 'GOOGLE_AUTH_SUCCESS' && data.userId) {
-              window.removeEventListener('message', onMessage);
-              try { popup.close(); } catch {}
-              localStorage.setItem('googleUserId', String(data.userId));
-              // Confirm status now that we have userId
+            const data = evt?.data;
+            // expect backend callback to post { type: 'GOOGLE_AUTH_SUCCESS', accountId: '...' }
+            if (data && data.type === 'GOOGLE_AUTH_SUCCESS') {
+              // optional: validate origin if you want
+              cleanup();
+              if (data.accountId) localStorage.setItem('googleUserId', String(data.accountId));
+              // final server-side check
               const status = await this.checkConnectionStatus();
               if (status.connected) return resolve();
-              return resolve();
+              return reject(new Error('Authentication succeeded but server reports not connected'));
             }
-          } catch {}
+          } catch (err) {
+            // ignore and wait for other signals
+          }
         };
+
         window.addEventListener('message', onMessage);
 
-        // b) Fallback: poll for popup close then call status
-        const checkInterval = setInterval(() => {
+        // Fallback: poll backend /auth/google/status every 1.5s to detect successful connection
+        const statusInterval = setInterval(async () => {
+          if (settled) return;
           try {
-            if (popup.closed) {
-              clearInterval(checkInterval);
-              window.removeEventListener('message', onMessage);
-              // Wait a moment then check connection status
-              setTimeout(async () => {
-                try {
-                  const status = await this.checkConnectionStatus();
-                  if (status.connected && status.accountId) {
-                    localStorage.setItem('googleUserId', status.accountId);
-                    resolve();
-                  } else {
-                    reject(new Error('Authentication was cancelled or failed.'));
-                  }
-                } catch (error) {
-                  reject(error);
-                }
-              }, 1000);
-              return;
+            const s = await this.checkConnectionStatus();
+            if (s.connected) {
+              cleanup();
+              if (s.accountId) localStorage.setItem('googleUserId', String(s.accountId));
+              return resolve();
             }
-
-            // Attempt to detect callback URL and auto-close
-            try {
-              const popupUrl = popup.location.href;
-              if (popupUrl.includes('/auth/google/callback')) {
-                popup.close();
-              }
-            } catch (e) {
-              // Cross-origin expected
-            }
-          } catch (error) {
-            console.error('Error monitoring popup:', error);
+          } catch (e) {
+            // ignore polling errors
           }
-        }, 1000);
+        }, 1500);
 
         // Timeout after 5 minutes
         const timeoutId = setTimeout(() => {
-          clearInterval(checkInterval);
-          window.removeEventListener('message', onMessage);
-          try { if (!popup.closed) popup.close(); } catch {}
-          reject(new Error('Authentication timeout. Please try again.'));
+          if (settled) return;
+          cleanup();
+          return reject(new Error('Authentication was cancelled or failed.'));
         }, 300000);
       });
     } catch (error) {
@@ -267,36 +254,26 @@ export class GoogleIntegrationService {
       throw error;
     }
   }
-
+    
   /**
-   * Disconnect Google Ads account
+   * Disconnect Google Ads account (frontend-only: clear local state, no network call)
    */
   async disconnectGoogle(): Promise<void> {
     try {
-      const userId = localStorage.getItem('googleUserId') || undefined;
-
-      const response = await fetch(`${this.baseUrl}/auth/google/disconnect`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(userId ? { 'x-user-id': userId } : {}),
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      // Remove stored user ID
+      // Clear client-side state immediately so UI updates without server
       localStorage.removeItem('googleUserId');
       sessionStorage.removeItem('google_oauth_state');
-      // Clear any legacy mock flags, if present
       localStorage.removeItem('googleMockMode');
+
+      // Intentionally do NOT call backend to avoid 404 noise.
+      // If you later add a server endpoint, you can notify it here (best-effort).
+      return;
     } catch (error) {
       console.error('Google disconnect error:', error);
       throw error;
     }
   }
+//end
 
   /**
    * Get Google Ads customers/accounts
