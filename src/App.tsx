@@ -14,8 +14,7 @@ import TableExplorer from './pages/TableExplorer';
 import Tips from './pages/Tips';
 import NotFound from './pages/NotFound';
 import AuthCallback from '@/components/AuthCallback';
-import { Loader2 } from 'lucide-react';
-import Profile from './pages/Profile';
+import RedditCoPilotAccessGuard from '@/components/RedditCoPilotAccessGuard';
 import DUFA from './pages/DUFA';
 import DUFAComingSoon from './pages/DUFAComingSoon';
 import DUFAAccessGuard from '@/components/dufa/DUFAAccessGuard';
@@ -28,7 +27,11 @@ import MIADataDeletion from './pages/MIADataDeletion';
 import MIATerms from './pages/MIATerms';
 import SEO from './pages/SEO';
 import Brandlenz from './pages/Brandlenz';
-import './App.css';
+import ClientSetup from './pages/RedditCoPilot/ClientSetup';
+import AgentControl from './pages/RedditCoPilot/AgentControl';
+import { Loader2 } from 'lucide-react';
+import Settings from './pages/RedditCoPilot/Settings';
+import Profile from './pages/Profile';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -81,6 +84,8 @@ function App() {
           <Route path="/mia/seo-geo" element={<ProtectedRoute><MIAIndependent /></ProtectedRoute>} />
           <Route path="/mia/creative" element={<ProtectedRoute><MIAIndependent /></ProtectedRoute>} />
           <Route path="/mia/brandlenz" element={<ProtectedRoute><MIAIndependent /></ProtectedRoute>} />
+          <Route path="/mia/reddit-copilot" element={<ProtectedRoute><RedditCoPilotAccessGuard><MIAIndependent /></RedditCoPilotAccessGuard></ProtectedRoute>} />
+          <Route path="/mia/keyword-trend" element={<ProtectedRoute><MIAIndependent /></ProtectedRoute>} />
           <Route path="/mia/privacy" element={<ProtectedRoute><MIAPrivacy /></ProtectedRoute>} />
           <Route path="/mia/data-deletion" element={<ProtectedRoute><MIADataDeletion /></ProtectedRoute>} />
           <Route path="/mia/terms" element={<ProtectedRoute><MIATerms /></ProtectedRoute>} />
@@ -95,6 +100,10 @@ function App() {
           <Route path="/riz/mia/privacy" element={<ProtectedRoute><MIAPrivacy /></ProtectedRoute>} />
           <Route path="/riz/mia/data-deletion" element={<ProtectedRoute><MIADataDeletion /></ProtectedRoute>} />
           <Route path="/riz/mia/terms" element={<ProtectedRoute><MIATerms /></ProtectedRoute>} />
+          {/* Reddit CoPilot standalone routes (for deep linking) */}
+          <Route path="/mia/reddit-copilot/client-setup" element={<ProtectedRoute><RedditCoPilotAccessGuard><ClientSetup /></RedditCoPilotAccessGuard></ProtectedRoute>} />
+          <Route path="/mia/reddit-copilot/agent-control" element={<ProtectedRoute><RedditCoPilotAccessGuard><AgentControl /></RedditCoPilotAccessGuard></ProtectedRoute>} />
+          <Route path="/mia/reddit-copilot/settings" element={<ProtectedRoute><RedditCoPilotAccessGuard><Settings /></RedditCoPilotAccessGuard></ProtectedRoute>} />
           {/* 404 fallback - shown for all users */}
           <Route path="*" element={<NotFound />} />
           </Routes>

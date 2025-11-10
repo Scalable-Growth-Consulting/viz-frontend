@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Target, Brain, Zap, Search, Sparkles } from 'lucide-react';
+import { Target, Brain, Zap, Search, Sparkles, MessageCircle, BarChart3 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasPremiumAccess } from '@/utils/adminAccess';
 import TopNav from '@/components/TopNav';
@@ -10,8 +10,10 @@ import { SEOGeoChecker } from '@/modules/SEO/components/SEOGeoChecker';
 import CreativeLabs from '@/modules/MIA/components/CreativeLabs';
 import MIAAccessGuard from '@/components/mia/MIAAccessGuard';
 import BrandlenzDashboardSimple from '@/modules/Brandlenz/components/BrandlenzDashboardSimple';
+import RedditCoPilotDashboard from '@/pages/RedditCoPilot/RedditCoPilotDashboard';
+import KeywordTrendAgent from '@/pages/KeywordTrend/KeywordTrendAgent';
 
-type ActiveTab = 'core' | 'seo-geo' | 'brandlenz' | 'creative';
+type ActiveTab = 'core' | 'seo-geo' | 'brandlenz' | 'creative' | 'reddit-copilot' | 'keyword-trend';
 
 const MIAIndependent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('core');
@@ -29,6 +31,10 @@ const MIAIndependent: React.FC = () => {
       setActiveTab('brandlenz');
     } else if (path.includes('/mia/creative')) {
       setActiveTab('creative');
+    } else if (path.includes('/mia/reddit-copilot')) {
+      setActiveTab('reddit-copilot');
+    } else if (path.includes('/mia/keyword-trend')) {
+      setActiveTab('keyword-trend');
     } else {
       setActiveTab('core');
     }
@@ -43,6 +49,10 @@ const MIAIndependent: React.FC = () => {
       navigate('/mia/brandlenz', { replace: true });
     } else if (tab === 'creative') {
       navigate('/mia/creative', { replace: true });
+    } else if (tab === 'reddit-copilot') {
+      navigate('/mia/reddit-copilot', { replace: true });
+    } else if (tab === 'keyword-trend') {
+      navigate('/mia/keyword-trend', { replace: true });
     } else {
       navigate('/mia', { replace: true });
     }
@@ -175,6 +185,60 @@ const MIAIndependent: React.FC = () => {
                   {activeTab === 'brandlenz' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
                 </button>
               )}
+
+              {/* Reddit CoPilot Tab */}
+              <button
+                onClick={() => handleTabChange('reddit-copilot')}
+                className={`w-full group flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 text-left ${
+                  activeTab === 'reddit-copilot'
+                    ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white shadow-md border-transparent'
+                    : 'bg-white/60 dark:bg-viz-dark/50 text-slate-700 dark:text-viz-text-secondary hover:bg-white border border-slate-200/60 dark:border-viz-light/20'
+                }`}
+              >
+                <div
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    activeTab === 'reddit-copilot' ? 'bg-white/20' : 'bg-orange-500/10'
+                  }`}
+                >
+                  <MessageCircle
+                    className={`w-5 h-5 ${activeTab === 'reddit-copilot' ? 'text-white' : 'text-orange-500'}`}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium">Reddit CoPilot</div>
+                  {activeTab === 'reddit-copilot' && (
+                    <div className="text-sm text-white/85 line-clamp-2">Reddit Engagement Automation</div>
+                  )}
+                </div>
+                {activeTab === 'reddit-copilot' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+              </button>
+
+              {/* Keyword & Trend Agent Tab */}
+              <button
+                onClick={() => handleTabChange('keyword-trend')}
+                className={`w-full group flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 text-left ${
+                  activeTab === 'keyword-trend'
+                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md border-transparent'
+                    : 'bg-white/60 dark:bg-viz-dark/50 text-slate-700 dark:text-viz-text-secondary hover:bg-white border border-slate-200/60 dark:border-viz-light/20'
+                }`}
+              >
+                <div
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    activeTab === 'keyword-trend' ? 'bg-white/20' : 'bg-indigo-500/10'
+                  }`}
+                >
+                  <BarChart3
+                    className={`w-5 h-5 ${activeTab === 'keyword-trend' ? 'text-white' : 'text-indigo-500'}`}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium">Keyword & Trend</div>
+                  {activeTab === 'keyword-trend' && (
+                    <div className="text-sm text-white/85 line-clamp-2">Keyword & Trend Intelligence</div>
+                  )}
+                </div>
+                {activeTab === 'keyword-trend' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+              </button>
             </nav>
           </div>
 
@@ -227,6 +291,26 @@ const MIAIndependent: React.FC = () => {
                     Brandlenz
                   </button>
                 )}
+                <button
+                  onClick={() => handleTabChange('reddit-copilot')}
+                  className={`px-2 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+                    activeTab === 'reddit-copilot'
+                      ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white shadow'
+                      : 'bg-white dark:bg-viz-dark text-slate-700 dark:text-viz-text-secondary border border-slate-200/60 dark:border-viz-light/20'
+                  }`}
+                >
+                  Reddit CoPilot
+                </button>
+                <button
+                  onClick={() => handleTabChange('keyword-trend')}
+                  className={`px-2 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+                    activeTab === 'keyword-trend'
+                      ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow'
+                      : 'bg-white dark:bg-viz-dark text-slate-700 dark:text-viz-text-secondary border border-slate-200/60 dark:border-viz-light/20'
+                  }`}
+                >
+                  Keyword & Trend
+                </button>
               </div>
             </div>
 
@@ -285,6 +369,16 @@ const MIAIndependent: React.FC = () => {
               {activeTab === 'creative' && (
                 <div className="h-full w-full">
                   <CreativeLabs userId={user?.id || ''} />
+                </div>
+              )}
+              {activeTab === 'reddit-copilot' && (
+                <div className="h-full w-full">
+                  <RedditCoPilotDashboard />
+                </div>
+              )}
+              {activeTab === 'keyword-trend' && (
+                <div className="h-full w-full">
+                  <KeywordTrendAgent />
                 </div>
               )}
             </div>

@@ -48,10 +48,11 @@ const GlassPillWithMarker = ({ label, value, color, icon, kpi }: { label: string
 
   return (
     <motion.div
-      whileHover={{ scale: 1.05, y: -2 }}
-      className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/80 to-white/40 dark:from-gray-800/80 dark:to-gray-900/40 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 p-4 shadow-lg"
+      whileHover={{ scale: 1.06, y: -3 }}
+      className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/90 via-white/60 to-white/40 dark:from-gray-800/90 dark:via-gray-800/60 dark:to-gray-900/40 backdrop-blur-2xl border border-white/30 dark:border-violet-400/20 p-4 shadow-xl transition-all duration-300 hover:shadow-2xl"
     >
       <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent pointer-events-none" />
+      <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-fuchsia-400/10 via-violet-400/10 to-cyan-400/10 blur-xl pointer-events-none" />
       <div className="relative flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className={`p-2 rounded-xl bg-gradient-to-br ${color} shadow-lg`}>
@@ -59,7 +60,7 @@ const GlassPillWithMarker = ({ label, value, color, icon, kpi }: { label: string
           </div>
           <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{label}</span>
         </div>
-        <div className="text-2xl font-black bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">{value}</div>
+        <div className="text-3xl font-black bg-gradient-to-r from-pink-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent">{value}</div>
       </div>
       <div className="flex justify-center">
         <button
@@ -81,10 +82,10 @@ function ModernScoreDial({ score }: { score: number }) {
 
   return (
     <div className="relative">
-      <ResponsiveContainer width="100%" height={200}>
-        <RadialBarChart innerRadius="60%" outerRadius="90%" data={bg} startAngle={90} endAngle={-270}>
-          <RadialBar minPointSize={15} dataKey="value" cornerRadius={12} background />
-          <RadialBar dataKey="value" data={data} cornerRadius={12} />
+      <ResponsiveContainer width="100%" height={220}>
+        <RadialBarChart innerRadius="58%" outerRadius="92%" data={bg} startAngle={90} endAngle={-270}>
+          <RadialBar minPointSize={15} dataKey="value" cornerRadius={14} background />
+          <RadialBar dataKey="value" data={data} cornerRadius={14} />
           <defs>
             <linearGradient id="modernGrad" x1="0" x2="1" y1="0" y2="1">
               <stop offset="0%" stopColor="#ec4899" />
@@ -96,7 +97,7 @@ function ModernScoreDial({ score }: { score: number }) {
       </ResponsiveContainer>
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-4xl font-black bg-gradient-to-r from-pink-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent">
+          <div className="text-5xl font-black bg-gradient-to-r from-pink-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent drop-shadow-sm">
             {score}
           </div>
           <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -1013,17 +1014,19 @@ export const SEOGeoChecker: React.FC = () => {
               <CardContent className="py-12 text-center text-sm text-muted-foreground">No report yet. Run an analysis from the Input tab.</CardContent>
             </Card>
           ) : (
-            <div ref={containerRef} className="space-y-4 sm:space-y-6 p-2 sm:p-4">
+            <div ref={containerRef} className="relative overflow-hidden space-y-4 sm:space-y-6 p-2 sm:p-4">
+              <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 bg-gradient-to-br from-fuchsia-400/10 via-violet-400/10 to-cyan-400/10 rounded-full blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-28 -left-20 w-[28rem] h-[28rem] bg-gradient-to-br from-cyan-400/10 via-violet-400/10 to-pink-400/10 rounded-full blur-3xl" />
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                 <div className="space-y-1">
-                  <h2 className="text-lg sm:text-xl font-bold">SEO & GEO Scorecard</h2>
+                  <h2 className="text-2xl sm:text-3xl font-black bg-gradient-to-r from-violet-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent">SEO & GEO Scorecard</h2>
                   <p className="text-xs text-muted-foreground break-all sm:break-normal">{result.url || 'HTML input'} • Computed {new Date(result.computedAt).toLocaleString()}</p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <Button variant="outline" size="sm" onClick={handleSaveImage} className="gap-2 w-full sm:w-auto">
+                  <Button variant="outline" size="sm" onClick={handleSaveImage} className="gap-2 w-full sm:w-auto rounded-xl bg-white/70 dark:bg-gray-800/50 border-white/40 dark:border-gray-700/50 backdrop-blur-md">
                     <ImageIcon className="w-4 h-4" /> Save Image
                   </Button>
-                  <Button size="sm" onClick={handleExportPDF} className="gap-2 w-full sm:w-auto">
+                  <Button size="sm" onClick={handleExportPDF} className="gap-2 w-full sm:w-auto rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-lg">
                     <FileDown className="w-4 h-4" /> Export PDF
                   </Button>
                 </div>
@@ -1045,7 +1048,9 @@ export const SEOGeoChecker: React.FC = () => {
                   <CardContent>
                     <div className="relative">
                       <div className="absolute inset-0 flex items-center justify-center z-10">
-                        <div className="text-4xl font-extrabold text-slate-800 dark:text-white drop-shadow-lg bg-white/80 dark:bg-slate-800/80 rounded-full w-20 h-20 flex items-center justify-center backdrop-blur-sm border-2 border-violet-200 dark:border-violet-400">{result.overallScore}</div>
+                        <div className="relative bg-white/80 dark:bg-slate-800/80 rounded-full w-24 h-24 flex items-center justify-center backdrop-blur-md border-2 border-violet-200/60 dark:border-violet-400/50 ring-8 ring-violet-500/10 shadow-xl">
+                          <span className="text-5xl font-black bg-gradient-to-r from-pink-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent drop-shadow-sm">{result.overallScore}</span>
+                        </div>
                       </div>
                       <ModernScoreDial score={result.overallScore} />
                     </div>
@@ -1785,26 +1790,118 @@ export const SEOGeoChecker: React.FC = () => {
         <TabsContent value="ai">
           {!result ? (
             <Card className="bg-white/90 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
-              <CardContent className="py-12 text-center text-sm text-muted-foreground">Run an analysis first to ask AI about the report.</CardContent>
+              <CardContent className="py-12 text-center text-sm text-muted-foreground">Run an analysis first to unlock your AI Strategy consultation.</CardContent>
             </Card>
           ) : (
-            <Card className="bg-white/90 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
-              <CardHeader>
-                <CardTitle>Ask AI About This Report</CardTitle>
-                <CardDescription>Freemium gating placeholder — can require signup/upgrade later.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <Alert>
-                  <AlertDescription className="text-xs">This MVP does not call any external AI API by default. We can wire this to your backend or OpenAI later.</AlertDescription>
-                </Alert>
-                <p>Suggested prompts:</p>
-                <ul className="list-disc pl-5 space-y-1 text-xs">
-                  <li>"Give me a prioritized SEO action plan for this page by effort vs. impact"</li>
-                  <li>"Generate 5 blog topics to rank for our primary keyword and city"</li>
-                  <li>"What schema types should we add and why?"</li>
-                </ul>
-              </CardContent>
-            </Card>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <Card className="relative overflow-hidden bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-violet-50/50 dark:from-indigo-900/20 dark:via-purple-900/20 dark:to-violet-900/20 backdrop-blur-xl border-2 border-gradient-to-r from-indigo-200 to-violet-200 dark:border-indigo-700/50 shadow-2xl rounded-3xl">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-violet-500/5 pointer-events-none" />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-violet-400/20 to-indigo-400/20 rounded-full blur-3xl" />
+                
+                <CardHeader className="relative px-6 py-8 text-center">
+                  <motion.div
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    className="mx-auto mb-4 p-4 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl shadow-lg w-fit"
+                  >
+                    <Brain className="w-8 h-8 text-white" />
+                  </motion.div>
+                  <CardTitle className="text-3xl font-black bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 bg-clip-text text-transparent mb-2">
+                    Ready to Dominate Search Results?
+                  </CardTitle>
+                  <CardDescription className="text-lg text-gray-700 dark:text-gray-300 font-medium">
+                    Transform your SEO & GEO insights into explosive growth
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="relative px-6 pb-8 space-y-6">
+                  <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-2xl p-6 border border-white/30 dark:border-gray-700/30">
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                      <Rocket className="w-5 h-5 text-indigo-500" />
+                      Your Custom Execution Strategy Awaits
+                    </h3>
+                    <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                      You've got the insights. Now let our expert team at <span className="font-bold text-indigo-600 dark:text-indigo-400">SG Consulting</span> craft a 
+                      bulletproof execution strategy that will skyrocket your search rankings and dominate your competition.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                          <Target className="w-4 h-4 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-800 dark:text-white text-sm">Precision Targeting</h4>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">Custom keyword & GEO strategies</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                          <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-800 dark:text-white text-sm">Rapid Results</h4>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">90-day performance boost</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                          <Eye className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-800 dark:text-white text-sm">Expert Analysis</h4>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">Deep competitive insights</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                          <Rocket className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-800 dark:text-white text-sm">Full Execution</h4>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">End-to-end implementation</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-center space-y-4">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 hover:from-indigo-700 hover:via-purple-700 hover:to-violet-700 text-white font-bold py-4 px-8 rounded-2xl shadow-xl transition-all duration-300 flex items-center justify-center gap-3 text-lg"
+                      onClick={() => window.open('mailto:team@sgconsultingtech.com?subject=SEO%20%26%20GEO%20Execution%20Strategy%20Consultation&body=Hi%20SG%20Consulting%20Team%2C%0A%0AI%27ve%20completed%20my%20SEO%20%26%20GEO%20analysis%20and%20I%27m%20ready%20to%20take%20my%20search%20performance%20to%20the%20next%20level.%20I%27d%20like%20to%20discuss%20a%20custom%20execution%20strategy.%0A%0APlease%20schedule%20a%20consultation%20at%20your%20earliest%20convenience.%0A%0AThank%20you!', '_blank')}
+                    >
+                      <Sparkles className="w-5 h-5" />
+                      Connect with SG Consulting Team
+                      <ArrowRight className="w-5 h-5" />
+                    </motion.button>
+                    
+                    <div className="flex items-center justify-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span>Expert Team</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span>Proven Results</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                        <span>Custom Strategy</span>
+                      </div>
+                    </div>
+                    
+                    <p className="text-xs text-gray-500 dark:text-gray-500 italic">
+                      "Ready to transform your SEO insights into market dominance? Let's make it happen."
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
           )}
         </TabsContent>
       </Tabs>

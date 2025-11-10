@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChartIcon, TrendingUp, Database, MessageSquare, ShoppingCart, Target, HeartPulse, Brain, Search, Sparkles, ArrowRight } from 'lucide-react';
+import { BarChartIcon, TrendingUp, Database, MessageSquare, ShoppingCart, Target, HeartPulse, Brain, Search, Sparkles, ArrowRight, MessageCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
@@ -286,6 +286,17 @@ function AgentsExplorer({ isPrivileged }: { isPrivileged: boolean }) {
       gradient: 'from-purple-500 to-violet-600',
       icon: <Brain className="w-6 h-6 text-white" />,
       access: 'public', // explicitly public per access guard
+    },
+    {
+      id: 'reddit-copilot',
+      name: 'Reddit CoPilot',
+      subtitle: 'Marketing Intelligence Zone',
+      description: 'Automate authentic Reddit engagement with AI-powered GEO-optimized responses.',
+      tags: ['MIZ', 'reddit', 'marketing', 'automation', 'geo'],
+      route: '/mia/reddit-copilot',
+      gradient: 'from-orange-500 to-red-600',
+      icon: <MessageCircle className="w-6 h-6 text-white" />,
+      access: 'public',
     },
   ], []);
 
