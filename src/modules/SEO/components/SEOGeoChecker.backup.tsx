@@ -13,7 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
-import { ArrowRight, FileDown, Image as ImageIcon, Loader2, RefreshCcw, Sparkles, Globe2, Target, Users, Brain, Zap, Rocket, TrendingUp, Eye, Star, X, RotateCcw, AlertCircle, CheckCircle, Clock, Info, ChevronDown } from 'lucide-react';
+import { ArrowRight, FileDown, Image as ImageIcon, Loader2, RefreshCcw, Sparkles, Globe2, Target, Users, Brain, Zap, Rocket, TrendingUp, Eye, Star, X, RotateCcw, AlertCircle, CheckCircle, Clock, Info } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { useToast } from '@/components/ui/use-toast';
@@ -44,82 +44,35 @@ const GlassPill = ({ label, value, color, icon }: { label: string; value: number
   </motion.div>
 );
 
-// Enhanced Glass Pill with KPI Marker (supports external expand control)
-const GlassPillWithMarker = ({ label, value, color, icon, kpi, externalExpand }: { label: string; value: number; color: string; icon: React.ReactNode; kpi: keyof typeof kpiDefinitions; externalExpand?: boolean }) => {
+// Enhanced Glass Pill with KPI Marker
+const GlassPillWithMarker = ({ label, value, color, icon, kpi }: { label: string; value: number; color: string; icon: React.ReactNode; kpi: keyof typeof kpiDefinitions }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  // Sync with external expand/collapse all
-  React.useEffect(() => {
-    if (typeof externalExpand === 'boolean') {
-      setIsExpanded(externalExpand);
-    }
-  }, [externalExpand]);
 
   return (
     <motion.div
-      layout
-      whileHover={{ scale: 1.03, y: -5 }}
-      className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white/95 via-white/70 to-white/50 dark:from-gray-800/95 dark:via-gray-800/70 dark:to-gray-900/50 backdrop-blur-3xl border-2 border-white/40 dark:border-violet-400/30 p-5 shadow-2xl transition-all duration-500 hover:shadow-3xl hover:border-violet-400/50"
+      whileHover={{ scale: 1.06, y: -3 }}
+      className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/90 via-white/60 to-white/40 dark:from-gray-800/90 dark:via-gray-800/60 dark:to-gray-900/40 backdrop-blur-2xl border border-white/30 dark:border-violet-400/20 p-4 shadow-xl transition-all duration-300 hover:shadow-2xl"
     >
-      {/* Animated glow effect */}
-      <motion.div 
-        className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-fuchsia-400/20 via-violet-400/20 to-cyan-400/20 blur-2xl"
-        animate={{ opacity: [0.3, 0.6, 0.3] }}
-        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-      />
       <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent pointer-events-none" />
-      
-      <button type="button" onClick={() => setIsExpanded(!isExpanded)} className="relative w-full text-left">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4 flex-1">
-            <motion.div 
-              className={`p-3 rounded-2xl bg-gradient-to-br ${color} shadow-xl`}
-              whileHover={{ rotate: [0, -10, 10, -10, 0], scale: 1.15 }}
-              transition={{ duration: 0.5 }}
-            >
-              {icon}
-            </motion.div>
-            <div className="flex-1">
-              <span className="text-sm font-semibold text-gray-600 dark:text-gray-300 block mb-1">{label}</span>
-              <div className="text-4xl font-black bg-gradient-to-r from-pink-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent">{value}</div>
-            </div>
+      <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-fuchsia-400/10 via-violet-400/10 to-cyan-400/10 blur-xl pointer-events-none" />
+      <div className="relative flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-xl bg-gradient-to-br ${color} shadow-lg`}>
+            {icon}
           </div>
-          <motion.div
-            animate={{ rotate: isExpanded ? 180 : 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <ChevronDown className="w-6 h-6 text-violet-500" />
-          </motion.div>
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{label}</span>
         </div>
-      </button>
-
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.4, ease: 'easeInOut' }}
-            className="overflow-hidden border-t border-violet-200/30 dark:border-violet-700/30 pt-4 mt-2"
-          >
-            <div className="space-y-3">
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                {kpiDefinitions[kpi]?.definition || 'Detailed metrics and insights'}
-              </p>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setIsOpen(true); }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white text-sm font-medium shadow-lg transition-all duration-300 hover:scale-105"
-              >
-                <Info className="w-4 h-4" />
-                Learn More
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      
+        <div className="text-3xl font-black bg-gradient-to-r from-pink-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent">{value}</div>
+      </div>
+      <div className="flex justify-center">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-r from-violet-400 to-purple-500 hover:from-violet-500 hover:to-purple-600 text-white shadow-lg transition-all duration-300 hover:scale-110"
+          title="Click to learn more about this KPI"
+        >
+          <Info className="w-3 h-3" />
+        </button>
+      </div>
       <KPIModalPopup kpi={kpi} isOpen={isOpen} onClose={() => setIsOpen(false)} />
     </motion.div>
   );
@@ -401,8 +354,6 @@ export const SEOGeoChecker: React.FC = () => {
   const [searchParams] = useSearchParams();
   const containerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  // Pillars expand/collapse control (default collapsed)
-  const [pillarsExpandAll, setPillarsExpandAll] = useState<boolean>(false);
   
   // AWS Lambda integration
   const {
@@ -1110,11 +1061,10 @@ export const SEOGeoChecker: React.FC = () => {
 
                 <Card className="col-span-1 lg:col-span-2 bg-gradient-to-br from-white/95 to-slate-50/95 dark:from-viz-medium/90 dark:to-viz-dark/90 border border-slate-200/60 dark:border-viz-light/20 shadow-xl">
                   <CardHeader className="pb-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl shadow-lg">
-                          <TrendingUp className="w-5 h-5 text-white" />
-                        </div>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl shadow-lg">
+                        <TrendingUp className="w-5 h-5 text-white" />
+                      </div>
                       <div>
                         <CardTitle className="text-lg font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
                           Performance Pillars
@@ -1122,15 +1072,6 @@ export const SEOGeoChecker: React.FC = () => {
                         <CardDescription className="text-sm text-slate-600 dark:text-slate-400">
                           Core metrics driving your SEO & GEO success
                         </CardDescription>
-                      </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline" className="rounded-lg" onClick={() => setPillarsExpandAll(true)}>
-                          Expand All
-                        </Button>
-                        <Button size="sm" variant="outline" className="rounded-lg" onClick={() => setPillarsExpandAll(false)}>
-                          Collapse All
-                        </Button>
                       </div>
                     </div>
                   </CardHeader>
@@ -1142,7 +1083,6 @@ export const SEOGeoChecker: React.FC = () => {
                         color="from-violet-400 to-violet-600"
                         icon={<Eye className="w-4 h-4 text-white" />}
                         kpi="visibility"
-                        externalExpand={pillarsExpandAll}
                       />
                       <GlassPillWithMarker
                         label="Trust"
@@ -1150,7 +1090,6 @@ export const SEOGeoChecker: React.FC = () => {
                         color="from-purple-400 to-purple-600"
                         icon={<Star className="w-4 h-4 text-white" />}
                         kpi="trust"
-                        externalExpand={pillarsExpandAll}
                       />
                       <GlassPillWithMarker
                         label="Relevance"
@@ -1158,7 +1097,6 @@ export const SEOGeoChecker: React.FC = () => {
                         color="from-indigo-400 to-indigo-600"
                         icon={<Target className="w-4 h-4 text-white" />}
                         kpi="relevance"
-                        externalExpand={pillarsExpandAll}
                       />
                     </div>
                   </CardContent>
