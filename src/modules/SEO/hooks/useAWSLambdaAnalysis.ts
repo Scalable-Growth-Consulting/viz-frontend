@@ -236,6 +236,8 @@ export const useAWSLambdaAnalysis = (): UseAWSLambdaAnalysisReturn => {
           // Store raw scores for display
           seoScoreOutOf10: seoScoreOutOf10,
           geoScoreOutOf100: geoScoreOutOf100,
+          // Store actual seo_score object for Score Architecture
+          seoScore: seoScore,
           pillars: {
             visibility: Math.round((seoScore.canonical_score || 0 + seoScore.link_score || 0 + onPageMetrics.h1_count || 0) / 3),
             trust: Math.round((seoScore.structured_score || 0 + geoSignals.authority_signals || 0) / 2),

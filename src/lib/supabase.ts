@@ -1,57 +1,8 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { supabase as baseSupabase } from '@/integrations/supabase/client';
 
-// Validate environment variables
-const rawSupabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-
-// Sanitize misconfigured dashboard URL to proper project URL
-const supabaseUrl = (() => {
-  if (!rawSupabaseUrl) return rawSupabaseUrl as string | undefined;
-  if (rawSupabaseUrl.includes('supabase.com/dashboard')) {
-    // Try to extract the project ref from the dashboard URL and build the correct base
-    const match = rawSupabaseUrl.match(/project\/([a-z0-9]+)/i);
-    const projectRef = match?.[1];
-    if (projectRef) {
-      const fixed = `https://${projectRef}.supabase.co`;
-      console.warn('[Supabase] Corrected dashboard URL to project URL:', fixed);
-      return fixed;
-    }
-  }
-  return rawSupabaseUrl;
-})() as string | undefined;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase configuration. Please check your environment variables.');
-}
-
-// Configure Supabase client
-declare global {
-  interface Window { __vizSupabase?: SupabaseClient }
-}
-
-const createNewClient = () => createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    storageKey: 'viz-bi-agent-session',
-  },
-  global: {
-    headers: {
-      'X-Client-Info': 'viz-bi-agent/1.0.0'
-    }
-  }
-});
-
-export const supabase: SupabaseClient = ((): SupabaseClient => {
-  if (typeof window !== 'undefined') {
-    if (!window.__vizSupabase) {
-      window.__vizSupabase = createNewClient();
-    }
-    return window.__vizSupabase;
-  }
-  return createNewClient();
-})();
+// Export the shared Supabase client instance from integrations
+export const supabase: SupabaseClient = baseSupabase;
 
 // Helper function for API calls with retry logic
 export const fetchWithRetry = async <T>(

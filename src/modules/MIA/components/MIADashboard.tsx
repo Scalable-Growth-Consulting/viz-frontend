@@ -690,9 +690,24 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
     };
 
     const ScoreCard: React.FC<{ label: string; value?: number; tone: 'emerald' | 'violet' | 'blue' | 'amber'; }> = ({ label, value, tone }) => (
-      <div className={`p-4 rounded-lg border border-slate-200/60 dark:border-viz-light/20 bg-white/70 dark:bg-viz-dark/40`}> 
-        <div className="text-xs text-slate-500">{label}</div>
-        <div className={`text-2xl font-extrabold ${tone === 'emerald' ? 'text-emerald-600' : tone === 'violet' ? 'text-violet-600' : tone === 'blue' ? 'text-blue-600' : 'text-amber-600'}`}>{value ?? '—'}</div>
+      <div
+        className={`group relative overflow-hidden rounded-xl border border-slate-200/60 dark:border-viz-light/20 bg-gradient-to-br from-white/80 to-slate-50/80 dark:from-viz-dark/40 dark:to-viz-dark/20 backdrop-blur-sm p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-viz-accent/0 to-blue-500/5 dark:from-viz-accent/0 dark:to-blue-400/10 pointer-events-none" />
+        <div className="text-[11px] font-medium tracking-wide text-slate-600 dark:text-slate-300">{label}</div>
+        <div
+          className={`text-2xl font-extrabold tracking-tight ${
+            tone === 'emerald'
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : tone === 'violet'
+              ? 'text-violet-600 dark:text-violet-400'
+              : tone === 'blue'
+              ? 'text-blue-600 dark:text-blue-400'
+              : 'text-amber-600 dark:text-amber-400'
+          }`}
+        >
+          {value ?? '—'}
+        </div>
       </div>
     );
 
@@ -887,27 +902,40 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
-                <CardHeader className="pb-0"><CardTitle className="text-sm">Overall Score</CardTitle></CardHeader>
+              <Card className="bg-gradient-to-br from-white/95 to-slate-50/95 dark:from-viz-medium/85 dark:to-viz-dark/90 border border-slate-200/60 dark:border-viz-light/20 shadow-md">
+                <CardHeader className="pb-0"><CardTitle className="text-sm font-semibold">Overall Score</CardTitle></CardHeader>
                 <CardContent>
                   <div className="relative">
-                    <div className="absolute inset-0 flex items-center justify-center"><div className="text-3xl font-extrabold">{overallScore ?? '—'}</div></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-3xl font-extrabold text-slate-800 dark:text-white bg-white/80 dark:bg-slate-800/70 rounded-full w-16 h-16 flex items-center justify-center border-2 border-viz-accent/30 shadow-sm backdrop-blur-sm">
+                        {overallScore ?? '—'}
+                      </div>
+                    </div>
                     <ScoreDial score={overallScore} />
                   </div>
                 </CardContent>
               </Card>
-              <Card className="md:col-span-2 bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
-                <CardHeader className="pb-2"><CardTitle className="text-sm">Pillars</CardTitle></CardHeader>
+              <Card className="md:col-span-2 bg-gradient-to-br from-white/95 to-slate-50/95 dark:from-viz-medium/85 dark:to-viz-dark/90 border border-slate-200/60 dark:border-viz-light/20 shadow-md">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Pillars</CardTitle></CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                    <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Visibility</div><div className="font-semibold">{result.pillars?.visibility ?? '—'}</div></div>
-                    <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Trust</div><div className="font-semibold">{result.pillars?.trust ?? '—'}</div></div>
-                    <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Relevance</div><div className="font-semibold">{result.pillars?.relevance ?? '—'}</div></div>
+                    <div className="p-3 rounded-xl border border-violet-200/50 dark:border-violet-400/30 bg-gradient-to-br from-violet-50/70 to-purple-50/70 dark:from-violet-900/20 dark:to-purple-900/20 backdrop-blur-sm">
+                      <div className="text-[11px] font-medium text-violet-700 dark:text-violet-300">Visibility</div>
+                      <div className="font-bold text-violet-700 dark:text-violet-300">{result.pillars?.visibility ?? '—'}</div>
+                    </div>
+                    <div className="p-3 rounded-xl border border-purple-200/50 dark:border-purple-400/30 bg-gradient-to-br from-purple-50/70 to-indigo-50/70 dark:from-purple-900/20 dark:to-indigo-900/20 backdrop-blur-sm">
+                      <div className="text-[11px] font-medium text-purple-700 dark:text-purple-300">Trust</div>
+                      <div className="font-bold text-purple-700 dark:text-purple-300">{result.pillars?.trust ?? '—'}</div>
+                    </div>
+                    <div className="p-3 rounded-xl border border-indigo-200/50 dark:border-indigo-400/30 bg-gradient-to-br from-indigo-50/70 to-violet-50/70 dark:from-indigo-900/20 dark:to-violet-900/20 backdrop-blur-sm">
+                      <div className="text-[11px] font-medium text-indigo-700 dark:text-indigo-300">Relevance</div>
+                      <div className="font-bold text-indigo-700 dark:text-indigo-300">{result.pillars?.relevance ?? '—'}</div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
-            <Card className="bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
+            <Card className="bg-gradient-to-br from-white/95 to-slate-50/95 dark:from-viz-medium/85 dark:to-viz-dark/90 border border-slate-200/60 dark:border-viz-light/20 shadow-md">
               <CardHeader>
                 <CardTitle className="text-base">Scores</CardTitle>
               </CardHeader>
@@ -921,29 +949,49 @@ const MIADashboard: React.FC<MIADashboardProps> = ({ userId }) => {
               </CardContent>
             </Card>
 
-            <Card className="bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
+            <Card className="bg-gradient-to-br from-white/95 to-slate-50/95 dark:from-viz-medium/85 dark:to-viz-dark/90 border border-slate-200/60 dark:border-viz-light/20 shadow-md">
               <CardHeader>
                 <CardTitle className="text-base">Key Metrics</CardTitle>
               </CardHeader>
               <CardContent className="grid md:grid-cols-3 gap-3 text-sm">
-                <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Title</div><div className="font-semibold truncate">{(result as any).metrics.title || '—'}</div><div className="text-xs">{(result as any).metrics.titleLength} chars</div></div>
-                <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Meta Description</div><div className="truncate">{(result as any).metrics.metaDescription || '—'}</div><div className="text-xs">{(result as any).metrics.metaDescriptionLength} chars</div></div>
-                <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Headings</div><div>H1: {(result as any).metrics.h1Count} • H2: {(result as any).metrics.h2Count}</div></div>
-                <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Images</div><div>Total: {(result as any).metrics.images.total} • Missing alt: {(result as any).metrics.images.missingAlt}</div></div>
-                <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Links</div><div>Internal: {(result as any).metrics.links.internal} • External: {(result as any).metrics.links.external}</div></div>
-                <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Schema</div><div className="truncate">{(result as any).metrics.schemaTypes.join(', ') || '—'}</div></div>
+                <div className="p-3 rounded-xl border border-slate-200/60 dark:border-viz-light/20 bg-white/70 dark:bg-viz-dark/40 backdrop-blur-sm">
+                  <div className="text-[11px] font-medium text-slate-600 dark:text-slate-300">Title</div>
+                  <div className="font-semibold truncate">{(result as any).metrics.title || '—'}</div>
+                  <div className="text-[11px] text-slate-500">{(result as any).metrics.titleLength} chars</div>
+                </div>
+                <div className="p-3 rounded-xl border border-slate-200/60 dark:border-viz-light/20 bg-gradient-to-br from-violet-50/70 to-purple-50/70 dark:from-violet-900/20 dark:to-purple-900/20 backdrop-blur-sm">
+                  <div className="text-[11px] font-medium text-slate-600 dark:text-slate-300">Meta Description</div>
+                  <div className="truncate">{(result as any).metrics.metaDescription || '—'}</div>
+                  <div className="text-[11px] text-slate-500">{(result as any).metrics.metaDescriptionLength} chars</div>
+                </div>
+                <div className="p-3 rounded-xl border border-slate-200/60 dark:border-viz-light/20 bg-white/70 dark:bg-viz-dark/40 backdrop-blur-sm">
+                  <div className="text-[11px] font-medium text-slate-600 dark:text-slate-300">Headings</div>
+                  <div>H1: {(result as any).metrics.h1Count} • H2: {(result as any).metrics.h2Count}</div>
+                </div>
+                <div className="p-3 rounded-xl border border-slate-200/60 dark:border-viz-light/20 bg-gradient-to-br from-blue-50/70 to-cyan-50/70 dark:from-blue-900/20 dark:to-cyan-900/20 backdrop-blur-sm">
+                  <div className="text-[11px] font-medium text-slate-600 dark:text-slate-300">Images</div>
+                  <div>Total: {(result as any).metrics.images.total} • Missing alt: {(result as any).metrics.images.missingAlt}</div>
+                </div>
+                <div className="p-3 rounded-xl border border-slate-200/60 dark:border-viz-light/20 bg-white/70 dark:bg-viz-dark/40 backdrop-blur-sm">
+                  <div className="text-[11px] font-medium text-slate-600 dark:text-slate-300">Links</div>
+                  <div>Internal: {(result as any).metrics.links.internal} • External: {(result as any).metrics.links.external}</div>
+                </div>
+                <div className="p-3 rounded-xl border border-slate-200/60 dark:border-viz-light/20 bg-gradient-to-br from-emerald-50/70 to-teal-50/70 dark:from-emerald-900/20 dark:to-teal-900/20 backdrop-blur-sm">
+                  <div className="text-[11px] font-medium text-slate-600 dark:text-slate-300">Schema</div>
+                  <div className="truncate">{(result as any).metrics.schemaTypes.join(', ') || '—'}</div>
+                </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-white/85 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
+            <Card className="bg-gradient-to-br from-white/95 to-slate-50/95 dark:from-viz-medium/85 dark:to-viz-dark/90 border border-slate-200/60 dark:border-viz-light/20 shadow-md">
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2"><Globe2 className="w-4 h-4" /> GEO Signals</CardTitle>
               </CardHeader>
               <CardContent className="grid md:grid-cols-4 gap-3 text-sm">
-                <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Language</div><div>{(result as any).metrics.lang || '—'}</div></div>
-                <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">FAQ schema</div><div>{(result as any).metrics.faqPresent ? 'Yes' : 'No'}</div></div>
-                <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">HowTo schema</div><div>{(result as any).metrics.howToPresent ? 'Yes' : 'No'}</div></div>
-                <div className="p-3 rounded-lg border border-slate-200/60 dark:border-viz-light/20"><div className="text-xs text-slate-500">Summary near top</div><div>{(result as any).metrics.summaryPresent ? 'Yes' : 'No'}</div></div>
+                <div className="p-3 rounded-xl border border-slate-200/60 dark:border-viz-light/20 bg-white/70 dark:bg-viz-dark/40 backdrop-blur-sm"><div className="text-[11px] font-medium text-slate-600 dark:text-slate-300">Language</div><div>{(result as any).metrics.lang || '—'}</div></div>
+                <div className="p-3 rounded-xl border border-emerald-200/50 dark:border-emerald-400/30 bg-gradient-to-br from-emerald-50/70 to-teal-50/70 dark:from-emerald-900/20 dark:to-teal-900/20 backdrop-blur-sm"><div className="text-[11px] font-medium text-slate-600 dark:text-slate-300">FAQ schema</div><div>{(result as any).metrics.faqPresent ? 'Yes' : 'No'}</div></div>
+                <div className="p-3 rounded-xl border border-indigo-200/50 dark:border-indigo-400/30 bg-gradient-to-br from-indigo-50/70 to-violet-50/70 dark:from-indigo-900/20 dark:to-violet-900/20 backdrop-blur-sm"><div className="text-[11px] font-medium text-slate-600 dark:text-slate-300">HowTo schema</div><div>{(result as any).metrics.howToPresent ? 'Yes' : 'No'}</div></div>
+                <div className="p-3 rounded-xl border border-amber-200/50 dark:border-amber-400/30 bg-gradient-to-br from-amber-50/70 to-yellow-50/70 dark:from-amber-900/20 dark:to-yellow-900/20 backdrop-blur-sm"><div className="text-[11px] font-medium text-slate-600 dark:text-slate-300">Summary near top</div><div>{(result as any).metrics.summaryPresent ? 'Yes' : 'No'}</div></div>
               </CardContent>
             </Card>
 

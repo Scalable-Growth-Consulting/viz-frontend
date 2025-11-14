@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChartIcon, TrendingUp, Database, MessageSquare, ShoppingCart, Target, HeartPulse, Brain, Search, Sparkles, ArrowRight } from 'lucide-react';
+import { BarChartIcon, TrendingUp, Database, MessageSquare, ShoppingCart, Target, HeartPulse, Brain, Search, Sparkles, ArrowRight, MessageCircle, Crown, Globe } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
@@ -286,6 +286,61 @@ function AgentsExplorer({ isPrivileged }: { isPrivileged: boolean }) {
       gradient: 'from-purple-500 to-violet-600',
       icon: <Brain className="w-6 h-6 text-white" />,
       access: 'public', // explicitly public per access guard
+    },
+    {
+      id: 'reddit-copilot',
+      name: 'Reddit CoPilot',
+      subtitle: 'Marketing Intelligence Zone',
+      description: 'Automate authentic Reddit engagement with AI-powered GEO-optimized responses.',
+      tags: ['MIZ', 'reddit', 'marketing', 'automation', 'geo'],
+      route: '/mia/reddit-copilot',
+      gradient: 'from-orange-500 to-red-600',
+      icon: <MessageCircle className="w-6 h-6 text-white" />,
+      access: 'public',
+    },
+    {
+      id: 'mia-core',
+      name: 'MIA Core Intelligence',
+      subtitle: 'Admin Exclusive Suite',
+      description: 'Unified command center for elite growth teams with AI-orchestrated dashboards and intelligence.',
+      tags: ['MIZ', 'core', 'analytics', 'leadership', 'marketing'],
+      route: '/mia',
+      gradient: 'from-[#2E026D] via-[#6E21C8] to-[#9333EA]',
+      icon: <Crown className="w-6 h-6 text-white" />,
+      access: 'public',
+    },
+    {
+      id: 'keyword-trend',
+      name: 'Keyword & Trend Constellation',
+      subtitle: 'Intelligence in Alpha',
+      description: 'Predict cultural waves before they crest with trend intelligence and demand modeling.',
+      tags: ['MIZ', 'marketing', 'seo', 'insights', 'analytics'],
+      route: '/mia/keyword-trend',
+      gradient: 'from-[#1D2671] via-[#5C3BE8] to-[#A855F7]',
+      icon: <Target className="w-6 h-6 text-white" />,
+      access: 'public',
+    },
+    {
+      id: 'creative-labs',
+      name: 'Creative Labs',
+      subtitle: 'Design Intelligence',
+      description: 'Automated creative prototyping that blends generative artistry with performance insights.',
+      tags: ['MIZ', 'creative', 'marketing', 'automation', 'design'],
+      route: '/mia/creative',
+      gradient: 'from-[#3E1E68] via-[#9B287B] to-[#F06199]',
+      icon: <Sparkles className="w-6 h-6 text-white" />,
+      access: 'public',
+    },
+    {
+      id: 'brandlenz',
+      name: 'Brandlenz Sentinel',
+      subtitle: 'Visibility Intelligence',
+      description: 'Continuously sense brand health, competitive signals, and market bias across channels.',
+      tags: ['MIZ', 'brand', 'analytics', 'marketing', 'insights'],
+      route: '/mia/brandlenz',
+      gradient: 'from-[#0F3D5F] via-[#256D85] to-[#3BA39C]',
+      icon: <Globe className="w-6 h-6 text-white" />,
+      access: 'public',
     },
   ], []);
 
