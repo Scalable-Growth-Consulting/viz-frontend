@@ -23,26 +23,80 @@ import { createPortal } from 'react-dom';
 import { useCompetitorKeywords } from '../hooks/useCompetitorKeywords';
 import { useRecommendations } from '../hooks/useRecommendations';
 import { analyzeKeywordOverlap, type CompetitorKeywords } from '../utils/keywordOverlap';
-import { ScoreTree } from './ScoreTree';
-import { buildSEOTree, buildGEOTree } from '../utils/buildScoreTree';
+import { ScoreSection } from './ScoreSection';
+import { buildSEOSections, buildGEOSections } from '../utils/buildScoreSections';
+import { KPIDefinitionsDialog } from './KPIDefinitionsDialog';
+import { SEO_DEFINITIONS, GEO_DEFINITIONS, PILLAR_DEFINITIONS } from '../utils/kpiDefinitions';
 
-const GlassPill = ({ label, value, color, icon }: { label: string; value: number; color: string; icon: React.ReactNode }) => (
-  <motion.div
-    whileHover={{ scale: 1.05, y: -2 }}
-    className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/80 to-white/40 dark:from-gray-800/80 dark:to-gray-900/40 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 p-4 shadow-lg"
-  >
-    <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent pointer-events-none" />
-    <div className="relative flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-xl bg-gradient-to-br ${color} shadow-lg`}>
+// Circular Score Gauge Component (Wireframe Style)
+const CircularScore = ({ score, label }: { score: number; label: string }) => {
+  const circumference = 2 * Math.PI * 80;
+  const offset = circumference - (score / 100) * circumference;
+  const color = score >= 70 ? '#06b6d4' : score >= 40 ? '#3b82f6' : '#6366f1';
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative w-48 h-48">
+        <svg className="transform -rotate-90 w-48 h-48">
+          <circle
+            cx="96"
+            cy="96"
+            r="80"
+            stroke="#e5e7eb"
+            strokeWidth="12"
+            fill="none"
+          />
+          <circle
+            cx="96"
+            cy="96"
+            r="80"
+            stroke={color}
+            strokeWidth="12"
+            fill="none"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            className="transition-all duration-1000 ease-out"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-6xl font-black" style={{ color }}>{score}</span>
+        </div>
+      </div>
+      <p className="text-sm text-slate-600 dark:text-slate-400 mt-4">{label}</p>
+    </div>
+  );
+};
+
+// Performance Pillar Card (Wireframe Style)
+const PillarCard = ({ title, score, maxScore, color, icon }: { title: string; score: number; maxScore: number; color: string; icon: React.ReactNode }) => {
+  const percentage = (score / maxScore) * 100;
+  return (
+    <motion.div
+      whileHover={{ y: -4 }}
+      className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all"
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1">{title}</h3>
+          <div className="flex items-baseline gap-2">
+            <span className={`text-3xl font-black`} style={{ color }}>{score}</span>
+            <span className="text-sm text-slate-500">{percentage.toFixed(0)}% of {maxScore}</span>
+          </div>
+        </div>
+        <div className={`p-2 rounded-lg`} style={{ backgroundColor: `${color}20` }}>
           {icon}
         </div>
-        <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{label}</span>
       </div>
-      <div className="text-2xl font-black bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">{value}</div>
-    </div>
-  </motion.div>
-);
+      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
+        <div
+          className="h-2 rounded-full transition-all duration-1000"
+          style={{ width: `${percentage}%`, backgroundColor: color }}
+        />
+      </div>
+    </motion.div>
+  );
+};
 
 // Enhanced Glass Pill with KPI Marker (supports external expand control)
 const GlassPillWithMarker = ({ label, value, color, icon, kpi, externalExpand }: { label: string; value: number; color: string; icon: React.ReactNode; kpi: keyof typeof kpiDefinitions; externalExpand?: boolean }) => {
@@ -60,11 +114,11 @@ const GlassPillWithMarker = ({ label, value, color, icon, kpi, externalExpand }:
     <motion.div
       layout
       whileHover={{ scale: 1.03, y: -5 }}
-      className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white/95 via-white/70 to-white/50 dark:from-gray-800/95 dark:via-gray-800/70 dark:to-gray-900/50 backdrop-blur-3xl border-2 border-white/40 dark:border-violet-400/30 p-5 shadow-2xl transition-all duration-500 hover:shadow-3xl hover:border-violet-400/50"
+      className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white/95 via-white/70 to-white/50 dark:from-gray-800/95 dark:via-gray-800/70 dark:to-gray-900/50 backdrop-blur-3xl border-2 border-white/40 dark:border-cyan-400/30 p-5 shadow-2xl transition-all duration-500 hover:shadow-3xl hover:border-cyan-400/50"
     >
       {/* Animated glow effect */}
       <motion.div 
-        className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-fuchsia-400/20 via-violet-400/20 to-cyan-400/20 blur-2xl"
+        className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-cyan-400/20 via-blue-400/20 to-cyan-500/20 blur-2xl"
         animate={{ opacity: [0.3, 0.6, 0.3] }}
         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
       />
@@ -82,14 +136,14 @@ const GlassPillWithMarker = ({ label, value, color, icon, kpi, externalExpand }:
             </motion.div>
             <div className="flex-1">
               <span className="text-sm font-semibold text-gray-600 dark:text-gray-300 block mb-1">{label}</span>
-              <div className="text-4xl font-black bg-gradient-to-r from-pink-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent">{value}</div>
+              <div className="text-4xl font-black bg-gradient-to-r from-cyan-600 via-blue-600 to-cyan-700 bg-clip-text text-transparent">{value}</div>
             </div>
           </div>
           <motion.div
             animate={{ rotate: isExpanded ? 180 : 0 }}
             transition={{ duration: 0.3 }}
           >
-            <ChevronDown className="w-6 h-6 text-violet-500" />
+            <ChevronDown className="w-6 h-6 text-cyan-500" />
           </motion.div>
         </div>
       </button>
@@ -101,7 +155,7 @@ const GlassPillWithMarker = ({ label, value, color, icon, kpi, externalExpand }:
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.4, ease: 'easeInOut' }}
-            className="overflow-hidden border-t border-violet-200/30 dark:border-violet-700/30 pt-4 mt-2"
+            className="overflow-hidden border-t border-cyan-200/30 dark:border-cyan-700/30 pt-4 mt-2"
           >
             <div className="space-y-3">
               <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -110,7 +164,7 @@ const GlassPillWithMarker = ({ label, value, color, icon, kpi, externalExpand }:
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setIsOpen(true); }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white text-sm font-medium shadow-lg transition-all duration-300 hover:scale-105"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white text-sm font-medium shadow-lg transition-all duration-300 hover:scale-105"
               >
                 <Info className="w-4 h-4" />
                 Learn More
@@ -146,7 +200,7 @@ function ModernScoreDial({ score }: { score: number }) {
       </ResponsiveContainer>
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-5xl font-black bg-gradient-to-r from-pink-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent drop-shadow-sm">
+          <div className="text-5xl font-black bg-gradient-to-r from-cyan-600 via-blue-600 to-cyan-700 bg-clip-text text-transparent drop-shadow-sm">
             {score}
           </div>
           <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -266,7 +320,7 @@ function KPIModalPopup({ kpi, isOpen, onClose }: { kpi: keyof typeof kpiDefiniti
         >
           <div className="p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
+              <h3 className="text-lg font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
                 {definition.title}
               </h3>
               <button
@@ -282,9 +336,9 @@ function KPIModalPopup({ kpi, isOpen, onClose }: { kpi: keyof typeof kpiDefiniti
                 {definition.definition}
               </p>
 
-              <div className="p-3 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 rounded-xl border border-violet-200/50 dark:border-violet-400/30">
-                <div className="text-xs font-semibold text-violet-600 dark:text-violet-400 mb-1">Formula</div>
-                <div className="text-sm font-mono text-violet-700 dark:text-violet-300 bg-white/50 dark:bg-gray-800/50 p-2 rounded-lg border">
+              <div className="p-3 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 rounded-xl border border-cyan-200/50 dark:border-cyan-400/30">
+                <div className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 mb-1">Formula</div>
+                <div className="text-sm font-mono text-cyan-700 dark:text-cyan-300 bg-white/50 dark:bg-gray-800/50 p-2 rounded-lg border">
                   {definition.formula}
                 </div>
               </div>
@@ -294,7 +348,7 @@ function KPIModalPopup({ kpi, isOpen, onClose }: { kpi: keyof typeof kpiDefiniti
                 <ul className="space-y-1">
                   {definition.details.map((detail, index) => (
                     <li key={index} className="text-xs text-gray-600 dark:text-gray-300 flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 bg-violet-400 rounded-full flex-shrink-0" />
+                      <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full flex-shrink-0" />
                       {detail}
                     </li>
                   ))}
@@ -305,7 +359,7 @@ function KPIModalPopup({ kpi, isOpen, onClose }: { kpi: keyof typeof kpiDefiniti
             <div className="flex justify-end pt-2">
               <button
                 onClick={onClose}
-                className="px-4 py-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white text-sm font-semibold rounded-xl transition-all duration-300 shadow-lg"
+                className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white text-sm font-semibold rounded-xl transition-all duration-300 shadow-lg"
               >
                 Got it
               </button>
@@ -333,15 +387,15 @@ function KPIPopup({ kpi, isOpen, onClose, position }: { kpi: keyof typeof kpiDef
         transition={{ type: "spring", duration: 0.3 }}
         className="overflow-hidden"
       >
-        <div className="bg-gradient-to-br from-violet-50/90 to-purple-50/90 dark:from-violet-900/20 dark:to-purple-900/20 border border-violet-200/50 dark:border-violet-400/30 rounded-2xl p-4 mt-3 shadow-lg">
+        <div className="bg-gradient-to-br from-cyan-50/90 to-blue-50/90 dark:from-cyan-900/20 dark:to-blue-900/20 border border-cyan-200/50 dark:border-cyan-400/30 rounded-2xl p-4 mt-3 shadow-lg">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-bold text-violet-600 dark:text-violet-400">
+              <h4 className="text-sm font-bold text-cyan-600 dark:text-cyan-400">
                 {definition.title}
               </h4>
               <button
                 onClick={onClose}
-                className="p-1 hover:bg-violet-100 dark:hover:bg-violet-800/50 rounded-lg transition-colors"
+                className="p-1 hover:bg-cyan-100 dark:hover:bg-cyan-800/50 rounded-lg transition-colors"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -351,9 +405,9 @@ function KPIPopup({ kpi, isOpen, onClose, position }: { kpi: keyof typeof kpiDef
               {definition.definition}
             </p>
 
-            <div className="p-2 bg-white/50 dark:bg-gray-800/50 rounded-lg border border-violet-200/30 dark:border-violet-400/30">
-              <div className="text-xs font-semibold text-violet-600 dark:text-violet-400 mb-1">Formula</div>
-              <div className="text-xs font-mono text-violet-700 dark:text-violet-300">
+            <div className="p-2 bg-white/50 dark:bg-gray-800/50 rounded-lg border border-cyan-200/30 dark:border-cyan-400/30">
+              <div className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 mb-1">Formula</div>
+              <div className="text-xs font-mono text-cyan-700 dark:text-cyan-300">
                 {definition.formula}
               </div>
             </div>
@@ -363,7 +417,7 @@ function KPIPopup({ kpi, isOpen, onClose, position }: { kpi: keyof typeof kpiDef
               <ul className="space-y-1">
                 {definition.details.map((detail, index) => (
                   <li key={index} className="text-xs text-gray-600 dark:text-gray-300 flex items-center gap-2">
-                    <div className="w-1 h-1 bg-violet-400 rounded-full flex-shrink-0" />
+                    <div className="w-1 h-1 bg-cyan-400 rounded-full flex-shrink-0" />
                     {detail}
                   </li>
                 ))}
@@ -384,7 +438,7 @@ function KPIMarker({ kpi, className = "" }: { kpi: keyof typeof kpiDefinitions; 
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className={`inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-r from-violet-400 to-purple-500 hover:from-violet-500 hover:to-purple-600 text-white shadow-lg transition-all duration-300 hover:scale-110 ${className}`}
+        className={`inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 text-white shadow-lg transition-all duration-300 hover:scale-110 ${className}`}
         title="Click to learn more about this KPI"
       >
         <Info className="w-3 h-3" />
@@ -403,6 +457,11 @@ export const SEOGeoChecker: React.FC = () => {
   const { toast } = useToast();
   // Pillars expand/collapse control (default collapsed)
   const [pillarsExpandAll, setPillarsExpandAll] = useState<boolean>(false);
+  
+  // KPI Definitions Dialog state
+  const [seoDialogOpen, setSeoDialogOpen] = useState(false);
+  const [geoDialogOpen, setGeoDialogOpen] = useState(false);
+  const [pillarDialogOpen, setPillarDialogOpen] = useState(false);
   
   // AWS Lambda integration
   const {
@@ -427,6 +486,14 @@ export const SEOGeoChecker: React.FC = () => {
   const result = useCloudAnalysis ? awsResult : localResult;
   const loading = useCloudAnalysis ? awsLoading : localLoading;
   const analyzing = useCloudAnalysis ? awsAnalyzing : localLoading;
+
+  // Section breakdowns (must come after 'result' is defined)
+  const seoSections = React.useMemo(() => (
+    result ? buildSEOSections(result) : { title: 'SEO Score Breakdown', items: [] }
+  ), [result]);
+  const geoSections = React.useMemo(() => (
+    result ? buildGEOSections(result) : { title: 'GEO Score Breakdown', items: [] }
+  ), [result]);
 
   // Trigger competitor keywords fetch for the completed job when viewing the report
   const jobId = (currentJob?.job_id || (currentJob as any)?.jobId || '') as string;
@@ -457,6 +524,16 @@ export const SEOGeoChecker: React.FC = () => {
     const arr = recomData?.recommendations?.growth_opportunities;
     return Array.isArray(arr) ? arr : [];
   }, [recomData]);
+
+  const localQuickWins = React.useMemo(() => {
+    const arr = result?.topQuickFixes;
+    return Array.isArray(arr) ? arr : [];
+  }, [result]);
+
+  const localGrowthOpps = React.useMemo(() => {
+    const arr = result?.missedOpportunities;
+    return Array.isArray(arr) ? arr : [];
+  }, [result]);
 
   // Build site keywords from analysis result.
   // Fallback for cloud results where keywordDensity is empty: derive tokens from title/meta/primary keyword.
@@ -734,10 +811,10 @@ export const SEOGeoChecker: React.FC = () => {
     <div className="w-full max-w-none space-y-6 sm:space-y-8">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex justify-center mb-6 sm:mb-8">
-          <TabsList className="grid w-full max-w-md grid-cols-3 bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-indigo-500/10 backdrop-blur-sm border border-violet-200/20 dark:border-purple-400/20 rounded-2xl p-1">
+          <TabsList className="grid w-full max-w-md grid-cols-3 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-cyan-600/10 backdrop-blur-sm border border-cyan-200/20 dark:border-blue-400/20 rounded-2xl p-1">
             <TabsTrigger 
               value="input" 
-              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-semibold transition-all duration-300"
+              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-semibold transition-all duration-300"
             >
               <Rocket className="w-4 h-4 mr-2" />
               Launch
@@ -745,7 +822,7 @@ export const SEOGeoChecker: React.FC = () => {
             <TabsTrigger 
               value="report" 
               disabled={!result}
-              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-semibold transition-all duration-300"
+              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-semibold transition-all duration-300"
             >
               <TrendingUp className="w-4 h-4 mr-2" />
               Results
@@ -753,7 +830,7 @@ export const SEOGeoChecker: React.FC = () => {
             <TabsTrigger 
               value="ai" 
               disabled={!result}
-              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-violet-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-semibold transition-all duration-300"
+              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-semibold transition-all duration-300"
             >
               <Brain className="w-4 h-4 mr-2" />
               AI Strategy
@@ -768,18 +845,18 @@ export const SEOGeoChecker: React.FC = () => {
             transition={{ duration: 0.6 }}
           >
             <Card className="relative overflow-hidden bg-gradient-to-br from-white/90 via-white/70 to-white/50 dark:from-gray-800/90 dark:via-gray-800/70 dark:to-gray-900/50 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 shadow-2xl rounded-3xl">
-              <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-purple-500/5 to-indigo-500/5 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-cyan-600/5 pointer-events-none" />
               <CardHeader className="relative px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
                 <div className="flex items-center gap-3 mb-2">
                   <motion.div
                     animate={{ rotate: [0, 360] }}
                     transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                    className="p-2 sm:p-3 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl shadow-lg"
+                    className="p-2 sm:p-3 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl shadow-lg"
                   >
                     <Rocket className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </motion.div>
                   <div>
-                    <CardTitle className="text-xl sm:text-2xl font-black bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                    <CardTitle className="text-xl sm:text-2xl font-black bg-gradient-to-r from-cyan-600 via-blue-600 to-cyan-700 bg-clip-text text-transparent">
                       Launch Analysis
                     </CardTitle>
                     <CardDescription className="text-sm sm:text-base text-gray-600 dark:text-gray-300">
@@ -798,38 +875,53 @@ export const SEOGeoChecker: React.FC = () => {
                   >
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                        <Globe2 className="w-4 h-4 text-violet-500" />
+                        <Globe2 className="w-4 h-4 text-cyan-500" />
                         Website URL
                       </label>
-                      <Input 
-                        placeholder="https://your-awesome-site.com" 
-                        value={input.url || ''} 
-                        onChange={(e)=> setInput((s)=> ({ ...s, url: e.target.value }))}
-                        className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-violet-200/50 dark:border-purple-400/30 rounded-xl focus:border-violet-400 dark:focus:border-purple-400 transition-all duration-300"
-                      />
+                      <div className="flex items-center rounded-xl border-2 border-cyan-200/50 dark:border-blue-400/30 bg-white/80 dark:bg-gray-900/60 backdrop-blur-sm focus-within:border-cyan-400 focus-within:dark:border-blue-400 transition-all">
+                        <span className="px-3 text-sm font-semibold text-cyan-600 dark:text-cyan-300 border-r border-cyan-100/60 dark:border-blue-400/20 bg-white/70 dark:bg-gray-900/70 rounded-l-xl">
+                          https://
+                        </span>
+                        <Input
+                          type="text"
+                          inputMode="url"
+                          autoComplete="url"
+                          placeholder="mybusiness.com"
+                          value={input.url ? input.url.replace(/^https?:\/\//, '') : ''}
+                          onChange={(e)=> {
+                            const rawValue = e.target.value.trim();
+                            const sanitized = rawValue.replace(/^https?:\/\//, '');
+                            setInput((s)=> ({ ...s, url: sanitized ? `https://${sanitized}` : '' }));
+                          }}
+                          className="flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 text-sm sm:text-base placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 py-2"
+                        />
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Enter your full domain — we automatically add the secure https:// prefix.
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                        <Target className="w-4 h-4 text-purple-500" />
+                        <Target className="w-4 h-4 text-blue-500" />
                         Target Market
                       </label>
                       <Input 
                         placeholder="e.g., San Francisco, CA" 
                         value={input.targetMarket || ''} 
                         onChange={(e)=> setInput((s)=> ({ ...s, targetMarket: e.target.value }))}
-                        className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-purple-200/50 dark:border-indigo-400/30 rounded-xl focus:border-purple-400 dark:focus:border-indigo-400 transition-all duration-300"
+                        className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-blue-200/50 dark:border-cyan-400/30 rounded-xl focus:border-blue-400 dark:focus:border-cyan-400 transition-all duration-300"
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-indigo-500" />
+                        <Sparkles className="w-4 h-4 text-cyan-600" />
                         Primary Keyword
                       </label>
                       <Input 
                         placeholder="e.g., AI-powered marketing tools" 
                         value={input.primaryKeyword || ''} 
                         onChange={(e)=> setInput((s)=> ({ ...s, primaryKeyword: e.target.value }))}
-                        className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-indigo-200/50 dark:border-violet-400/30 rounded-xl focus:border-indigo-400 dark:focus:border-violet-400 transition-all duration-300"
+                        className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-cyan-200/50 dark:border-blue-400/30 rounded-xl focus:border-cyan-400 dark:focus:border-blue-400 transition-all duration-300"
                       />
                     </div>
                   </motion.div>
@@ -842,7 +934,7 @@ export const SEOGeoChecker: React.FC = () => {
                   >
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                        <Brain className="w-4 h-4 text-purple-500" />
+                        <Brain className="w-4 h-4 text-blue-500" />
                         Raw HTML (optional)
                       </label>
                       <Textarea 
@@ -850,7 +942,7 @@ export const SEOGeoChecker: React.FC = () => {
                         placeholder="Paste your page's HTML for maximum AI precision..." 
                         value={input.rawHtml || ''} 
                         onChange={(e)=> setInput((s)=> ({ ...s, rawHtml: e.target.value }))}
-                        className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-purple-200/50 dark:border-indigo-400/30 rounded-xl focus:border-purple-400 dark:focus:border-indigo-400 transition-all duration-300 resize-none"
+                        className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-blue-200/50 dark:border-cyan-400/30 rounded-xl focus:border-blue-400 dark:focus:border-cyan-400 transition-all duration-300 resize-none"
                       />
                     </div>
                   </motion.div>
@@ -864,10 +956,10 @@ export const SEOGeoChecker: React.FC = () => {
                 >
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                      <Users className="w-4 h-4 text-indigo-500" />
+                      <Users className="w-4 h-4 text-cyan-600" />
                       Competitor Analysis
                     </label>
-                    <Badge className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white border-0 rounded-full px-3 py-1">
+                    <Badge className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-0 rounded-full px-3 py-1">
                       Up to 3 rivals
                     </Badge>
                   </div>
@@ -882,7 +974,7 @@ export const SEOGeoChecker: React.FC = () => {
                           list[idx] = e.target.value;
                           setInput((s)=> ({ ...s, competitors: list }));
                         }}
-                        className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-indigo-200/50 dark:border-violet-400/30 rounded-xl focus:border-indigo-400 dark:focus:border-violet-400 transition-all duration-300"
+                        className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-cyan-200/50 dark:border-blue-400/30 rounded-xl focus:border-cyan-400 dark:focus:border-blue-400 transition-all duration-300"
                       />
                     ))}
                   </div>
@@ -890,7 +982,7 @@ export const SEOGeoChecker: React.FC = () => {
 
                 {/* Analysis Mode Toggle */}
                 <motion.div 
-                  className="flex items-center justify-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200/50 dark:border-blue-400/30"
+                  className="flex items-center justify-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border border-blue-200/50 dark:border-blue-400/30"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.7, duration: 0.6 }}
@@ -1029,7 +1121,7 @@ export const SEOGeoChecker: React.FC = () => {
                       <Button 
                         disabled={!canAnalyze || loading} 
                         onClick={handleAnalyze} 
-                        className="w-full sm:w-auto bg-gradient-to-r from-violet-500 via-purple-600 to-indigo-600 hover:from-violet-600 hover:via-purple-700 hover:to-indigo-700 text-white border-0 rounded-xl px-6 sm:px-8 py-3 font-bold text-base sm:text-lg shadow-2xl transition-all duration-300"
+                        className="w-full sm:w-auto bg-gradient-to-r from-cyan-500 via-blue-600 to-cyan-700 hover:from-cyan-600 hover:via-blue-700 hover:to-cyan-800 text-white border-0 rounded-xl px-6 sm:px-8 py-3 font-bold text-base sm:text-lg shadow-2xl transition-all duration-300"
                       >
                         {loading ? (
                           <>
@@ -1048,9 +1140,9 @@ export const SEOGeoChecker: React.FC = () => {
                   </motion.div>
                 </motion.div>
 
-                <Alert className="bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 border-2 border-violet-200/50 dark:border-purple-400/30 rounded-xl">
-                  <Sparkles className="w-4 h-4 text-violet-500" />
-                  <AlertDescription className="text-sm text-violet-700 dark:text-violet-300">
+                <Alert className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 border-2 border-cyan-200/50 dark:border-blue-400/30 rounded-xl">
+                  <Sparkles className="w-4 h-4 text-cyan-500" />
+                  <AlertDescription className="text-sm text-cyan-700 dark:text-cyan-300">
                     <strong>Pro Tip:</strong> {useCloudAnalysis ? 'Cloud AI analysis provides the most comprehensive SEO & GEO insights using advanced algorithms.' : 'For maximum AI precision, paste raw HTML from your CMS or crawler.'}
                   </AlertDescription>
                 </Alert>
@@ -1066,103 +1158,85 @@ export const SEOGeoChecker: React.FC = () => {
             </Card>
           ) : (
             <div ref={containerRef} className="relative overflow-hidden space-y-4 sm:space-y-6 p-2 sm:p-4">
-              <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 bg-gradient-to-br from-fuchsia-400/10 via-violet-400/10 to-cyan-400/10 rounded-full blur-3xl" />
-              <div className="pointer-events-none absolute -bottom-28 -left-20 w-[28rem] h-[28rem] bg-gradient-to-br from-cyan-400/10 via-violet-400/10 to-pink-400/10 rounded-full blur-3xl" />
+              <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 bg-gradient-to-br from-cyan-400/10 via-blue-400/10 to-cyan-500/10 rounded-full blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-28 -left-20 w-[28rem] h-[28rem] bg-gradient-to-br from-cyan-400/10 via-blue-400/10 to-cyan-500/10 rounded-full blur-3xl" />
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                 <div className="space-y-1">
-                  <h2 className="text-2xl sm:text-3xl font-black bg-gradient-to-r from-violet-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent">SEO & GEO Scorecard</h2>
+                  <h2 className="text-2xl sm:text-3xl font-black bg-gradient-to-r from-cyan-600 via-blue-600 to-cyan-700 bg-clip-text text-transparent">SEO & GEO Scorecard</h2>
                   <p className="text-xs text-muted-foreground break-all sm:break-normal">{result.url || 'HTML input'} • Computed {new Date(result.computedAt).toLocaleString()}</p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Button variant="outline" size="sm" onClick={handleSaveImage} className="gap-2 w-full sm:w-auto rounded-xl bg-white/70 dark:bg-gray-800/50 border-white/40 dark:border-gray-700/50 backdrop-blur-md">
                     <ImageIcon className="w-4 h-4" /> Save Image
                   </Button>
-                  <Button size="sm" onClick={handleExportPDF} className="gap-2 w-full sm:w-auto rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-lg">
+                  <Button size="sm" onClick={handleExportPDF} className="gap-2 w-full sm:w-auto rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg">
                     <FileDown className="w-4 h-4" /> Export PDF
                   </Button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-                <Card className="col-span-1 bg-white/90 dark:bg-viz-medium/80 border border-slate-200/60 dark:border-viz-light/20">
-                  <CardHeader className="pb-0">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-sm font-semibold">Overall Score</CardTitle>
-                        <CardDescription className="text-xs">0 – 100</CardDescription>
-                      </div>
-                      <div className="flex flex-col items-end">
-                        <KPIMarker kpi="overallScore" position="header" className="mb-1" />
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center justify-center z-10">
-                        <div className="relative bg-white/80 dark:bg-slate-800/80 rounded-full w-24 h-24 flex items-center justify-center backdrop-blur-md border-2 border-violet-200/60 dark:border-violet-400/50 ring-8 ring-violet-500/10 shadow-xl">
-                          <span className="text-5xl font-black bg-gradient-to-r from-pink-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent drop-shadow-sm">{result.overallScore}</span>
-                        </div>
-                      </div>
-                      <ModernScoreDial score={result.overallScore} />
-                    </div>
-                  </CardContent>
-                </Card>
+              {/* Hero Section - Improved Structure */}
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                {/* Overall Score - Circular Gauge */}
+                <div className="col-span-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm h-full flex flex-col">
+                  <div className="mb-4">
+                    <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Overall Score</h3>
+                    <p className="text-xs text-slate-500 mt-1">Combined SEO & GEO performance</p>
+                  </div>
+                  <div className="flex-1 flex items-center justify-center">
+                    <CircularScore score={result.overallScore} label="out of 100" />
+                  </div>
+                </div>
 
-                <Card className="col-span-1 lg:col-span-2 bg-gradient-to-br from-white/95 to-slate-50/95 dark:from-viz-medium/90 dark:to-viz-dark/90 border border-slate-200/60 dark:border-viz-light/20 shadow-xl">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-center justify-between gap-3">
+                {/* Performance Pillars - 3 Cards */}
+                <div className="col-span-1 lg:col-span-3">
+                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm h-full flex flex-col">
+                    <div className="flex items-center justify-between mb-6">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl shadow-lg">
-                          <TrendingUp className="w-5 h-5 text-white" />
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                          <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                         </div>
-                      <div>
-                        <CardTitle className="text-lg font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
-                          Performance Pillars
-                        </CardTitle>
-                        <CardDescription className="text-sm text-slate-600 dark:text-slate-400">
-                          Core metrics driving your SEO & GEO success
-                        </CardDescription>
-                      </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline" className="rounded-lg" onClick={() => setPillarsExpandAll(true)}>
-                          Expand All
-                        </Button>
-                        <Button size="sm" variant="outline" className="rounded-lg" onClick={() => setPillarsExpandAll(false)}>
-                          Collapse All
-                        </Button>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Performance Pillars</h3>
+                            <button
+                              type="button"
+                              onClick={() => setPillarDialogOpen(true)}
+                              className="p-1 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors group"
+                              title="View pillar definitions"
+                            >
+                              <Info className="w-4 h-4 text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                            </button>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">Core metrics driving your SEO & GEO success</p>
+                        </div>
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <GlassPillWithMarker
-                        label="Visibility"
-                        value={result.pillars.visibility}
-                        color="from-violet-400 to-violet-600"
-                        icon={<Eye className="w-4 h-4 text-white" />}
-                        kpi="visibility"
-                        externalExpand={pillarsExpandAll}
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <PillarCard
+                        title="Visibility"
+                        score={result.pillars.visibility}
+                        maxScore={10}
+                        color="#3b82f6"
+                        icon={<Eye className="w-5 h-5" style={{ color: '#3b82f6' }} />}
                       />
-                      <GlassPillWithMarker
-                        label="Trust"
-                        value={result.pillars.trust}
-                        color="from-purple-400 to-purple-600"
-                        icon={<Star className="w-4 h-4 text-white" />}
-                        kpi="trust"
-                        externalExpand={pillarsExpandAll}
+                      <PillarCard
+                        title="Trust"
+                        score={result.pillars.trust}
+                        maxScore={10}
+                        color="#06b6d4"
+                        icon={<Star className="w-5 h-5" style={{ color: '#06b6d4' }} />}
                       />
-                      <GlassPillWithMarker
-                        label="Relevance"
-                        value={result.pillars.relevance}
-                        color="from-indigo-400 to-indigo-600"
-                        icon={<Target className="w-4 h-4 text-white" />}
-                        kpi="relevance"
-                        externalExpand={pillarsExpandAll}
+                      <PillarCard
+                        title="Relevance"
+                        score={result.pillars.relevance}
+                        maxScore={10}
+                        color="#8b5cf6"
+                        icon={<Target className="w-5 h-5" style={{ color: '#8b5cf6' }} />}
                       />
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </div>
 
               {/* Hierarchical Score Trees - The Jony Ive Experience */}
@@ -1174,7 +1248,7 @@ export const SEOGeoChecker: React.FC = () => {
               >
                 {/* Section Header */}
                 <div className="text-center space-y-2">
-                  <h2 className="text-3xl font-black bg-gradient-to-r from-violet-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent">
+                  <h2 className="text-3xl font-black bg-gradient-to-r from-cyan-600 via-blue-600 to-cyan-700 bg-clip-text text-transparent">
                     Score Architecture
                   </h2>
                   <p className="text-sm text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
@@ -1183,139 +1257,97 @@ export const SEOGeoChecker: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Tree Visualizations Grid */}
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                  {/* SEO Tree */}
-                  <motion.div
-                    initial={{ opacity: 0, x: -30 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.6, delay: 0.3 }}
-                  >
-                    <Card className="bg-gradient-to-br from-white/95 to-violet-50/50 dark:from-viz-medium/90 dark:to-violet-950/20 border border-violet-200/50 dark:border-violet-400/30 shadow-2xl backdrop-blur-sm overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-purple-500/5 to-transparent pointer-events-none" />
-                      <CardContent className="p-6 relative">
-                        <ScoreTree
-                          title="SEO Score Breakdown"
-                          rootScore={Math.round((result.seoScoreOutOf10 || 0) * 10)}
-                          tree={buildSEOTree(result)}
-                          accentColor="from-violet-500 via-purple-500 to-indigo-600"
-                        />
-                      </CardContent>
-                    </Card>
-                  </motion.div>
+                {/* Section Visualizations Grid (clean cards) */}
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  {/* SEO Sections */}
+                  <ScoreSection 
+                    section={seoSections} 
+                    color="blue" 
+                    score={Math.round(result.seoScoreOutOf10 * 10 || 0)}
+                    onInfoClick={() => setSeoDialogOpen(true)}
+                  />
 
-                  {/* GEO Tree */}
-                  <motion.div
-                    initial={{ opacity: 0, x: 30 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.6, delay: 0.4 }}
-                  >
-                    <Card className="bg-gradient-to-br from-white/95 to-cyan-50/50 dark:from-viz-medium/90 dark:to-cyan-950/20 border border-cyan-200/50 dark:border-cyan-400/30 shadow-2xl backdrop-blur-sm overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-transparent pointer-events-none" />
-                      <CardContent className="p-6 relative">
-                        <ScoreTree
-                          title="GEO Score Breakdown"
-                          rootScore={result.geoScoreOutOf100 || 69}
-                          tree={buildGEOTree(result)}
-                          accentColor="from-blue-500 via-cyan-500 to-teal-600"
-                        />
-                      </CardContent>
-                    </Card>
-                  </motion.div>
+                  {/* GEO Sections */}
+                  <ScoreSection 
+                    section={geoSections} 
+                    color="cyan" 
+                    score={result.geoScoreOutOf100 || 0}
+                    onInfoClick={() => setGeoDialogOpen(true)}
+                  />
                 </div>
               </motion.div>
 
-              {/* Detailed Metrics Section */}
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.1 }}
-                  className="h-full"
-                >
-                  <Card className="bg-gradient-to-br from-white/95 to-slate-50/95 dark:from-viz-medium/90 dark:to-viz-dark/90 border border-violet-200/50 dark:border-violet-400/30 shadow-xl backdrop-blur-sm h-full flex flex-col">
-                    <CardHeader className="pb-6">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl shadow-lg">
-                          <Target className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <CardTitle className="text-lg font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
-                            On-Page SEO Analysis
-                          </CardTitle>
-                          <CardDescription className="text-sm text-slate-600 dark:text-slate-400">
-                            Technical optimization metrics
-                          </CardDescription>
-                        </div>
-                        <KPIMarker kpi="seoScore" position="header" />
+              {/* Detailed Metrics Section - Material UI Style */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                {/* SEO Score Card */}
+                <Card className="bg-white dark:bg-slate-800 border-0 shadow-lg rounded-3xl overflow-hidden">
+                  <CardContent className="p-8 space-y-6">
+                    {/* Header */}
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                        <Target className="w-6 h-6 text-blue-600" />
                       </div>
-                    </CardHeader>
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400">SEO Score</h3>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-4xl font-black text-slate-900 dark:text-slate-100">{Math.round(result.seoScoreOutOf10 * 10 || 0)}</span>
+                          <span className="text-sm text-slate-500">out of 100</span>
+                        </div>
+                      </div>
+                    </div>
 
-                    {/* SEO Score Card */}
-                    <CardContent className="space-y-6 flex-1">
-                      <div className="flex justify-center">
-                        <motion.div
-                          whileHover={{ scale: 1.05, y: -2 }}
-                          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-50/90 to-purple-50/90 dark:from-violet-900/30 dark:to-purple-900/30 backdrop-blur-xl border border-violet-200/50 dark:border-violet-400/30 p-6 shadow-lg"
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-br from-violet-400/10 to-purple-400/10 pointer-events-none" />
-                          <div className="relative text-center">
-                            <div className="text-sm font-semibold text-violet-600 dark:text-violet-400 mb-2">SEO Score</div>
-                            <div className="text-4xl font-black bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
-                              {Math.round(result.seoScoreOutOf10 * 10 || 0)}
-                            </div>
-                            <div className="text-xs text-violet-500 dark:text-violet-400 mt-1">out of 100</div>
-                          </div>
-                        </motion.div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 rounded-xl border border-violet-200/50 dark:border-violet-400/30">
-                          <div className="text-xs font-medium text-violet-600 dark:text-violet-400 mb-1">Title Length</div>
-                          <div className="text-2xl font-bold text-violet-700 dark:text-violet-300">{result.onPage.titleLength}</div>
-                          <div className="text-xs text-violet-500 dark:text-violet-400">characters</div>
-                        </div>
-                        <div className="p-4 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl border border-purple-200/50 dark:border-purple-400/30">
-                          <div className="text-xs font-medium text-purple-600 dark:text-purple-400 mb-1">Meta Description</div>
-                          <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">{result.onPage.metaDescriptionLength}</div>
-                          <div className="text-xs text-purple-500 dark:text-purple-400">characters</div>
+                    {/* Metrics Grid */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-5 bg-blue-50 dark:bg-blue-900/20 rounded-2xl">
+                        <div className="text-3xl font-black text-blue-600 mb-1">{result.onPage.titleLength}</div>
+                        <div className="text-xs font-medium text-slate-600 dark:text-slate-400">Title Length</div>
+                        <div className="text-xs text-blue-600 font-semibold mt-1">
+                          {result.onPage.titleLength > 30 && result.onPage.titleLength < 60 ? 'Great length' : 'Characters'}
                         </div>
                       </div>
-                      
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="text-center p-3 bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-900/20 dark:to-violet-900/20 rounded-xl border border-indigo-200/50 dark:border-indigo-400/30">
-                          <div className="text-lg font-bold text-indigo-600 dark:text-indigo-400">{result.onPage.h1Count}</div>
-                          <div className="text-xs text-indigo-700 dark:text-indigo-300 font-medium">H1</div>
-                        </div>
-                        <div className="text-center p-3 bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 rounded-xl border border-violet-200/50 dark:border-violet-400/30">
-                          <div className="text-lg font-bold text-violet-600 dark:text-violet-400">{result.onPage.h2Count}</div>
-                          <div className="text-xs text-violet-700 dark:text-violet-300 font-medium">H2</div>
-                        </div>
-                        <div className="text-center p-3 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl border border-purple-200/50 dark:border-purple-400/30">
-                          <div className="text-lg font-bold text-purple-600 dark:text-purple-400">{result.onPage.h3Count}</div>
-                          <div className="text-xs text-purple-700 dark:text-purple-300 font-medium">H3</div>
-                        </div>
+                      <div className="p-5 bg-cyan-50 dark:bg-cyan-900/20 rounded-2xl">
+                        <div className="text-3xl font-black text-cyan-600 mb-1">{result.onPage.metaDescriptionLength}</div>
+                        <div className="text-xs font-medium text-slate-600 dark:text-slate-400">Meta Description</div>
+                        <div className="text-xs text-cyan-600 font-semibold mt-1">Characters</div>
                       </div>
+                    </div>
+                    {/* Heading Counts */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="text-center p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl">
+                        <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{result.onPage.h1Count}</div>
+                        <div className="text-xs text-slate-600 dark:text-slate-400 font-medium">H1</div>
+                      </div>
+                      <div className="text-center p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl">
+                        <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{result.onPage.h2Count}</div>
+                        <div className="text-xs text-slate-600 dark:text-slate-400 font-medium">H2</div>
+                      </div>
+                      <div className="text-center p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl">
+                        <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{result.onPage.h3Count}</div>
+                        <div className="text-xs text-slate-600 dark:text-slate-400 font-medium">H3</div>
+                      </div>
+                    </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl border border-emerald-200/50 dark:border-emerald-400/30">
-                          <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-1">Word Count</div>
-                          <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{result.onPage.wordCount}</div>
-                          <div className="text-xs text-emerald-500 dark:text-emerald-400">words</div>
-                        </div>
-                        <div className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border border-blue-200/50 dark:border-blue-400/30">
-                          <div className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Images</div>
-                          <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{result.onPage.imageCount}</div>
-                          <div className="text-xs text-blue-500 dark:text-blue-400">{result.onPage.imageCount ? Math.round(100*result.onPage.imagesWithAlt/result.onPage.imageCount) : 100}% alt coverage</div>
-                        </div>
+                    {/* Word Count & Images */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between py-3 border-b border-slate-200 dark:border-slate-700">
+                        <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Word Count</span>
+                        <span className="text-lg font-black text-blue-600">{result.onPage.wordCount}</span>
                       </div>
+                      <div className="flex items-center justify-between py-3 border-b border-slate-200 dark:border-slate-700">
+                        <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Images</span>
+                        <span className="text-lg font-black text-cyan-600">{result.onPage.imageCount}</span>
+                      </div>
+                    </div>
 
-                      <div className="flex justify-between items-center p-4 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl border border-slate-200/50 dark:border-slate-600/30">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-3 h-3 rounded-full ${result.onPage.schemaPresent ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                          <span className="text-sm font-medium">Schema Markup</span>
-                        </div>
-                        <span className="text-sm font-semibold">{result.onPage.schemaPresent ? 'Present' : 'Missing'}</span>
+                    {/* Schema Markup */}
+                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Schema Markup</span>
+                        <span className="px-3 py-1 bg-blue-500 text-white text-xs font-semibold rounded-full">
+                          {result.onPage.schemaPresent ? 'Present' : 'Missing'}
+                        </span>
                       </div>
+                    </div>
 
                       {result.onPage.pageSpeed && (
                         <div className="grid grid-cols-3 gap-3 p-4 bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-xl border border-orange-200/50 dark:border-orange-400/30">
@@ -1334,156 +1366,72 @@ export const SEOGeoChecker: React.FC = () => {
                         </div>
                       )}
                     </CardContent>
-                  </Card>
-                </motion.div>
+                </Card>
 
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
-                  className="h-full"
-                >
-                  <Card className="bg-gradient-to-br from-white/95 to-violet-50/95 dark:from-viz-medium/90 dark:to-violet-900/20 border border-violet-200/50 dark:border-violet-400/30 shadow-xl backdrop-blur-sm h-full flex flex-col">
-                    <CardHeader className="pb-6">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl shadow-lg">
-                          <Brain className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <CardTitle className="text-lg font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
-                            Generative AI Engine Optimization
-                          </CardTitle>
-                          <CardDescription className="text-sm text-slate-600 dark:text-slate-400">
-                            AI visibility, citations & brand authority
-                          </CardDescription>
-                        </div>
-                        <KPIMarker kpi="geoScore" position="header" />
+                {/* GEO Score Card */}
+                <Card className="bg-white dark:bg-slate-800 border-0 shadow-lg rounded-3xl overflow-hidden">
+                  <CardContent className="p-8 space-y-6">
+                    {/* Header */}
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-3 bg-cyan-50 dark:bg-cyan-900/20 rounded-xl">
+                        <Brain className="w-6 h-6 text-cyan-600" />
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-8 flex-1">
-                      {/* GEO Score Card */}
-                      <div className="flex justify-center">
-                        <motion.div
-                          whileHover={{ scale: 1.05, y: -2 }}
-                          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-50/90 to-indigo-50/90 dark:from-purple-900/30 dark:to-indigo-900/30 backdrop-blur-xl border border-purple-200/50 dark:border-purple-400/30 p-6 shadow-lg"
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-indigo-400/10 pointer-events-none" />
-                          <div className="relative text-center">
-                            <div className="text-sm font-semibold text-purple-600 dark:text-purple-400 mb-2">GEO Score</div>
-                            <div className="text-4xl font-black bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                              {result.geoScoreOutOf100 || 0}
-                            </div>
-                            <div className="text-xs text-purple-500 dark:text-purple-400 mt-1">out of 100</div>
-                          </div>
-                        </motion.div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <motion.div
-                          whileHover={{ scale: 1.02 }}
-                          transition={{ duration: 0.2 }}
-                          className="relative overflow-hidden"
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-br from-violet-400/20 to-violet-600/20 rounded-2xl"></div>
-                          <div className="relative p-6 bg-gradient-to-br from-violet-50/90 to-purple-50/90 dark:from-violet-900/30 dark:to-purple-900/30 rounded-2xl border border-violet-200/50 dark:border-violet-400/30 backdrop-blur-sm">
-                            <div className="flex items-center justify-between mb-4">
-                              <div className="p-2 bg-gradient-to-br from-violet-500 to-violet-600 rounded-xl">
-                                <Eye className="w-4 h-4 text-white" />
-                              </div>
-                              <div className="text-3xl font-bold text-violet-600 dark:text-violet-400">{result.geo.aiVisibilityRate}</div>
-                            </div>
-                            <div className="text-sm font-semibold text-violet-700 dark:text-violet-300 mb-1">AI Visibility Rate</div>
-                            <div className="text-xs text-violet-600 dark:text-violet-400">Content structure optimization</div>
-                          </div>
-                        </motion.div>
-
-                        <motion.div
-                          whileHover={{ scale: 1.02 }}
-                          transition={{ duration: 0.2 }}
-                          className="relative overflow-hidden"
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-br from-purple-400/20 to-purple-600/20 rounded-2xl"></div>
-                          <div className="relative p-6 bg-gradient-to-br from-purple-50/90 to-indigo-50/90 dark:from-purple-900/30 dark:to-indigo-900/30 rounded-2xl border border-purple-200/50 dark:border-purple-400/30 backdrop-blur-sm">
-                            <div className="flex items-center justify-between mb-4">
-                              <div className="p-2 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl">
-                                <Star className="w-4 h-4 text-white" />
-                              </div>
-                              <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">{result.geo.citationFrequency}</div>
-                            </div>
-                            <div className="text-sm font-semibold text-purple-700 dark:text-purple-300 mb-1">Citation Frequency</div>
-                            <div className="text-xs text-purple-600 dark:text-purple-400">Factual data & statistics</div>
-                          </div>
-                        </motion.div>
-
-                        <motion.div
-                          whileHover={{ scale: 1.02 }}
-                          transition={{ duration: 0.2 }}
-                          className="relative overflow-hidden"
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-br from-indigo-400/20 to-indigo-600/20 rounded-2xl"></div>
-                          <div className="relative p-6 bg-gradient-to-br from-indigo-50/90 to-blue-50/90 dark:from-indigo-900/30 dark:to-blue-900/30 rounded-2xl border border-indigo-200/50 dark:border-indigo-400/30 backdrop-blur-sm">
-                            <div className="flex items-center justify-between mb-4">
-                              <div className="p-2 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl">
-                                <Target className="w-4 h-4 text-white" />
-                              </div>
-                              <div className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">{result.geo.brandMentionScore}</div>
-                            </div>
-                            <div className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 mb-1">Brand Mention Score</div>
-                            <div className="text-xs text-indigo-600 dark:text-indigo-400">Authority & credibility signals</div>
-                          </div>
-                        </motion.div>
-
-                        <motion.div
-                          whileHover={{ scale: 1.02 }}
-                          transition={{ duration: 0.2 }}
-                          className="relative overflow-hidden"
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/20 to-emerald-600/20 rounded-2xl"></div>
-                          <div className="relative p-6 bg-gradient-to-br from-emerald-50/90 to-teal-50/90 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-2xl border border-emerald-200/50 dark:border-emerald-400/30 backdrop-blur-sm">
-                            <div className="flex items-center justify-between mb-4">
-                              <div className="p-2 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl">
-                                <Sparkles className="w-4 h-4 text-white" />
-                              </div>
-                              <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{result.geo.sentimentAccuracy}</div>
-                            </div>
-                            <div className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Sentiment Accuracy</div>
-                            <div className="text-xs text-emerald-600 dark:text-emerald-400">Positive messaging analysis</div>
-                          </div>
-                        </motion.div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Advanced AI Metrics</h4>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                          <div className="text-center p-4 bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 rounded-xl border border-violet-200/50 dark:border-violet-400/30">
-                            <div className="text-2xl font-bold text-violet-600 dark:text-violet-400 mb-1">{result.geo.structuredDataScore}</div>
-                            <div className="text-xs text-violet-700 dark:text-violet-300 font-medium">Structured Data</div>
-                          </div>
-                          <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl border border-purple-200/50 dark:border-indigo-400/30">
-                            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-1">{result.geo.contextualRelevance}</div>
-                            <div className="text-xs text-purple-700 dark:text-purple-300 font-medium">Contextual Relevance</div>
-                          </div>
-                          <div className="text-center p-4 bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-900/20 dark:to-violet-900/20 rounded-xl border border-indigo-200/50 dark:border-violet-400/30">
-                            <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mb-1">{result.geo.authoritySignals}</div>
-                            <div className="text-xs text-indigo-700 dark:text-indigo-300 font-medium">Authority Signals</div>
-                          </div>
-                          <div className="text-center p-4 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl border border-emerald-200/50 dark:border-emerald-400/30">
-                            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mb-1">{result.geo.conversationalOptimization}</div>
-                            <div className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Conversational AI</div>
-                          </div>
-                          <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border border-blue-200/50 dark:border-blue-400/30">
-                            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">{result.geo.factualAccuracy}</div>
-                            <div className="text-xs text-blue-700 dark:text-blue-300 font-medium">Factual Accuracy</div>
-                          </div>
-                          <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-xl border border-orange-200/50 dark:border-orange-400/30">
-                            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400 mb-1">{result.geo.topicCoverage}</div>
-                            <div className="text-xs text-orange-700 dark:text-orange-300 font-medium">Topic Coverage</div>
-                          </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400">GEO Score</h3>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-4xl font-black text-slate-900 dark:text-slate-100">{result.geoScoreOutOf100 || 0}</span>
+                          <span className="text-sm text-slate-500">out of 100</span>
                         </div>
                       </div>
+                    </div>
+
+                    {/* Metrics Grid */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-5 bg-cyan-50 dark:bg-cyan-900/20 rounded-2xl">
+                        <div className="text-3xl font-black text-cyan-600 mb-1">{result.geo.aiVisibilityRate}</div>
+                        <div className="text-xs font-medium text-slate-600 dark:text-slate-400">AI Visibility Ratio</div>
+                        <div className="text-xs text-cyan-600 font-semibold mt-1">Content accessible</div>
+                      </div>
+                      <div className="p-5 bg-teal-50 dark:bg-teal-900/20 rounded-2xl">
+                        <div className="text-3xl font-black text-teal-600 mb-1">{result.geo.citationFrequency}</div>
+                        <div className="text-xs font-medium text-slate-600 dark:text-slate-400">Citation Frequency</div>
+                        <div className="text-xs text-teal-600 font-semibold mt-1">External citations</div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-5 bg-sky-50 dark:bg-sky-900/20 rounded-2xl">
+                        <div className="text-3xl font-black text-sky-600 mb-1">{result.geo.brandMentionScore}</div>
+                        <div className="text-xs font-medium text-slate-600 dark:text-slate-400">Brand Mention Score</div>
+                        <div className="text-xs text-sky-600 font-semibold mt-1">Authority & credibility signals</div>
+                      </div>
+                      <div className="p-5 bg-blue-50 dark:bg-blue-900/20 rounded-2xl">
+                        <div className="text-3xl font-black text-blue-600 mb-1">{result.geo.sentimentAccuracy}</div>
+                        <div className="text-xs font-medium text-slate-600 dark:text-slate-400">Sentiment Accuracy</div>
+                        <div className="text-xs text-blue-600 font-semibold mt-1">Positive messaging analysis</div>
+                      </div>
+                    </div>
+
+                    {/* Advanced AI Metrics */}
+                    <div className="p-6 bg-cyan-50 dark:bg-cyan-900/20 rounded-2xl space-y-3">
+                      <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Advanced AI Metrics</h4>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between py-2">
+                          <span className="text-sm text-slate-600 dark:text-slate-400">Structured Data</span>
+                          <span className="text-lg font-black text-cyan-600">{result.geo.structuredDataScore}</span>
+                        </div>
+                        <div className="flex items-center justify-between py-2">
+                          <span className="text-sm text-slate-600 dark:text-slate-400">Contextual Relevance</span>
+                          <span className="text-lg font-black text-blue-600">{result.geo.contextualRelevance}</span>
+                        </div>
+                        <div className="flex items-center justify-between py-2">
+                          <span className="text-sm text-slate-600 dark:text-slate-400">Authority Signals</span>
+                          <span className="text-lg font-black text-cyan-700">{result.geo.authoritySignals}</span>
+                        </div>
+                      </div>
+                    </div>
                     </CardContent>
-                  </Card>
-                </motion.div>
+                </Card>
               </div>
 
               {false && (
@@ -1529,6 +1477,23 @@ export const SEOGeoChecker: React.FC = () => {
                               {c.keywords.length === 0 && (
                                 <li className="text-muted-foreground">No keywords returned yet</li>
                               )}
+
+                          {!recomLoading && !recomError && lambdaQuickWins.length === 0 && (result.topQuickFixes || []).length === 0 && (
+                            <div className="p-5 rounded-2xl border border-emerald-200/50 dark:border-emerald-400/30 bg-gradient-to-br from-white/80 via-emerald-50/70 to-white/80 dark:from-viz-medium/80 dark:via-emerald-900/15 dark:to-viz-dark/70 text-sm text-emerald-800 dark:text-emerald-200 space-y-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-lg">
+                                  <Sparkles className="w-5 h-5" />
+                                </div>
+                                <div>
+                                  <div className="text-base font-semibold">No major quick wins detected</div>
+                                  <div className="text-xs text-emerald-700/80 dark:text-emerald-200/80">Our signals didn’t surface immediate fixes. Let’s align with the consulting team for nuanced recommendations.</div>
+                                </div>
+                              </div>
+                              <div className="text-xs text-emerald-700/80 dark:text-emerald-200/80 leading-relaxed">
+                                Share your current campaign context at <a href="mailto:team@sgconsultingtech.com" className="font-semibold underline decoration-emerald-500/60 hover:decoration-emerald-500">team@sgconsultingtech.com</a> and we’ll craft a deeper optimization plan.
+                              </div>
+                            </div>
+                          )}
                             </ul>
 
                             {/* Compact overlap summary within Competitors card */}
@@ -1745,11 +1710,9 @@ export const SEOGeoChecker: React.FC = () => {
                               ))}
                             </div>
                           )}
-
-                          {/* Fallback to local result quick fixes if Lambda has none */}
-                          {!recomLoading && !recomError && lambdaQuickWins.length === 0 && (result.topQuickFixes || []).length > 0 && (
+                          {!recomLoading && !recomError && lambdaQuickWins.length === 0 && localQuickWins.length > 0 && (
                             <div className="space-y-3">
-                              {(result.topQuickFixes || []).map((f, i) => (
+                              {localQuickWins.map((item, i) => (
                                 <motion.div
                                   key={i}
                                   initial={{ opacity: 0, y: 10 }}
@@ -1761,10 +1724,26 @@ export const SEOGeoChecker: React.FC = () => {
                                     <div className="flex-shrink-0 w-6 h-6 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
                                       {i + 1}
                                     </div>
-                                    <div className="text-sm text-emerald-800 dark:text-emerald-200 leading-relaxed">{f}</div>
+                                    <div className="text-sm text-emerald-800 dark:text-emerald-200 leading-relaxed">{item}</div>
                                   </div>
                                 </motion.div>
                               ))}
+                            </div>
+                          )}
+                          {!recomLoading && !recomError && lambdaQuickWins.length === 0 && localQuickWins.length === 0 && (
+                            <div className="p-5 rounded-2xl border border-emerald-200/50 dark:border-emerald-400/30 bg-gradient-to-br from-white/90 via-emerald-50/70 to-white/90 dark:from-viz-medium/85 dark:via-emerald-900/20 dark:to-viz-dark/75 text-sm text-emerald-900 dark:text-emerald-200 space-y-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-lg">
+                                  <Sparkles className="w-5 h-5" />
+                                </div>
+                                <div>
+                                  <div className="text-base font-semibold">No major quick wins surfaced</div>
+                                  <div className="text-xs text-emerald-700/85 dark:text-emerald-200/80">Signals look steady. Consult our specialists for precision improvements tuned to your roadmap.</div>
+                                </div>
+                              </div>
+                              <div className="text-xs text-emerald-700/85 dark:text-emerald-200/80 leading-relaxed">
+                                Email <a href="mailto:team@sgconsultingtech.com" className="font-semibold underline decoration-emerald-500/60 hover:decoration-emerald-500">team@sgconsultingtech.com</a> to co-create a focused optimization sprint.
+                              </div>
                             </div>
                           )}
                         </div>
@@ -1781,11 +1760,11 @@ export const SEOGeoChecker: React.FC = () => {
                   <Card className="bg-gradient-to-br from-white/95 to-blue-50/95 dark:from-viz-medium/90 dark:to-blue-900/20 border border-blue-200/50 dark:border-blue-400/30 shadow-xl backdrop-blur-sm">
                     <CardHeader className="pb-6">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
+                        <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl shadow-lg">
                           <TrendingUp className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                          <CardTitle className="text-lg font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
                             Growth Opportunities
                           </CardTitle>
                           <CardDescription className="text-sm text-slate-600 dark:text-slate-400">
@@ -1818,11 +1797,11 @@ export const SEOGeoChecker: React.FC = () => {
                                   initial={{ opacity: 0, y: 10 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ duration: 0.3, delay: 0.05 * i }}
-                                  className="p-4 rounded-xl border bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200/50 dark:border-blue-400/30"
+                                  className="p-4 rounded-xl border bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-blue-200/50 dark:border-blue-400/30"
                                 >
                                   <div className="space-y-1.5">
                                     <div className="flex items-center gap-2">
-                                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500 text-white text-xs font-bold">{i + 1}</span>
+                                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-cyan-500 text-white text-xs font-bold">{i + 1}</span>
                                       <div className="text-sm font-semibold text-blue-800 dark:text-blue-200">{item.title || 'Growth opportunity'}</div>
                                     </div>
                                     {item.description && (
@@ -1833,13 +1812,13 @@ export const SEOGeoChecker: React.FC = () => {
                                         <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 border-blue-200/60 dark:border-blue-700">Impact: {item.impact_score}</Badge>
                                       )}
                                       {'effort_score' in item && (
-                                        <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200 border-indigo-200/60 dark:border-indigo-700">Effort: {item.effort_score}</Badge>
+                                        <Badge className="bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-200 border-cyan-200/60 dark:border-cyan-700">Effort: {item.effort_score}</Badge>
                                       )}
                                       {item.estimated_time && (
                                         <Badge variant="outline" className="border-blue-300 text-blue-700 dark:text-blue-200">ETA: {item.estimated_time}</Badge>
                                       )}
                                       {item.area && (
-                                        <Badge variant="outline" className="border-indigo-300 text-indigo-700 dark:text-indigo-200">Area: {item.area}</Badge>
+                                        <Badge variant="outline" className="border-cyan-300 text-cyan-700 dark:text-cyan-200">Area: {item.area}</Badge>
                                       )}
                                       {item.expected_outcome && (
                                         <Badge variant="outline" className="border-slate-300 text-slate-700 dark:text-slate-200">Outcome: {item.expected_outcome}</Badge>
@@ -1856,26 +1835,40 @@ export const SEOGeoChecker: React.FC = () => {
                               ))}
                             </div>
                           )}
-
-                          {/* Fallback to local result opportunities if Lambda has none */}
-                          {!recomLoading && !recomError && lambdaGrowthOpps.length === 0 && (result.missedOpportunities || []).length > 0 && (
+                          {!recomLoading && !recomError && lambdaGrowthOpps.length === 0 && localGrowthOpps.length > 0 && (
                             <div className="space-y-3">
-                              {(result.missedOpportunities || []).map((m, i) => (
+                              {localGrowthOpps.map((item, i) => (
                                 <motion.div
                                   key={i}
                                   initial={{ opacity: 0, y: 10 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ duration: 0.3, delay: 0.1 * i }}
-                                  className="group p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200/50 dark:border-blue-400/30 hover:shadow-lg transition-all duration-300"
+                                  className="group p-4 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border border-blue-200/50 dark:border-blue-400/30 hover:shadow-lg transition-all duration-300"
                                 >
                                   <div className="flex items-start gap-3">
                                     <div className="flex-shrink-0 w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
                                       {i + 1}
                                     </div>
-                                    <div className="text-sm text-blue-800 dark:text-blue-200 leading-relaxed">{m}</div>
+                                    <div className="text-sm text-blue-800 dark:text-blue-200 leading-relaxed">{item}</div>
                                   </div>
                                 </motion.div>
                               ))}
+                            </div>
+                          )}
+                          {!recomLoading && !recomError && lambdaGrowthOpps.length === 0 && localGrowthOpps.length === 0 && (
+                            <div className="p-5 rounded-2xl border border-blue-200/50 dark:border-blue-400/30 bg-gradient-to-br from-white/90 via-blue-50/70 to-white/90 dark:from-viz-medium/85 dark:via-blue-900/20 dark:to-viz-dark/75 text-sm text-blue-900 dark:text-blue-200 space-y-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 text-white flex items-center justify-center shadow-lg">
+                                  <Rocket className="w-5 h-5" />
+                                </div>
+                                <div>
+                                  <div className="text-base font-semibold">No standout growth plays detected</div>
+                                  <div className="text-xs text-blue-700/85 dark:text-blue-200/80">Trajectory is steady. Partner with our strategy team to engineer the next leap.</div>
+                                </div>
+                              </div>
+                              <div className="text-xs text-blue-700/85 dark:text-blue-200/80 leading-relaxed">
+                                Reach out at <a href="mailto:team@sgconsultingtech.com" className="font-semibold underline decoration-blue-500/60 hover:decoration-blue-500">team@sgconsultingtech.com</a> to architect a bespoke acceleration roadmap.
+                              </div>
                             </div>
                           )}
                         </div>
@@ -1919,19 +1912,19 @@ export const SEOGeoChecker: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <Card className="relative overflow-hidden bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-violet-50/50 dark:from-indigo-900/20 dark:via-purple-900/20 dark:to-violet-900/20 backdrop-blur-xl border-2 border-gradient-to-r from-indigo-200 to-violet-200 dark:border-indigo-700/50 shadow-2xl rounded-3xl">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-violet-500/5 pointer-events-none" />
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-violet-400/20 to-indigo-400/20 rounded-full blur-3xl" />
+              <Card className="relative overflow-hidden bg-gradient-to-br from-cyan-50/90 via-blue-50/70 to-cyan-100/50 dark:from-cyan-900/20 dark:via-blue-900/20 dark:to-cyan-800/20 backdrop-blur-xl border-2 border-gradient-to-r from-cyan-200 to-blue-200 dark:border-cyan-700/50 shadow-2xl rounded-3xl">
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-cyan-600/5 pointer-events-none" />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-cyan-400/20 to-blue-400/20 rounded-full blur-3xl" />
                 
                 <CardHeader className="relative px-6 py-8 text-center">
                   <motion.div
                     animate={{ scale: [1, 1.05, 1] }}
                     transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                    className="mx-auto mb-4 p-4 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl shadow-lg w-fit"
+                    className="mx-auto mb-4 p-4 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl shadow-lg w-fit"
                   >
                     <Brain className="w-8 h-8 text-white" />
                   </motion.div>
-                  <CardTitle className="text-3xl font-black bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 bg-clip-text text-transparent mb-2">
+                  <CardTitle className="text-3xl font-black bg-gradient-to-r from-cyan-600 via-blue-600 to-cyan-700 bg-clip-text text-transparent mb-2">
                     Ready to Dominate Search Results?
                   </CardTitle>
                   <CardDescription className="text-lg text-gray-700 dark:text-gray-300 font-medium">
@@ -1942,11 +1935,11 @@ export const SEOGeoChecker: React.FC = () => {
                 <CardContent className="relative px-6 pb-8 space-y-6">
                   <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-2xl p-6 border border-white/30 dark:border-gray-700/30">
                     <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-                      <Rocket className="w-5 h-5 text-indigo-500" />
+                      <Rocket className="w-5 h-5 text-cyan-500" />
                       Your Custom Execution Strategy Awaits
                     </h3>
                     <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
-                      You've got the insights. Now let our expert team at <span className="font-bold text-indigo-600 dark:text-indigo-400">SG Consulting</span> craft a 
+                      You've got the insights. Now let our expert team at <span className="font-bold text-cyan-600 dark:text-cyan-400">SG Consulting</span> craft a 
                       bulletproof execution strategy that will skyrocket your search rankings and dominate your competition.
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -1969,8 +1962,8 @@ export const SEOGeoChecker: React.FC = () => {
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
-                        <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                          <Eye className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                          <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div>
                           <h4 className="font-semibold text-gray-800 dark:text-white text-sm">Expert Analysis</h4>
@@ -1993,7 +1986,7 @@ export const SEOGeoChecker: React.FC = () => {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 hover:from-indigo-700 hover:via-purple-700 hover:to-violet-700 text-white font-bold py-4 px-8 rounded-2xl shadow-xl transition-all duration-300 flex items-center justify-center gap-3 text-lg"
+                      className="w-full bg-gradient-to-r from-cyan-600 via-blue-600 to-cyan-700 hover:from-cyan-700 hover:via-blue-700 hover:to-cyan-800 text-white font-bold py-4 px-8 rounded-2xl shadow-xl transition-all duration-300 flex items-center justify-center gap-3 text-lg"
                       onClick={() => window.open('mailto:team@sgconsultingtech.com?subject=SEO%20%26%20GEO%20Execution%20Strategy%20Consultation&body=Hi%20SG%20Consulting%20Team%2C%0A%0AI%27ve%20completed%20my%20SEO%20%26%20GEO%20analysis%20and%20I%27m%20ready%20to%20take%20my%20search%20performance%20to%20the%20next%20level.%20I%27d%20like%20to%20discuss%20a%20custom%20execution%20strategy.%0A%0APlease%20schedule%20a%20consultation%20at%20your%20earliest%20convenience.%0A%0AThank%20you!', '_blank')}
                     >
                       <Sparkles className="w-5 h-5" />
@@ -2011,7 +2004,7 @@ export const SEOGeoChecker: React.FC = () => {
                         <span>Proven Results</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                        <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
                         <span>Custom Strategy</span>
                       </div>
                     </div>
@@ -2026,6 +2019,31 @@ export const SEOGeoChecker: React.FC = () => {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* KPI Definitions Dialogs */}
+      <KPIDefinitionsDialog
+        open={seoDialogOpen}
+        onClose={() => setSeoDialogOpen(false)}
+        title="SEO Score Breakdown Definitions"
+        subtitle="Understanding the metrics and formulas behind your score"
+        definitions={SEO_DEFINITIONS}
+      />
+
+      <KPIDefinitionsDialog
+        open={geoDialogOpen}
+        onClose={() => setGeoDialogOpen(false)}
+        title="GEO Score Breakdown Definitions"
+        subtitle="Understanding the metrics and formulas behind your score"
+        definitions={GEO_DEFINITIONS}
+      />
+
+      <KPIDefinitionsDialog
+        open={pillarDialogOpen}
+        onClose={() => setPillarDialogOpen(false)}
+        title="Performance Pillars Definitions"
+        subtitle="Understanding the metrics and formulas behind your score"
+        definitions={PILLAR_DEFINITIONS}
+      />
     </div>
   );
 };

@@ -1,0 +1,235 @@
+// KPI Definitions for SEO & GEO Score Breakdown
+
+export type KPIDefinition = {
+  id: string;
+  name: string;
+  weight: number;
+  impact: 'Critical' | 'High Impact' | 'Medium Impact' | 'Low Impact';
+  description: string;
+  formula: string;
+};
+
+export const SEO_DEFINITIONS: KPIDefinition[] = [
+  {
+    id: 'technical-foundation',
+    name: 'Technical Foundation',
+    weight: 35,
+    impact: 'Critical',
+    description: 'Evaluates core technical SEO elements including title tags, meta descriptions, heading structure, schema markup, and canonical tags. A strong technical foundation ensures search engines can efficiently discover and index your content.',
+    formula: 'Technical Score = (Title × 0.25) + (Meta × 0.20) + (Heading × 0.20) + (Schema × 0.12) + (Canonical × 0.08) + (Tech × 0.15)',
+  },
+  {
+    id: 'title-tag',
+    name: 'Title Tag',
+    weight: 25,
+    impact: 'High Impact',
+    description: 'Analyzes the quality and optimization of page title tags. Optimal titles are 30-60 characters, include target keywords, and accurately describe page content. Title tags are one of the most important on-page SEO elements.',
+    formula: 'Title Score = (Length Optimization × 0.4) + (Keyword Presence × 0.35) + (Uniqueness × 0.25)',
+  },
+  {
+    id: 'meta-description',
+    name: 'Meta Description',
+    weight: 20,
+    impact: 'High Impact',
+    description: 'Evaluates meta description quality and optimization. Optimal descriptions are 120-160 characters, compelling, include keywords, and encourage clicks. While not a direct ranking factor, they significantly impact click-through rates.',
+    formula: 'Meta Score = (Length Optimization × 0.4) + (Keyword Presence × 0.35) + (Call-to-Action × 0.25)',
+  },
+  {
+    id: 'heading-structure',
+    name: 'Heading Structure',
+    weight: 20,
+    impact: 'High Impact',
+    description: 'Assesses the proper use of H1, H2, and H3 tags for content hierarchy. Proper heading structure helps search engines understand content organization and improves accessibility and user experience.',
+    formula: 'Heading Score = (H1 Presence × 0.4) + (H2 Usage × 0.35) + (H3 Hierarchy × 0.25)',
+  },
+  {
+    id: 'schema-markup',
+    name: 'Schema Markup',
+    weight: 12,
+    impact: 'High Impact',
+    description: 'Measures the implementation of structured data using Schema.org vocabulary. Schema markup helps search engines understand your content context and enables rich snippets in search results.',
+    formula: 'Schema Score = (Presence × 0.4) + (Validity × 0.35) + (Rich Snippet Eligibility × 0.25)',
+  },
+  {
+    id: 'canonical-tags',
+    name: 'Canonical Tags',
+    weight: 8,
+    impact: 'Medium Impact',
+    description: 'Evaluates the proper implementation of canonical tags to prevent duplicate content issues. Canonical tags tell search engines which version of a page is the primary one to index.',
+    formula: 'Canonical Score = (Presence × 0.5) + (Correct Implementation × 0.5)',
+  },
+  {
+    id: 'content-quality',
+    name: 'Content Quality',
+    weight: 35,
+    impact: 'Critical',
+    description: 'Evaluates the comprehensiveness, uniqueness, and value of your content. This includes factors like word count, reading level, multimedia integration, and content freshness. High-quality content satisfies user intent and earns better rankings.',
+    formula: 'Quality Score = (Content Depth × 0.3) + (Uniqueness × 0.25) + (Multimedia × 0.2) + (Freshness × 0.15) + (Readability × 0.1)',
+  },
+  {
+    id: 'text-content',
+    name: 'Text Content',
+    weight: 60,
+    impact: 'High Impact',
+    description: 'Analyzes text content depth, quality, and optimization. Comprehensive content (1000+ words) typically ranks better, but quality and relevance matter more than length alone.',
+    formula: 'Text Score = (Word Count × 0.4) + (Keyword Density × 0.3) + (Readability × 0.3)',
+  },
+  {
+    id: 'image-optimization',
+    name: 'Image Optimization',
+    weight: 40,
+    impact: 'High Impact',
+    description: 'Evaluates image optimization including alt text coverage, file size, format, and lazy loading. Optimized images improve page speed and accessibility while providing additional ranking opportunities.',
+    formula: 'Image Score = (Alt Text Coverage × 0.4) + (File Size × 0.3) + (Format × 0.2) + (Lazy Loading × 0.1)',
+  },
+  {
+    id: 'performance-links',
+    name: 'Performance & Links',
+    weight: 30,
+    impact: 'High Impact',
+    description: 'Measures technical performance metrics and link structure quality. Fast-loading pages with good internal linking provide better user experience and search engine crawlability.',
+    formula: 'Performance Score = (Technical Performance × 0.60) + (Link Structure × 0.40)',
+  },
+  {
+    id: 'technical-performance',
+    name: 'Technical Performance',
+    weight: 60,
+    impact: 'High Impact',
+    description: 'Evaluates page speed, Core Web Vitals, and technical performance metrics. Fast-loading pages rank better and provide superior user experience.',
+    formula: 'Tech Score = (Page Speed × 0.4) + (LCP × 0.3) + (CLS × 0.2) + (FID × 0.1)',
+  },
+  {
+    id: 'link-structure',
+    name: 'Link Structure',
+    weight: 40,
+    impact: 'Medium Impact',
+    description: 'Analyzes internal and external link quality and structure. Good link structure helps search engines discover content and understand site hierarchy.',
+    formula: 'Link Score = (Internal Links × 0.5) + (External Links × 0.3) + (Anchor Text × 0.2)',
+  },
+];
+
+export const GEO_DEFINITIONS: KPIDefinition[] = [
+  {
+    id: 'ai-visibility',
+    name: 'AI Visibility',
+    weight: 35,
+    impact: 'Critical',
+    description: 'Measures how easily your content can be discovered and understood by AI systems including ChatGPT, Gemini, and Claude. Higher visibility means your content is more likely to be cited in AI-generated responses.',
+    formula: 'AI Visibility = (AI Visibility Rate × 0.60) + (Citation Frequency × 0.40)',
+  },
+  {
+    id: 'ai-visibility-rate',
+    name: 'AI Visibility Rate',
+    weight: 60,
+    impact: 'High Impact',
+    description: 'Indicates the percentage of your content that is accessible and parseable by AI systems. Higher rates mean better chances of being included in AI training datasets and responses.',
+    formula: 'Visibility Rate = (Indexed Pages / Total Pages × 0.3) + (Crawlability × 0.25) + (AI Dataset Presence × 0.25) + (Search Appearance × 0.2)',
+  },
+  {
+    id: 'citation-frequency',
+    name: 'Citation Frequency',
+    weight: 40,
+    impact: 'High Impact',
+    description: 'Measures how often your content is cited or referenced by AI systems and other authoritative sources. Higher citation frequency indicates greater trust and authority.',
+    formula: 'Citation Frequency = (Direct Citations × 0.5) + (Indirect References × 0.3) + (Source Attribution × 0.2)',
+  },
+  {
+    id: 'brand-authority',
+    name: 'Brand Authority',
+    weight: 25,
+    impact: 'High Impact',
+    description: 'Evaluates your brand\'s credibility and authority through brand mentions and authority signals. Strong brand authority increases the likelihood of being prioritized in AI responses.',
+    formula: 'Brand Authority = (Brand Mentions × 0.60) + (Authority Signals × 0.40)',
+  },
+  {
+    id: 'brand-mentions',
+    name: 'Brand Mentions',
+    weight: 60,
+    impact: 'High Impact',
+    description: 'Tracks the frequency and context of your brand being mentioned across the web. More positive brand mentions increase brand recognition and trust signals for AI systems.',
+    formula: 'Brand Mentions = (Mention Frequency × 0.4) + (Mention Context × 0.35) + (Source Authority × 0.25)',
+  },
+  {
+    id: 'authority-signals',
+    name: 'Authority Signals',
+    weight: 40,
+    impact: 'High Impact',
+    description: 'Measures various authority indicators including domain age, backlink quality, expert authorship, and industry recognition. Strong authority signals help AI systems determine content reliability.',
+    formula: 'Authority Signals = (Domain Authority × 0.3) + (Backlink Quality × 0.25) + (Expert Authorship × 0.25) + (Industry Recognition × 0.2)',
+  },
+  {
+    id: 'factual-accuracy',
+    name: 'Factual Accuracy',
+    weight: 20,
+    impact: 'High Impact',
+    description: 'Assesses the accuracy and verifiability of your content through structured data and factual signals. AI systems prioritize factually accurate content with clear data sources.',
+    formula: 'Factual Accuracy = (Structured Data × 0.50) + (Factual Signals × 0.50)',
+  },
+  {
+    id: 'structured-data',
+    name: 'Structured Data',
+    weight: 50,
+    impact: 'High Impact',
+    description: 'Evaluates the implementation and quality of structured data markup. Structured data helps AI systems extract and understand factual information from your content.',
+    formula: 'Structured Data = (Schema Presence × 0.4) + (Data Completeness × 0.35) + (Validation × 0.25)',
+  },
+  {
+    id: 'factual-signals',
+    name: 'Factual Signals',
+    weight: 50,
+    impact: 'High Impact',
+    description: 'Measures the presence of verifiable facts, statistics, citations, and data sources. Content with strong factual signals is more likely to be trusted and cited by AI systems.',
+    formula: 'Factual Signals = (Citations × 0.3) + (Statistics × 0.3) + (Data Sources × 0.25) + (Fact Verification × 0.15)',
+  },
+  {
+    id: 'sentiment-messaging',
+    name: 'Sentiment & Messaging',
+    weight: 20,
+    impact: 'Medium Impact',
+    description: 'Analyzes the tone, sentiment, and contextual relevance of your content. Positive, contextually relevant content is more likely to be recommended by AI systems.',
+    formula: 'Sentiment Score = (Sentiment Accuracy × 0.60) + (Contextual Relevance × 0.40)',
+  },
+  {
+    id: 'sentiment-accuracy',
+    name: 'Sentiment Accuracy',
+    weight: 60,
+    impact: 'Medium Impact',
+    description: 'Evaluates the consistency and appropriateness of content tone and sentiment. Positive, professional sentiment typically performs better in AI recommendations.',
+    formula: 'Sentiment = (Tone Consistency × 0.4) + (Emotional Resonance × 0.35) + (Professional Quality × 0.25)',
+  },
+  {
+    id: 'contextual-relevance',
+    name: 'Contextual Relevance',
+    weight: 40,
+    impact: 'Medium Impact',
+    description: 'Measures how well your content matches user intent and contextual queries. Highly relevant content is more likely to be surfaced in AI-generated responses.',
+    formula: 'Contextual Relevance = (Topic Match × 0.4) + (Intent Alignment × 0.35) + (Semantic Relevance × 0.25)',
+  },
+];
+
+export const PILLAR_DEFINITIONS: KPIDefinition[] = [
+  {
+    id: 'visibility',
+    name: 'Visibility',
+    weight: 33,
+    impact: 'High Impact',
+    description: 'Measures how easily your content can be discovered by search engines and AI systems. This includes factors like crawlability, indexation status, and presence in AI training datasets. Higher visibility means your content is more likely to appear in search results and AI-generated responses.',
+    formula: 'Visibility Score = (Indexed Pages / Total Pages × 0.3) + (Crawlability Score × 0.25) + (AI Dataset Presence × 0.25) + (Search Appearance Rate × 0.2)',
+  },
+  {
+    id: 'trust',
+    name: 'Trust',
+    weight: 33,
+    impact: 'High Impact',
+    description: 'Evaluates the credibility and authority of your website through factors like domain age, backlink quality, security certificates, and brand reputation. Trust signals help search engines and AI systems determine the reliability of your content and whether it should be prioritized in results.',
+    formula: 'Trust Score = (Domain Authority × 0.3) + (Backlink Quality Score × 0.25) + (SSL & Security × 0.2) + (Brand Reputation × 0.15) + (Expert Authorship × 0.1)',
+  },
+  {
+    id: 'relevance',
+    name: 'Relevance',
+    weight: 33,
+    impact: 'High Impact',
+    description: 'Assesses how well your content matches user intent and search queries. This includes semantic relevance, topic coverage, keyword optimization, and content freshness. Highly relevant content ranks better and is more likely to be cited by AI systems.',
+    formula: 'Relevance Score = (Content Depth × 0.3) + (Keyword Optimization × 0.25) + (Semantic Relevance × 0.25) + (Content Freshness × 0.2)',
+  },
+];

@@ -12,19 +12,27 @@ import MIAAccessGuard from '@/components/mia/MIAAccessGuard';
 import BrandlenzDashboardSimple from '@/modules/Brandlenz/components/BrandlenzDashboardSimple';
 import RedditCoPilotDashboard from '@/pages/RedditCoPilot/RedditCoPilotDashboard';
 import KeywordTrendAgent from '@/pages/KeywordTrend/KeywordTrendAgent';
+import {
+  MIACoreComingSoon,
+  RedditAgentComingSoon,
+  KeywordTrendComingSoon,
+  CreativeLabsComingSoon,
+  BrandlenzComingSoon,
+} from '@/modules/MIA/components/MIAComingSoonExperiences';
 
 type ActiveTab = 'core' | 'seo-geo' | 'brandlenz' | 'creative' | 'reddit-copilot' | 'keyword-trend';
 
 const MIAIndependent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('core');
   const { user } = useAuth();
   const isPremium = hasPremiumAccess(user);
+  const isRestrictedUser = !isPremium;
+  const [activeTab, setActiveTab] = useState<ActiveTab>('core');
   const navigate = useNavigate();
   const location = useLocation();
 
   // Handle deep linking
   useEffect(() => {
-    const path = location.pathname;
+    const path = location.pathname.toLowerCase();
     if (path.includes('/mia/seo-geo') || path.includes('/seo-geo-ai-tool')) {
       setActiveTab('seo-geo');
     } else if (path.includes('/mia/brandlenz')) {
@@ -35,6 +43,8 @@ const MIAIndependent: React.FC = () => {
       setActiveTab('reddit-copilot');
     } else if (path.includes('/mia/keyword-trend')) {
       setActiveTab('keyword-trend');
+    } else if (path.includes('/mia')) {
+      setActiveTab('core');
     } else {
       setActiveTab('core');
     }
@@ -102,6 +112,15 @@ const MIAIndependent: React.FC = () => {
                   {activeTab === 'core' && (
                     <div className="text-sm text-white/85 line-clamp-2">Marketing Dashboard & Analytics</div>
                   )}
+                  {isRestrictedUser && (
+                    <div
+                      className={`mt-1 text-xs font-semibold ${
+                        activeTab === 'core' ? 'text-white/85' : 'text-purple-500'
+                      }`}
+                    >
+                      Coming Soon
+                    </div>
+                  )}
                 </div>
                 {activeTab === 'core' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
               </button>
@@ -111,17 +130,17 @@ const MIAIndependent: React.FC = () => {
                 onClick={() => handleTabChange('seo-geo')}
                 className={`w-full group flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 text-left ${
                   activeTab === 'seo-geo'
-                    ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md border-transparent'
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md border-transparent'
                     : 'bg-white/60 dark:bg-viz-dark/50 text-slate-700 dark:text-viz-text-secondary hover:bg-white border border-slate-200/60 dark:border-viz-light/20'
                 }`}
               >
                 <div
                   className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                    activeTab === 'seo-geo' ? 'bg-white/20' : 'bg-violet-500/10'
+                    activeTab === 'seo-geo' ? 'bg-white/20' : 'bg-cyan-500/10'
                   }`}
                 >
                   <Search
-                    className={`w-5 h-5 ${activeTab === 'seo-geo' ? 'text-white' : 'text-violet-500'}`}
+                    className={`w-5 h-5 ${activeTab === 'seo-geo' ? 'text-white' : 'text-cyan-500'}`}
                   />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -133,58 +152,72 @@ const MIAIndependent: React.FC = () => {
                 {activeTab === 'seo-geo' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
               </button>
 
-              {/* Creative Labs Tab (Premium only) */}
-              {isPremium && (
-                <button
-                  onClick={() => handleTabChange('creative')}
-                  className={`w-full group flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 text-left ${
-                    activeTab === 'creative'
-                      ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-md border-transparent'
-                      : 'bg-white/60 dark:bg-viz-dark/50 text-slate-700 dark:text-viz-text-secondary hover:bg-white border border-slate-200/60 dark:border-viz-light/20'
+              {/* Creative Labs Tab */}
+              <button
+                onClick={() => handleTabChange('creative')}
+                className={`w-full group flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 text-left ${
+                  activeTab === 'creative'
+                    ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-md border-transparent'
+                    : 'bg-white/60 dark:bg-viz-dark/50 text-slate-700 dark:text-viz-text-secondary hover:bg-white border border-slate-200/60 dark:border-viz-light/20'
+                }`}
+              >
+                <div
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    activeTab === 'creative' ? 'bg-white/20' : 'bg-pink-500/10'
                   }`}
                 >
-                  <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      activeTab === 'creative' ? 'bg-white/20' : 'bg-pink-500/10'
-                    }`}
-                  >
-                    <Zap className={`w-5 h-5 ${activeTab === 'creative' ? 'text-white' : 'text-pink-500'}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium">Creative Labs</div>
-                  </div>
-                  {activeTab === 'creative' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-                </button>
-              )}
+                  <Zap className={`w-5 h-5 ${activeTab === 'creative' ? 'text-white' : 'text-pink-500'}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium">Creative Labs</div>
+                  {isRestrictedUser && (
+                    <div
+                      className={`mt-1 text-xs font-semibold ${
+                        activeTab === 'creative' ? 'text-white/85' : 'text-pink-500'
+                      }`}
+                    >
+                      Coming Soon
+                    </div>
+                  )}
+                </div>
+                {activeTab === 'creative' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+              </button>
 
-              {/* Brandlenz Tab (Premium only) */}
-              {isPremium && (
-                <button
-                  onClick={() => handleTabChange('brandlenz')}
-                  className={`w-full group flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 text-left ${
-                    activeTab === 'brandlenz'
-                      ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md border-transparent'
-                      : 'bg-white/60 dark:bg-viz-dark/50 text-slate-700 dark:text-viz-text-secondary hover:bg-white border border-slate-200/60 dark:border-viz-light/20'
+              {/* Brandlenz Tab */}
+              <button
+                onClick={() => handleTabChange('brandlenz')}
+                className={`w-full group flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 text-left ${
+                  activeTab === 'brandlenz'
+                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md border-transparent'
+                    : 'bg-white/60 dark:bg-viz-dark/50 text-slate-700 dark:text-viz-text-secondary hover:bg-white border border-slate-200/60 dark:border-viz-light/20'
+                }`}
+              >
+                <div
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    activeTab === 'brandlenz' ? 'bg-white/20' : 'bg-indigo-500/10'
                   }`}
                 >
-                  <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      activeTab === 'brandlenz' ? 'bg-white/20' : 'bg-indigo-500/10'
-                    }`}
-                  >
-                    <Sparkles
-                      className={`w-5 h-5 ${activeTab === 'brandlenz' ? 'text-white' : 'text-indigo-500'}`}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium">Brandlenz</div>
-                    {activeTab === 'brandlenz' && (
-                      <div className="text-sm text-white/85 line-clamp-2">Social Listening & Brand Intelligence</div>
-                    )}
-                  </div>
-                  {activeTab === 'brandlenz' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-                </button>
-              )}
+                  <Sparkles
+                    className={`w-5 h-5 ${activeTab === 'brandlenz' ? 'text-white' : 'text-indigo-500'}`}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium">Brandlenz</div>
+                  {activeTab === 'brandlenz' && (
+                    <div className="text-sm text-white/85 line-clamp-2">Social Listening & Brand Intelligence</div>
+                  )}
+                  {isRestrictedUser && (
+                    <div
+                      className={`mt-1 text-xs font-semibold ${
+                        activeTab === 'brandlenz' ? 'text-white/85' : 'text-indigo-500'
+                      }`}
+                    >
+                      Coming Soon
+                    </div>
+                  )}
+                </div>
+                {activeTab === 'brandlenz' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+              </button>
 
               {/* Reddit CoPilot Tab */}
               <button
@@ -208,6 +241,15 @@ const MIAIndependent: React.FC = () => {
                   <div className="font-medium">Reddit CoPilot</div>
                   {activeTab === 'reddit-copilot' && (
                     <div className="text-sm text-white/85 line-clamp-2">Reddit Engagement Automation</div>
+                  )}
+                  {isRestrictedUser && (
+                    <div
+                      className={`mt-1 text-xs font-semibold ${
+                        activeTab === 'reddit-copilot' ? 'text-white/85' : 'text-orange-500'
+                      }`}
+                    >
+                      Coming Soon
+                    </div>
                   )}
                 </div>
                 {activeTab === 'reddit-copilot' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
@@ -235,6 +277,15 @@ const MIAIndependent: React.FC = () => {
                   <div className="font-medium">Keyword & Trend</div>
                   {activeTab === 'keyword-trend' && (
                     <div className="text-sm text-white/85 line-clamp-2">Keyword & Trend Intelligence</div>
+                  )}
+                  {isRestrictedUser && (
+                    <div
+                      className={`mt-1 text-xs font-semibold ${
+                        activeTab === 'keyword-trend' ? 'text-white/85' : 'text-indigo-500'
+                      }`}
+                    >
+                      Coming Soon
+                    </div>
                   )}
                 </div>
                 {activeTab === 'keyword-trend' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
@@ -267,30 +318,26 @@ const MIAIndependent: React.FC = () => {
                 >
                   SEO-GEO
                 </button>
-                {isPremium && (
-                  <button
-                    onClick={() => handleTabChange('creative')}
-                    className={`px-2 py-2 rounded-lg text-xs font-medium transition-all ${
-                      activeTab === 'creative'
-                        ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow'
-                        : 'bg-white dark:bg-viz-dark text-slate-700 dark:text-viz-text-secondary border border-slate-200/60 dark:border-viz-light/20'
-                    }`}
-                  >
-                    Creative
-                  </button>
-                )}
-                {isPremium && (
-                  <button
-                    onClick={() => handleTabChange('brandlenz')}
-                    className={`px-2 py-2 rounded-lg text-xs font-medium transition-all ${
-                      activeTab === 'brandlenz'
-                        ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow'
-                        : 'bg-white dark:bg-viz-dark text-slate-700 dark:text-viz-text-secondary border border-slate-200/60 dark:border-viz-light/20'
-                    }`}
-                  >
-                    Brandlenz
-                  </button>
-                )}
+                <button
+                  onClick={() => handleTabChange('creative')}
+                  className={`px-2 py-2 rounded-lg text-xs font-medium transition-all ${
+                    activeTab === 'creative'
+                      ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow'
+                      : 'bg-white dark:bg-viz-dark text-slate-700 dark:text-viz-text-secondary border border-slate-200/60 dark:border-viz-light/20'
+                  }`}
+                >
+                  Creative
+                </button>
+                <button
+                  onClick={() => handleTabChange('brandlenz')}
+                  className={`px-2 py-2 rounded-lg text-xs font-medium transition-all ${
+                    activeTab === 'brandlenz'
+                      ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow'
+                      : 'bg-white dark:bg-viz-dark text-slate-700 dark:text-viz-text-secondary border border-slate-200/60 dark:border-viz-light/20'
+                  }`}
+                >
+                  Brandlenz
+                </button>
                 <button
                   onClick={() => handleTabChange('reddit-copilot')}
                   className={`px-2 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
@@ -318,7 +365,11 @@ const MIAIndependent: React.FC = () => {
             <div className="flex-1 overflow-auto">
               {activeTab === 'core' && (
                 <div className="h-full w-full">
-                  <MIADashboard userId={user?.id || ''} />
+                  {isRestrictedUser ? (
+                    <MIACoreComingSoon />
+                  ) : (
+                    <MIADashboard userId={user?.id || ''} />
+                  )}
                 </div>
               )}
               {activeTab === 'seo-geo' && (
@@ -327,28 +378,28 @@ const MIAIndependent: React.FC = () => {
                     <div className="max-w-6xl mx-auto space-y-8">
                       <div className="text-center space-y-6">
                         <div className="flex items-center justify-center gap-3">
-                          <div className="p-3 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl shadow-lg">
+                          <div className="p-3 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl shadow-lg">
                             <Brain className="w-8 h-8 text-white" />
                           </div>
-                          <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl shadow-lg">
+                          <div className="p-3 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl shadow-lg">
                             <Zap className="w-8 h-8 text-white" />
                           </div>
                         </div>
 
-                        <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent tracking-tight">
+                        <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black bg-gradient-to-r from-cyan-600 via-blue-600 to-cyan-700 bg-clip-text text-transparent tracking-tight">
                           Master SEO and GEO
                         </h1>
 
-                        <div className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-violet-500/10 to-purple-500/10 backdrop-blur-sm border border-violet-200/20 dark:border-purple-400/20 rounded-full">
-                          <Search className="w-4 h-4 sm:w-5 sm:h-5 text-violet-600 dark:text-violet-400" />
-                          <span className="text-sm sm:text-lg font-semibold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
+                        <div className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 backdrop-blur-sm border border-cyan-200/20 dark:border-blue-400/20 rounded-full">
+                          <Search className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-600 dark:text-cyan-400" />
+                          <span className="text-sm sm:text-lg font-semibold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
                             Generative Engine Optimization
                           </span>
                         </div>
 
                         <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto leading-relaxed px-4">
                           Master-level SEO analysis with cutting-edge generative engine optimization.
-                          <span className="font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                          <span className="font-semibold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
                             {' '}Dominate search rankings with precision insights.
                           </span>
                         </p>
@@ -363,22 +414,22 @@ const MIAIndependent: React.FC = () => {
               )}
               {activeTab === 'brandlenz' && (
                 <div className="h-full w-full">
-                  <BrandlenzDashboardSimple />
+                  {isRestrictedUser ? <BrandlenzComingSoon /> : <BrandlenzDashboardSimple />}
                 </div>
               )}
               {activeTab === 'creative' && (
                 <div className="h-full w-full">
-                  <CreativeLabs userId={user?.id || ''} />
+                  {isRestrictedUser ? <CreativeLabsComingSoon /> : <CreativeLabs userId={user?.id || ''} />}
                 </div>
               )}
               {activeTab === 'reddit-copilot' && (
                 <div className="h-full w-full">
-                  <RedditCoPilotDashboard />
+                  {isRestrictedUser ? <RedditAgentComingSoon /> : <RedditCoPilotDashboard />}
                 </div>
               )}
               {activeTab === 'keyword-trend' && (
                 <div className="h-full w-full">
-                  <KeywordTrendAgent />
+                  {isRestrictedUser ? <KeywordTrendComingSoon /> : <KeywordTrendAgent />}
                 </div>
               )}
             </div>

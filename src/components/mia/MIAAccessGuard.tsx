@@ -24,9 +24,10 @@ const MIAAccessGuard: React.FC<MIAAccessGuardProps> = ({ children }) => {
   // Public access for SEO-GEO routes (open to all users)
   const path = (location?.pathname || '').toLowerCase();
   const isSeoGeo = path.includes('/mia/seo-geo') || path.includes('/seo-geo-ai-tool');
+  const isMiaSection = path.startsWith('/mia');
 
-  if (isSeoGeo) {
-    console.log('[MIAAccessGuard] 🎯 Public access granted for SEO-GEO route');
+  if (isSeoGeo || isMiaSection) {
+    console.log('[MIAAccessGuard] 🎯 Routed MIA access granted for', path);
     return <>{children}</>;
   }
 
@@ -35,7 +36,7 @@ const MIAAccessGuard: React.FC<MIAAccessGuardProps> = ({ children }) => {
     return <>{children}</>;
   }
 
-  // Non-qualified users see the MIA Coming Soon page
+  // Non-qualified users see the MIA Coming Soon page on legacy routes
   console.log('[MIAAccessGuard] ✅ Non-qualified user access - showing MIA Coming Soon page');
   return <MIAComingSoon showHeader={false} />;
 };

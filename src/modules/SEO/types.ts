@@ -70,6 +70,8 @@ export type AnalysisResult = {
   // Raw scores for display purposes
   seoScoreOutOf10?: number; // 0-10
   geoScoreOutOf100?: number; // 0-100
+  // Raw seo_score object from API for Score Architecture
+  seoScore?: any;
   pillars: PillarScores; 
   onPage: OnPageMetrics;
   geo: GeoSignals;

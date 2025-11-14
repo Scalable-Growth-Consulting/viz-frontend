@@ -84,7 +84,7 @@ function App() {
           <Route path="/mia/seo-geo" element={<ProtectedRoute><MIAIndependent /></ProtectedRoute>} />
           <Route path="/mia/creative" element={<ProtectedRoute><MIAIndependent /></ProtectedRoute>} />
           <Route path="/mia/brandlenz" element={<ProtectedRoute><MIAIndependent /></ProtectedRoute>} />
-          <Route path="/mia/reddit-copilot" element={<ProtectedRoute><RedditCoPilotAccessGuard><MIAIndependent /></RedditCoPilotAccessGuard></ProtectedRoute>} />
+          <Route path="/mia/reddit-copilot" element={<ProtectedRoute><MIAIndependent /></ProtectedRoute>} />
           <Route path="/mia/keyword-trend" element={<ProtectedRoute><MIAIndependent /></ProtectedRoute>} />
           <Route path="/mia/privacy" element={<ProtectedRoute><MIAPrivacy /></ProtectedRoute>} />
           <Route path="/mia/data-deletion" element={<ProtectedRoute><MIADataDeletion /></ProtectedRoute>} />
