@@ -10,10 +10,72 @@ export interface UseRecommendationsOptions {
   retries?: number;
   delayMsBeforeFirstTry?: number;
   method?: 'POST' | 'GET';
+  pollIntervalMs?: number;
+  maxAttempts?: number;
+  validateResponse?: (payload: any) => boolean;
 }
 
+const GENERIC_PLACEHOLDER_PHRASES = new Set([
+  'actionable improvement',
+  'strategic improvement',
+  'see steps',
+  'plan and execute',
+  'derived from input',
+]);
+
+const hasMeaningfulText = (value: unknown): boolean => {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  return !GENERIC_PLACEHOLDER_PHRASES.has(trimmed.toLowerCase());
+};
+
+const defaultValidateResponse = (payload: any): boolean => {
+  const recommendations = payload?.recommendations;
+  if (!recommendations || typeof recommendations !== 'object') return false;
+
+  const quickWins = Array.isArray(recommendations.priority_quick_wins)
+    ? recommendations.priority_quick_wins
+    : [];
+  const growthOpps = Array.isArray(recommendations.growth_opportunities)
+    ? recommendations.growth_opportunities
+    : [];
+
+  const hasMeaningfulItem = (item: any) => {
+    if (!item || typeof item !== 'object') return false;
+
+    const candidateFields = [
+      item.description,
+      item.detail,
+      item.details,
+      item.summary,
+      item.implementation,
+      item.implementation_steps,
+      item.strategy,
+      item.notes,
+      item.recommendation,
+      item.outcome,
+    ];
+
+    return candidateFields.some(hasMeaningfulText);
+  };
+
+  return quickWins.some(hasMeaningfulItem) || growthOpps.some(hasMeaningfulItem);
+};
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export function useRecommendations(jobId?: string | null, options: UseRecommendationsOptions = {}) {
-  const { enabled = true, timeoutMs = 15000, retries = 2, delayMsBeforeFirstTry = 0, method = 'POST' } = options;
+  const {
+    enabled = true,
+    timeoutMs = 20000,
+    retries = 3,
+    delayMsBeforeFirstTry = 0,
+    method = 'POST',
+    pollIntervalMs = 1500,
+    maxAttempts = 5,
+    validateResponse = defaultValidateResponse,
+  } = options;
 
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
@@ -26,10 +88,14 @@ export function useRecommendations(jobId?: string | null, options: UseRecommenda
     if (!key || !enabled) return;
 
     if (cache.has(key)) {
-      setData(cache.get(key));
-      setLoading(false);
-      setError(null);
-      return;
+      const cachedValue = cache.get(key);
+      if (validateResponse(cachedValue)) {
+        setData(cachedValue);
+        setLoading(false);
+        setError(null);
+        return;
+      }
+      cache.delete(key);
     }
 
     abortRef.current?.abort();
@@ -39,12 +105,13 @@ export function useRecommendations(jobId?: string | null, options: UseRecommenda
     setError(null);
 
     if (delayMsBeforeFirstTry > 0) {
-      await new Promise((r) => setTimeout(r, delayMsBeforeFirstTry));
+      await wait(delayMsBeforeFirstTry);
     }
 
-    // Try with small retries; the service itself also retries
     let lastErr: any = null;
-    for (let attempt = 0; attempt <= retries; attempt++) {
+    let lastPayload: any = null;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const res = await awsLambdaService.getRecommendations(key, {
           signal: abortRef.current.signal,
@@ -52,21 +119,38 @@ export function useRecommendations(jobId?: string | null, options: UseRecommenda
           retries,
           method,
         });
-        cache.set(key, res);
-        setData(res);
-        setLoading(false);
-        setError(null);
-        return;
+
+        lastPayload = res;
+
+        if (validateResponse(res)) {
+          cache.set(key, res);
+          setData(res);
+          setLoading(false);
+          setError(null);
+          return;
+        }
+
+        if (attempt < maxAttempts - 1) {
+          await wait(pollIntervalMs * (attempt + 1));
+        }
       } catch (e: any) {
         lastErr = e;
-        if (attempt < retries) {
-          await new Promise((r) => setTimeout(r, 400 * Math.pow(2, attempt)));
+        if (attempt < maxAttempts - 1) {
+          await wait(400 * Math.pow(2, attempt));
           continue;
         }
+        break;
       }
     }
 
-    setError(typeof lastErr?.message === 'string' ? lastErr.message : 'Failed to fetch recommendations');
+    if (lastErr) {
+      setError(typeof lastErr?.message === 'string' ? lastErr.message : 'Failed to fetch recommendations');
+    } else {
+      console.warn('Recommendations returned without meaningful content. Falling back to default messaging.', lastPayload);
+      setData(validateResponse(lastPayload) ? lastPayload : null);
+      setError(null);
+    }
+
     setLoading(false);
   };
 

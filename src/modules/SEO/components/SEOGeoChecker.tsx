@@ -1,8 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
+
 import { motion, AnimatePresence } from 'framer-motion';
-import { analyzeSEOGeo } from '../services/seoAnalyzer';
 import { useAWSLambdaAnalysis } from '../hooks/useAWSLambdaAnalysis';
-import type { AnalysisInput, AnalysisResult } from '../types';
+import type { AnalysisInput } from '../types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { ArrowRight, FileDown, Image as ImageIcon, Loader2, RefreshCcw, Sparkles, Globe2, Target, Users, Brain, Zap, Rocket, TrendingUp, Eye, Star, X, RotateCcw, AlertCircle, CheckCircle, Clock, Info, ChevronDown } from 'lucide-react';
+
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { useToast } from '@/components/ui/use-toast';
@@ -23,11 +24,11 @@ import { createPortal } from 'react-dom';
 import { useCompetitorKeywords } from '../hooks/useCompetitorKeywords';
 import { useRecommendations } from '../hooks/useRecommendations';
 import { analyzeKeywordOverlap, type CompetitorKeywords } from '../utils/keywordOverlap';
+
 import { ScoreSection } from './ScoreSection';
 import { buildSEOSections, buildGEOSections } from '../utils/buildScoreSections';
 import { KPIDefinitionsDialog } from './KPIDefinitionsDialog';
 import { SEO_DEFINITIONS, GEO_DEFINITIONS, PILLAR_DEFINITIONS } from '../utils/kpiDefinitions';
-
 // Circular Score Gauge Component (Wireframe Style)
 const CircularScore = ({ score, label }: { score: number; label: string }) => {
   const circumference = 2 * Math.PI * 80;
@@ -451,7 +452,6 @@ function KPIMarker({ kpi, className = "" }: { kpi: keyof typeof kpiDefinitions; 
 export const SEOGeoChecker: React.FC = () => {
   const [input, setInput] = useState<AnalysisInput>({ competitors: [] });
   const [activeTab, setActiveTab] = useState('input');
-  const [useCloudAnalysis, setUseCloudAnalysis] = useState(true);
   const [searchParams] = useSearchParams();
   const containerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -478,14 +478,10 @@ export const SEOGeoChecker: React.FC = () => {
     retryAnalysis,
   } = useAWSLambdaAnalysis();
   
-  // Local analysis state (fallback)
-  const [localLoading, setLocalLoading] = useState(false);
-  const [localResult, setLocalResult] = useState<AnalysisResult | null>(null);
-  
-  // Determine which result to use
-  const result = useCloudAnalysis ? awsResult : localResult;
-  const loading = useCloudAnalysis ? awsLoading : localLoading;
-  const analyzing = useCloudAnalysis ? awsAnalyzing : localLoading;
+  // Cloud analysis result state
+  const result = awsResult;
+  const loading = awsLoading;
+  const analyzing = awsAnalyzing;
 
   // Section breakdowns (must come after 'result' is defined)
   const seoSections = React.useMemo(() => (
@@ -498,7 +494,7 @@ export const SEOGeoChecker: React.FC = () => {
   // Trigger competitor keywords fetch for the completed job when viewing the report
   const jobId = (currentJob?.job_id || (currentJob as any)?.jobId || '') as string;
   const { data: compData, loading: compLoading, error: compError, refetch: refetchComp } = useCompetitorKeywords(jobId, {
-    enabled: useCloudAnalysis && activeTab === 'report' && Boolean(jobId),
+    enabled: activeTab === 'report' && Boolean(jobId),
     retries: 3,
     timeoutMs: 15000,
     delayMsBeforeFirstTry: 2000,
@@ -509,11 +505,13 @@ export const SEOGeoChecker: React.FC = () => {
 
   // Recommendations (Priority Quick Wins, Growth Opportunities) via Lambda: POST /recom/{jobId}
   const { data: recomData, loading: recomLoading, error: recomError, refetch: refetchRecom } = useRecommendations(jobId, {
-    enabled: useCloudAnalysis && activeTab === 'report' && Boolean(jobId),
-    timeoutMs: 15000,
-    retries: 2,
-    delayMsBeforeFirstTry: 1000,
+    enabled: activeTab === 'report' && Boolean(jobId),
+    timeoutMs: 25000,
+    retries: 3,
+    delayMsBeforeFirstTry: 1200,
     method: 'POST',
+    pollIntervalMs: 2000,
+    maxAttempts: 6,
   });
 
   const lambdaQuickWins = React.useMemo(() => {
@@ -524,6 +522,55 @@ export const SEOGeoChecker: React.FC = () => {
     const arr = recomData?.recommendations?.growth_opportunities;
     return Array.isArray(arr) ? arr : [];
   }, [recomData]);
+
+  const genericRecommendationPhrases = React.useMemo(
+    () =>
+      new Set([
+        'actionable improvement',
+        'strategic improvement',
+        'see steps',
+        'plan and execute',
+        'derived from input',
+      ]),
+    []
+  );
+
+  const recommendationHasContent = React.useCallback(
+    (item: any) => {
+      if (!item || typeof item !== 'object') return false;
+
+      const candidateFields = [
+        item.description,
+        item.detail,
+        item.details,
+        item.summary,
+        item.implementation,
+        item.implementation_steps,
+        item.strategy,
+        item.notes,
+        item.recommendation,
+        item.outcome,
+      ];
+
+      return candidateFields.some((value) => {
+        if (typeof value !== 'string') return false;
+        const trimmed = value.trim();
+        if (!trimmed) return false;
+        return !genericRecommendationPhrases.has(trimmed.toLowerCase());
+      });
+    },
+    [genericRecommendationPhrases]
+  );
+
+  const meaningfulLambdaQuickWins = React.useMemo(
+    () => lambdaQuickWins.filter(recommendationHasContent),
+    [lambdaQuickWins, recommendationHasContent]
+  );
+
+  const meaningfulLambdaGrowthOpps = React.useMemo(
+    () => lambdaGrowthOpps.filter(recommendationHasContent),
+    [lambdaGrowthOpps, recommendationHasContent]
+  );
 
   const localQuickWins = React.useMemo(() => {
     const arr = result?.topQuickFixes;
@@ -630,14 +677,8 @@ export const SEOGeoChecker: React.FC = () => {
   }, [searchParams, result, analyzing, loading]);
 
   const canAnalyze = useMemo(() => {
-    if (useCloudAnalysis) {
-      // Cloud analysis requires a valid URL
-      return Boolean(input.url && input.url.trim().length > 0 && validateUrl(input.url.trim()).isValid);
-    } else {
-      // Local analysis can use URL or raw HTML
-      return Boolean((input.url && input.url.trim().length > 0) || (input.rawHtml && input.rawHtml.trim().length > 0));
-    }
-  }, [input.url, input.rawHtml, useCloudAnalysis, validateUrl]);
+    return Boolean(input.url && input.url.trim().length > 0 && validateUrl(input.url.trim()).isValid);
+  }, [input.url, validateUrl]);
   
   const urlValidation = useMemo(() => {
     if (!input.url || input.url.trim().length === 0) {
@@ -647,52 +688,35 @@ export const SEOGeoChecker: React.FC = () => {
   }, [input.url, validateUrl]);
 
   const handleAnalyze = async () => {
-    if (useCloudAnalysis) {
-      // Use AWS Lambda for analysis
-      try {
-        await startAWSAnalysis(input, () => {
-          // Switch to report tab when analysis completes
+    try {
+      const normalizedCompetitors = (input.competitors || []).map((entry) => {
+        const trimmed = (entry || '').trim();
+        if (!trimmed) return '';
+        return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+      });
+
+      await startAWSAnalysis(
+        { ...input, competitors: normalizedCompetitors },
+        () => {
           setActiveTab('report');
-        });
-      } catch (error) {
-        console.error('AWS analysis failed:', error);
-      }
-    } else {
-      // Use local analysis as fallback
-      try {
-        setLocalLoading(true);
-        const res = await analyzeSEOGeo(input);
-        setLocalResult(res);
-        setActiveTab('report');
-      } catch (e: any) {
-        toast({ title: 'Analysis failed', description: e?.message || 'Unable to analyze the page', variant: 'destructive' });
-      } finally {
-        setLocalLoading(false);
-      }
+        }
+      );
+    } catch (error) {
+      console.error('AWS analysis failed:', error);
     }
   };
   
   const handleCancelAnalysis = async () => {
-    if (useCloudAnalysis) {
-      await cancelAnalysis();
-    }
+    await cancelAnalysis();
   };
   
   const handleClearResults = () => {
-    if (useCloudAnalysis) {
-      clearAWSResults();
-    } else {
-      setLocalResult(null);
-    }
+    clearAWSResults();
     setActiveTab('input');
   };
   
   const handleRetryAnalysis = async () => {
-    if (useCloudAnalysis) {
-      await retryAnalysis();
-    } else {
-      await handleAnalyze();
-    }
+    await retryAnalysis();
   };
 
   const handleSaveImage = async () => {
@@ -964,59 +988,36 @@ export const SEOGeoChecker: React.FC = () => {
                     </Badge>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                    {[0,1,2].map((idx)=> (
-                      <Input 
-                        key={idx} 
-                        placeholder={`https://competitor-${idx+1}.com`} 
-                        value={(input.competitors?.[idx] || '')} 
-                        onChange={(e)=> {
-                          const list = [...(input.competitors||[])];
-                          list[idx] = e.target.value;
-                          setInput((s)=> ({ ...s, competitors: list }));
-                        }}
-                        className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-2 border-cyan-200/50 dark:border-blue-400/30 rounded-xl focus:border-cyan-400 dark:focus:border-blue-400 transition-all duration-300"
-                      />
-                    ))}
-                  </div>
-                </motion.div>
-
-                {/* Analysis Mode Toggle */}
-                <motion.div 
-                  className="flex items-center justify-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border border-blue-200/50 dark:border-blue-400/30"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.7, duration: 0.6 }}
-                >
-                  <div className="flex items-center gap-2">
-                    <Brain className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">Analysis Mode:</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="analysisMode"
-                        checked={useCloudAnalysis}
-                        onChange={() => setUseCloudAnalysis(true)}
-                        className="w-4 h-4 text-blue-600"
-                      />
-                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Cloud AI (Recommended)</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="analysisMode"
-                        checked={!useCloudAnalysis}
-                        onChange={() => setUseCloudAnalysis(false)}
-                        className="w-4 h-4 text-blue-600"
-                      />
-                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Local Analysis</span>
-                    </label>
+                    {[0,1,2].map((idx)=> {
+                      const currentValue = input.competitors?.[idx] || '';
+                      const displayValue = currentValue.replace(/^https?:\/\//i, '');
+                      return (
+                        <div
+                          key={idx}
+                          className="flex items-center rounded-xl border-2 border-cyan-200/50 dark:border-blue-400/30 bg-white/80 dark:bg-gray-900/60 backdrop-blur-sm focus-within:border-cyan-400 focus-within:dark:border-blue-400 transition-all"
+                        >
+                          <span className="px-3 text-sm font-semibold text-cyan-600 dark:text-cyan-300 border-r border-cyan-100/60 dark:border-blue-400/20 bg-white/70 dark:bg-gray-900/70 rounded-l-xl">
+                            https://
+                          </span>
+                          <Input
+                            placeholder={`competitor-${idx+1}.com`}
+                            value={displayValue}
+                            onChange={(e)=> {
+                              const sanitized = e.target.value.trim().replace(/^https?:\/\//i, '');
+                              const list = [...(input.competitors||[])];
+                              list[idx] = sanitized ? `https://${sanitized}` : '';
+                              setInput((s)=> ({ ...s, competitors: list }));
+                            }}
+                            className="flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 text-sm sm:text-base placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 py-2"
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 </motion.div>
 
                 {/* URL Validation Error */}
-                {useCloudAnalysis && input.url && !urlValidation.isValid && (
+                {input.url && !urlValidation.isValid && (
                   <Alert className="bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 border-2 border-red-200/50 dark:border-red-400/30 rounded-xl">
                     <AlertCircle className="w-4 h-4 text-red-500" />
                     <AlertDescription className="text-sm text-red-700 dark:text-red-300">
@@ -1025,8 +1026,8 @@ export const SEOGeoChecker: React.FC = () => {
                   </Alert>
                 )}
 
-                {/* Progress Bar for Cloud Analysis */}
-                {useCloudAnalysis && analyzing && (
+                {/* Progress Bar for Analysis */}
+                {analyzing && (
                   <motion.div 
                     className="space-y-3 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200/50 dark:border-green-400/30"
                     initial={{ opacity: 0, y: 10 }}
@@ -1055,7 +1056,7 @@ export const SEOGeoChecker: React.FC = () => {
                 )}
 
                 {/* Error Display */}
-                {useCloudAnalysis && awsError && (
+                {awsError && (
                   <Alert className="bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 border-2 border-red-200/50 dark:border-red-400/30 rounded-xl">
                     <AlertCircle className="w-4 h-4 text-red-500" />
                     <AlertDescription className="text-sm text-red-700 dark:text-red-300">
@@ -1091,7 +1092,7 @@ export const SEOGeoChecker: React.FC = () => {
                       </Button>
                     )}
                     
-                    {useCloudAnalysis && awsError && (
+                    {awsError && (
                       <Button 
                         variant="outline" 
                         onClick={handleRetryAnalysis}
@@ -1143,7 +1144,7 @@ export const SEOGeoChecker: React.FC = () => {
                 <Alert className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 border-2 border-cyan-200/50 dark:border-blue-400/30 rounded-xl">
                   <Sparkles className="w-4 h-4 text-cyan-500" />
                   <AlertDescription className="text-sm text-cyan-700 dark:text-cyan-300">
-                    <strong>Pro Tip:</strong> {useCloudAnalysis ? 'Cloud AI analysis provides the most comprehensive SEO & GEO insights using advanced algorithms.' : 'For maximum AI precision, paste raw HTML from your CMS or crawler.'}
+                    <strong>Pro Tip:</strong> For maximum AI precision, paste raw HTML from your CMS or crawler.
                   </AlertDescription>
                 </Alert>
               </CardContent>
@@ -1665,9 +1666,9 @@ export const SEOGeoChecker: React.FC = () => {
                               <Button size="sm" variant="outline" onClick={() => refetchRecom()}>Retry</Button>
                             </div>
                           )}
-                          {!recomLoading && !recomError && lambdaQuickWins.length > 0 && (
+                          {!recomLoading && !recomError && meaningfulLambdaQuickWins.length > 0 && (
                             <div className="space-y-3">
-                              {lambdaQuickWins.map((item: any, i: number) => (
+                              {meaningfulLambdaQuickWins.map((item: any, i: number) => (
                                 <motion.div
                                   key={item.id || i}
                                   initial={{ opacity: 0, y: 10 }}
@@ -1710,7 +1711,7 @@ export const SEOGeoChecker: React.FC = () => {
                               ))}
                             </div>
                           )}
-                          {!recomLoading && !recomError && lambdaQuickWins.length === 0 && localQuickWins.length > 0 && (
+                          {!recomLoading && !recomError && meaningfulLambdaQuickWins.length === 0 && localQuickWins.length > 0 && (
                             <div className="space-y-3">
                               {localQuickWins.map((item, i) => (
                                 <motion.div
@@ -1730,7 +1731,7 @@ export const SEOGeoChecker: React.FC = () => {
                               ))}
                             </div>
                           )}
-                          {!recomLoading && !recomError && lambdaQuickWins.length === 0 && localQuickWins.length === 0 && (
+                          {!recomLoading && !recomError && meaningfulLambdaQuickWins.length === 0 && localQuickWins.length === 0 && (
                             <div className="p-5 rounded-2xl border border-emerald-200/50 dark:border-emerald-400/30 bg-gradient-to-br from-white/90 via-emerald-50/70 to-white/90 dark:from-viz-medium/85 dark:via-emerald-900/20 dark:to-viz-dark/75 text-sm text-emerald-900 dark:text-emerald-200 space-y-3">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-lg">
@@ -1789,9 +1790,9 @@ export const SEOGeoChecker: React.FC = () => {
                               <Button size="sm" variant="outline" onClick={() => refetchRecom()}>Retry</Button>
                             </div>
                           )}
-                          {!recomLoading && !recomError && lambdaGrowthOpps.length > 0 && (
+                          {!recomLoading && !recomError && meaningfulLambdaGrowthOpps.length > 0 && (
                             <div className="space-y-3">
-                              {lambdaGrowthOpps.map((item: any, i: number) => (
+                              {meaningfulLambdaGrowthOpps.map((item: any, i: number) => (
                                 <motion.div
                                   key={item.id || i}
                                   initial={{ opacity: 0, y: 10 }}
@@ -1835,7 +1836,7 @@ export const SEOGeoChecker: React.FC = () => {
                               ))}
                             </div>
                           )}
-                          {!recomLoading && !recomError && lambdaGrowthOpps.length === 0 && localGrowthOpps.length > 0 && (
+                          {!recomLoading && !recomError && meaningfulLambdaGrowthOpps.length === 0 && localGrowthOpps.length > 0 && (
                             <div className="space-y-3">
                               {localGrowthOpps.map((item, i) => (
                                 <motion.div
@@ -1855,7 +1856,7 @@ export const SEOGeoChecker: React.FC = () => {
                               ))}
                             </div>
                           )}
-                          {!recomLoading && !recomError && lambdaGrowthOpps.length === 0 && localGrowthOpps.length === 0 && (
+                          {!recomLoading && !recomError && meaningfulLambdaGrowthOpps.length === 0 && localGrowthOpps.length === 0 && (
                             <div className="p-5 rounded-2xl border border-blue-200/50 dark:border-blue-400/30 bg-gradient-to-br from-white/90 via-blue-50/70 to-white/90 dark:from-viz-medium/85 dark:via-blue-900/20 dark:to-viz-dark/75 text-sm text-blue-900 dark:text-blue-200 space-y-3">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 text-white flex items-center justify-center shadow-lg">
