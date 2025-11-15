@@ -48,7 +48,7 @@ export function buildSEOSections(result: AnalysisResult): Section {
   // Calculate parent scores as weighted averages
   const technicalFoundation = round(titleScore * 0.25 + metaScore * 0.20 + headingScore * 0.20 + structuredScore * 0.12 + techScore * 0.15 + canonicalScore * 0.08);
   const contentQuality = round(contentScore * 0.60 + imageScore * 0.40);
-  const performanceMetrics = round(techScore * 1.0); // Tech score represents performance
+  const performanceMetrics = round(techScore * 0.60 + linkScore * 0.40);
 
   const items: SectionItem[] = [
     {
@@ -103,7 +103,7 @@ export function buildGEOSections(result: AnalysisResult): Section {
   const topicCoverage = result.geo?.topicCoverage ?? 0;
 
   // Calculate parent scores as weighted averages of actual API values
-  const aiVisibility = aiVisibilityRate; // This is the main score from API
+  const aiVisibility = round(aiVisibilityRate * 0.60 + citationFrequency * 0.40);
   const brandAuthority = round(brandMentionScore * 0.6 + authoritySignals * 0.4);
   const factualAccuracy = round(structuredDataScore * 0.5 + factualSignalScore * 0.5);
   const sentimentMessaging = round(sentimentAccuracy * 0.6 + contextualRelevance * 0.4);
