@@ -16,6 +16,7 @@ import { IntegrationConfig } from '../types';
 import { useMetaIntegration } from '../hooks/useMetaIntegration';
 import { useGoogleIntegration } from '../hooks/useGoogleIntegration';
 import { useWooCommerceIntegration } from '../hooks/useWooCommerceIntegration';
+import { useGa4Integration } from '../hooks/useGa4Integration';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 const MIAIntegrationStatus: React.FC = () => {
@@ -42,6 +43,13 @@ const MIAIntegrationStatus: React.FC = () => {
     sync: syncWooCommerce,
     loading: woocommerceLoading,
   } = useWooCommerceIntegration();
+
+  // GA4 hook (different shape) - keep as object and access safely
+  const ga4 = useGa4Integration();
+  const ga4Status = ga4.connectionStatus;
+  const connectGa4 = ga4.connect;
+  const disconnectGa4 = ga4.disconnect;
+  const ga4Loading = ga4.loading;
 
   // Responsive slides to scroll (1/2/4) for the carousel arrows
   const [slidesToScroll, setSlidesToScroll] = React.useState(4);
@@ -88,7 +96,15 @@ const MIAIntegrationStatus: React.FC = () => {
       errorMessage: woocommerceStatus.errorMessage,
     },
     { platform: 'x', isConnected: false, syncStatus: 'idle' },
-    { platform: 'ga4', isConnected: false, syncStatus: 'idle' },
+    // GA4 entry (safe access because GA4 status shape differs)
+    {
+      platform: 'ga4',
+      isConnected: !!(((ga4Status as any)?.authenticated) ?? ((ga4Status as any)?.connected) ?? ((ga4Status as any)?.isConnected)),
+      lastSync: (ga4Status as any)?.lastSync ?? (ga4Status as any)?.syncedAt,
+      syncStatus: (ga4Status as any)?.status === 'connected' || (ga4Status as any)?.authenticated ? 'success' : ((ga4Status as any)?.status === 'error' ? 'error' : 'idle'),
+      accountId: (ga4Status as any)?.accountId ?? (ga4Status as any)?.propertyId ?? (ga4Status as any)?.user_id,
+      errorMessage: (ga4Status as any)?.errorMessage ?? (ga4Status as any)?.error,
+    },
   ];
 
   const getStatusIcon = (config: IntegrationConfig) => {
@@ -170,10 +186,20 @@ const MIAIntegrationStatus: React.FC = () => {
   const connectedIntegrations = integrations.filter(i => i.isConnected);
   const hasErrors = integrations.some(i => i.syncStatus === 'error');
 
+  // per-platform loading helper (used to disable/show loading on buttons)
+  const isPlatformLoading = (platform: string) => {
+    if (platform === 'meta') return metaLoading;
+    if (platform === 'google') return googleLoading;
+    if (platform === 'woocommerce') return woocommerceLoading;
+    if (platform === 'ga4') return ga4Loading;
+    return false;
+  };
+
   const handleConnect = async (platform: string) => {
     if (platform === 'meta') return connectMeta();
     if (platform === 'google') return connectGoogle();
     if (platform === 'woocommerce') return connectWooCommerce();
+    if (platform === 'ga4') return connectGa4();
     return Promise.resolve();
   };
 
@@ -181,6 +207,11 @@ const MIAIntegrationStatus: React.FC = () => {
     if (platform === 'meta') return syncMeta();
     if (platform === 'google') return syncGoogle();
     if (platform === 'woocommerce') return syncWooCommerce();
+    if (platform === 'ga4') {
+      // GA4 hook may not expose a `sync` method — guard and call if present
+      const maybeSync = (ga4 as any).sync;
+      return typeof maybeSync === 'function' ? maybeSync() : Promise.resolve();
+    }
     return Promise.resolve();
   };
 
@@ -188,6 +219,7 @@ const MIAIntegrationStatus: React.FC = () => {
     if (platform === 'meta') return disconnectMeta();
     if (platform === 'google') return disconnectGoogle();
     if (platform === 'woocommerce') return disconnectWooCommerce();
+    if (platform === 'ga4') return disconnectGa4();
     return Promise.resolve();
   };
 
@@ -265,13 +297,18 @@ const MIAIntegrationStatus: React.FC = () => {
                             ? 'bg-blue-600 hover:bg-blue-700 text-white' 
                             : integration.platform === 'google' 
                               ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white'
-                              : integration.platform === 'woocommerce'
-                                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white'
-                                : 'opacity-60 cursor-not-allowed'} rounded-full px-4 min-w-[200px] justify-center w-full text-xs`}
-                          disabled={integration.platform !== 'meta' && integration.platform !== 'google' && integration.platform !== 'woocommerce'}
+                              : integration.platform === 'ga4'
+                                ? 'bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white'
+                                : integration.platform === 'woocommerce'
+                                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white'
+                                  : 'opacity-60 cursor-not-allowed'} rounded-full px-4 min-w-[200px] justify-center w-full text-xs`}
+                          disabled={
+                            !(integration.platform === 'meta' || integration.platform === 'google' || integration.platform === 'woocommerce' || integration.platform === 'ga4')
+                            || isPlatformLoading(integration.platform)
+                          }
                         >
                           <Plus className="w-3 h-3 mr-1" />
-                          Connect
+                          {isPlatformLoading(integration.platform) ? 'Connecting...' : 'Connect'}
                         </Button>
                       )}
                     </div>
