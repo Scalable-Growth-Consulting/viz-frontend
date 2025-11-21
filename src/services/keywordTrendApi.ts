@@ -67,16 +67,28 @@ export class TimeoutError extends APIError {
 }
 
 // Endpoints provided (use Vite proxy in dev to avoid CORS)
-const AWS_BASE = 'https://nhqln6zib4.execute-api.ap-south-1.amazonaws.com';
-const ORCHESTRATE_PATH = '/dev/orchestrate';
-const TRENDS_PATH = '/dev/trends';
-const ORCHESTRATE_URL = import.meta.env.DEV ? `${ORCHESTRATE_PATH}` : `${AWS_BASE}${ORCHESTRATE_PATH}`;
-const TRENDS_URL = import.meta.env.DEV ? `${TRENDS_PATH}` : `${AWS_BASE}${TRENDS_PATH}`;
+// Configure via env:
+//   VITE_KEYWORD_TREND_ORCHESTRATE_URL=https://nhqln6zib4.execute-api.ap-south-1.amazonaws.com/dev/orchestrate
+//   VITE_KEYWORD_TREND_TRENDS_URL=https://nhqln6zib4.execute-api.ap-south-1.amazonaws.com/dev/trends
+//   VITE_KEYWORD_TREND_USE_DEV_PROXY=true|false (defaults to true when Vite dev server is running)
+const IS_DEV = import.meta.env.DEV;
+const USE_DEV_PROXY = IS_DEV && import.meta.env.VITE_KEYWORD_TREND_USE_DEV_PROXY !== 'false';
+
+const ORCHESTRATE_URL = USE_DEV_PROXY
+  ? '/dev/orchestrate'
+  : import.meta.env.VITE_KEYWORD_TREND_ORCHESTRATE_URL || 'https://nhqln6zib4.execute-api.ap-south-1.amazonaws.com/dev/orchestrate';
+
+const TRENDS_URL = USE_DEV_PROXY
+  ? '/dev/trends'
+  : import.meta.env.VITE_KEYWORD_TREND_TRENDS_URL || 'https://nhqln6zib4.execute-api.ap-south-1.amazonaws.com/dev/trends';
+
+const ORCHESTRATE_TIMEOUT_MS = Number(import.meta.env.VITE_KEYWORD_TREND_ORCHESTRATE_TIMEOUT_MS ?? 50000);
+const TRENDS_TIMEOUT_MS = Number(import.meta.env.VITE_KEYWORD_TREND_TRENDS_TIMEOUT_MS ?? 50000);
 
 // Types
 export type KeywordItem = { term: string; weight?: number; frequency?: number };
 export type OrchestratePayload = { industry: string; usp: string };
-export type TrendsStartPayload = { keywords: string[]; job_id?: string };
+export type TrendsStartPayload = { industry: string; keywords: string[]; job_id?: string; s3_key?: string };
 export type TrendsPollPayload = { job_id: string };
 
 export type OrchestrateResponse = {
@@ -84,6 +96,11 @@ export type OrchestrateResponse = {
   status?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   keywords?: KeywordItem[] | string[];
   message?: string;
+  s3_key?: string;
+  query_id?: string;
+  source?: string;
+  results_count?: number;
+  data?: any;
 };
 
 export type TrendPoint = { date: string; term: string; value: number };
@@ -105,8 +122,20 @@ export type TrendsResult = {
 const orchestrateSchema = z.object({
   job_id: z.string().optional(),
   status: z.enum(['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED']).optional(),
-  keywords: z.array(z.union([z.string(), z.object({ term: z.string(), weight: z.number().optional(), frequency: z.number().optional() })])).optional(),
+  keywords: z
+    .array(
+      z.union([
+        z.string(),
+        z.object({ term: z.string(), weight: z.number().optional(), frequency: z.number().optional() }),
+      ])
+    )
+    .optional(),
   message: z.string().optional(),
+  s3_key: z.string().optional(),
+  query_id: z.string().optional(),
+  source: z.string().optional(),
+  results_count: z.number().optional(),
+  data: z.any().optional(),
 });
 
 const trendsSchema = z.object({
@@ -282,37 +311,21 @@ export const keywordTrendApi = {
     const ks = (payload.key_services || [])
       .map((s) => (typeof s === 'string' ? s.trim() : ''))
       .filter(Boolean);
+
+    // Match backend contract exactly
     const body = {
       industry: payload.industry,
       usp: payload.usp,
       key_services: ks,
-      // aliases in case mapping templates expect different keys
-      industry_name: payload.industry,
-      usp_text: payload.usp,
-      pipeline: 'search->extract',
     };
+
     let raw: unknown;
     try {
-      // First attempt: send JSON body, include query params as redundancy, and embed base64 payload in header for guaranteed visibility
-      const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(body))));
-      const query: Record<string, string | string[]> = {
-        industry: payload.industry,
-        usp: payload.usp,
-        pipeline: 'search->extract',
-        industry_name: payload.industry,
-        usp_text: payload.usp,
-      };
-      if (ks.length) query['key_services'] = ks;
       let lastErr: any;
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
           raw = await doPost<unknown>(ORCHESTRATE_URL, body, {
-            query,
-            extraHeaders: {
-              'X-Client-Payload': b64,
-              'X-Request-Origin': 'viz.keyword-trend-web',
-            },
-            timeoutMs: 35000, // slightly beyond APIGW 30s to catch client-side aborts predictably
+            timeoutMs: ORCHESTRATE_TIMEOUT_MS,
           });
           lastErr = null;
           break;
@@ -327,62 +340,8 @@ export const keywordTrendApi = {
         }
       }
     } catch (e: any) {
-      logger.warn('Primary orchestrate request failed, trying fallback methods', e);
-      
-      // Fallback for API Gateway mapping templates that don't parse JSON bodies
-      if (e?.status === 400) {
-        try {
-          const token = await getAuthToken();
-          const form = new URLSearchParams();
-          form.set('industry', payload.industry);
-          form.set('usp', payload.usp);
-          form.set('industry_name', payload.industry);
-          form.set('usp_text', payload.usp);
-          form.set('pipeline', 'search->extract');
-          const res = await fetch(ORCHESTRATE_URL, {
-            method: 'POST',
-            mode: 'cors',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/x-www-form-urlencoded',
-              Accept: 'application/json',
-            },
-            body: form.toString(),
-          });
-          if (!res.ok) {
-            const txt = await res.text().catch(() => '');
-            throw new Error(`Request failed ${res.status}: ${txt || res.statusText}`);
-          }
-          raw = await res.json();
-        } catch (fallbackErr) {
-          // Final fallback: send as querystring (common APIGW mapping)
-          const params = new URLSearchParams();
-          params.set('industry', payload.industry);
-          params.set('usp', payload.usp);
-          ks.forEach((s) => params.append('key_services', s));
-          params.set('industry_name', payload.industry);
-          params.set('usp_text', payload.usp);
-          params.set('pipeline', 'search->extract');
-          const token2 = await getAuthToken();
-          const url = `${ORCHESTRATE_URL}?${params.toString()}`;
-          const res2 = await fetch(url, {
-            method: 'POST',
-            mode: 'cors',
-            headers: {
-              Authorization: `Bearer ${token2}`,
-              Accept: 'application/json',
-            },
-            body: undefined,
-          });
-          if (!res2.ok) {
-            const txt2 = await res2.text().catch(() => '');
-            throw new Error(`Request failed ${res2.status}: ${txt2 || res2.statusText}`);
-          }
-          raw = await res2.json();
-        }
-      } else {
-        throw e;
-      }
+      logger.warn('Orchestrate request failed after retries', e);
+      throw e;
     }
 
     // Handle API shape: { statusCode, body: stringified JSON }
@@ -422,13 +381,42 @@ export const keywordTrendApi = {
     }
     // Also enhance parsed with top_keywords if present under extract
     const data = parsed.data as OrchestrateResponse;
-    if (!data.keywords && (normalized as any)?.extract?.results) {
-      const ind = (normalized as any)?.extract?.industry || (normalized as any)?.industry;
-      const bucket = ind ? (normalized as any).extract.results[ind] : undefined;
-      const top = bucket?.top_keywords;
-      const coerced = this._coerceKeywords(top);
-      if (coerced) data.keywords = coerced as OrchestrateResponse['keywords'];
+    if (!data.keywords) {
+      const extractResults = (normalized as any)?.extract?.results;
+      if (extractResults) {
+        const ind = (normalized as any)?.extract?.industry || (normalized as any)?.industry;
+        const bucket = ind ? extractResults[ind] : undefined;
+        const top = bucket?.top_keywords;
+        const coerced = this._coerceKeywords(top);
+        if (coerced) data.keywords = coerced as OrchestrateResponse['keywords'];
+      }
+
+      if (!data.keywords && (normalized as any)?.data?.top_keywords) {
+        const topKeywords = (normalized as any).data.top_keywords as any[];
+        const coerced = topKeywords
+          .map((item) => {
+            if (!item) return undefined;
+            if (typeof item === 'string') return { term: item } as KeywordItem;
+            const term = item.keyword || item.term || item.name;
+            if (!term) return undefined;
+            return {
+              term: String(term),
+              weight: typeof item.score === 'number' ? item.score : item.weight,
+              frequency: typeof item.frequency === 'number' ? item.frequency : undefined,
+            } as KeywordItem;
+          })
+          .filter((k): k is KeywordItem => Boolean(k?.term));
+        if (coerced.length) data.keywords = coerced;
+      }
     }
+
+    const s3Key = (normalized as any)?.data?.s3_key || (normalized as any)?.s3_key;
+    if (typeof s3Key === 'string') data.s3_key = s3Key;
+    const queryId = (normalized as any)?.query_id || (normalized as any)?.data?.query_id;
+    if (typeof queryId === 'string') data.query_id = queryId;
+    if ((normalized as any)?.source) data.source = (normalized as any).source;
+    if (typeof (normalized as any)?.results_count === 'number') data.results_count = (normalized as any).results_count;
+    if ((normalized as any)?.data) data.data = (normalized as any).data;
     
     logger.info('Orchestrate request completed successfully', { 
       keywordCount: data.keywords?.length || 0,
@@ -444,10 +432,23 @@ export const keywordTrendApi = {
   },
 
   async trendsStart(payload: TrendsStartPayload): Promise<TrendsResult> {
-    logger.info('Starting trends analysis', { keywordCount: payload.keywords?.length, jobId: payload.job_id });
+    logger.info('Starting trends analysis', { industry: payload.industry, keywordCount: payload.keywords?.length, jobId: payload.job_id });
     
     try {
-      const raw = await doPost<unknown>(TRENDS_URL, payload);
+      // Send industry and keywords in body and as query params (keywords also as CSV) to be robust to API Gateway mappings
+      const raw = await doPost<unknown>(TRENDS_URL, {
+        industry: payload.industry,
+        keywords: payload.keywords,
+        job_id: payload.job_id,
+        s3_key: payload.s3_key,
+      }, {
+        query: {
+          industry: payload.industry,
+          keywords: payload.keywords,
+          keywords_csv: payload.keywords.join(','),
+        },
+        timeoutMs: TRENDS_TIMEOUT_MS,
+      });
     const parsed = trendsSchema.safeParse(raw);
     if (!parsed.success) {
       const anyRaw = raw as any;

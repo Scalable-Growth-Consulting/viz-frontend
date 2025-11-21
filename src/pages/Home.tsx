@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChartIcon, TrendingUp, Database, MessageSquare, ShoppingCart, Target, HeartPulse, Brain, Search, Sparkles, ArrowRight, MessageCircle, Crown, Globe } from 'lucide-react';
+import { BarChartIcon, TrendingUp, Database, MessageSquare, ShoppingCart, Target, HeartPulse, Brain, Search, Sparkles, ArrowRight, MessageCircle, Crown, Globe, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
@@ -258,11 +258,21 @@ type AgentItem = {
   access: 'public' | 'premium';
 };
 
+const TAG_OPTIONS = ['all', 'analytics', 'marketing', 'seo', 'dashboard', 'automation', 'insights', 'creative', 'brand', 'reddit'] as const;
+type TagFilter = typeof TAG_OPTIONS[number];
+
 // Agents Explorer: search + animated cards
 function AgentsExplorer({ isPrivileged }: { isPrivileged: boolean }) {
   const [query, setQuery] = useState('');
-  const [activeTag, setActiveTag] = useState<'all' | 'analytics' | 'marketing' | 'seo' | 'dashboard'>('all');
+  const [activeTag, setActiveTag] = useState<TagFilter>('all');
   const searchRef = useRef<HTMLInputElement>(null);
+  const tagScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollTags = (direction: 'left' | 'right') => {
+    if (!tagScrollRef.current) return;
+    const offset = direction === 'right' ? 160 : -160;
+    tagScrollRef.current.scrollBy({ left: offset, behavior: 'smooth' });
+  };
 
   const agents = useMemo<AgentItem[]>(() => [
     {
@@ -270,7 +280,7 @@ function AgentsExplorer({ isPrivileged }: { isPrivileged: boolean }) {
       name: 'BI Agent',
       subtitle: 'Business Intelligence',
       description: 'Chat with your data, build dashboards, and generate insights instantly.',
-      tags: ['BIZ', 'analytics', 'dashboard', 'data', 'chat'],
+      tags: ['BIZ', 'analytics', 'dashboard', 'data', 'chat', 'insights'],
       route: '/biz',
       gradient: 'from-viz-accent to-blue-600',
       icon: <MessageSquare className="w-6 h-6 text-white" />,
@@ -348,7 +358,9 @@ function AgentsExplorer({ isPrivileged }: { isPrivileged: boolean }) {
 
   const filtered = useMemo(() => {
     let base = visibleAgents;
-    if (activeTag !== 'all') base = base.filter(a => a.tags.includes(activeTag));
+    if (activeTag !== 'all') {
+      base = base.filter(a => a.tags.some(t => t.toLowerCase() === activeTag));
+    }
     const q = query.trim().toLowerCase();
     if (!q) return base;
     return base.filter(a => {
@@ -377,20 +389,49 @@ function AgentsExplorer({ isPrivileged }: { isPrivileged: boolean }) {
           />
         </div>
         {/* Quick filters */}
-        <div className="mt-3 flex flex-wrap gap-2 justify-center">
-          {(['all','analytics','marketing','seo','dashboard'] as const).map(tag => (
-            <button
-              key={tag}
-              onClick={() => setActiveTag(tag)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                activeTag === tag
-                  ? 'bg-gradient-to-r from-viz-accent to-blue-600 text-white border-transparent shadow'
-                  : 'bg-white/80 dark:bg-viz-medium/80 text-slate-700 dark:text-slate-300 border-slate-200/60 dark:border-viz-light/20 hover:bg-white'
-              }`}
+        <div className="mt-3 flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => scrollTags('left')}
+            className="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200/60 dark:border-viz-light/20 bg-white/70 dark:bg-viz-medium/70 text-slate-500 hover:text-viz-accent transition"
+            aria-label="Scroll tags left"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <div className="relative flex-1 max-w-xl">
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-white via-white/80 to-transparent dark:from-viz-medium/90 dark:via-viz-medium/70 rounded-l-full" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-white via-white/80 to-transparent dark:from-viz-medium/90 dark:via-viz-medium/70 rounded-r-full" />
+            <div
+              ref={tagScrollRef}
+              className="flex items-center gap-2 overflow-x-auto px-6 py-1 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+              role="tablist"
+              aria-label="Agent filters"
             >
-              {tag === 'all' ? 'All' : tag.charAt(0).toUpperCase() + tag.slice(1)}
-            </button>
-          ))}
+              {TAG_OPTIONS.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => setActiveTag(tag)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all whitespace-nowrap ${
+                    activeTag === tag
+                      ? 'bg-gradient-to-r from-viz-accent to-blue-600 text-white border-transparent shadow'
+                      : 'bg-white/80 dark:bg-viz-medium/80 text-slate-700 dark:text-slate-300 border-slate-200/60 dark:border-viz-light/20 hover:bg-white'
+                  }`}
+                  role="tab"
+                  aria-selected={activeTag === tag}
+                >
+                  {tag === 'all' ? 'All' : tag.charAt(0).toUpperCase() + tag.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => scrollTags('right')}
+            className="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200/60 dark:border-viz-light/20 bg-white/70 dark:bg-viz-medium/70 text-slate-500 hover:text-viz-accent transition"
+            aria-label="Scroll tags right"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
         <div className="mt-2 text-xs text-slate-500 dark:text-viz-text-secondary text-center">{filtered.length} results</div>
       </div>
