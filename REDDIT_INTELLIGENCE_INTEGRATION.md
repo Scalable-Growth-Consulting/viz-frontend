@@ -261,8 +261,7 @@ Add to your `.env` file:
 ```env
 # Reddit Intelligence Platform APIs
 VITE_REDDIT_API_BASE_URL=https://aios-reddit-functions.azurewebsites.net/api
-VITE_REDDIT_FUNCTION_KEY=Rq19PG-e681zKYC_beSih-F0GmXgALoIJBvnGeteqbLgAzFu7bjWsA==
-```
+VITE_REDDIT_FUNCTION_KEY=
 
 ### Optional Debug Mode
 

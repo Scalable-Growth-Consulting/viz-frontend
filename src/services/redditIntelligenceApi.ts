@@ -2,8 +2,11 @@ import { supabase } from '@/integrations/supabase/client';
 
 const BASE_URL = import.meta.env.VITE_REDDIT_API_BASE_URL || 
   'https://aios-reddit-functions.azurewebsites.net/api';
-const FUNCTION_KEY = import.meta.env.VITE_REDDIT_FUNCTION_KEY || 
-  'Rq19PG-e681zKYC_beSih-F0GmXgALoIJBvnGeteqbLgAzFu7bjWsA==';
+const FUNCTION_KEY = import.meta.env.VITE_REDDIT_FUNCTION_KEY;
+
+if (!FUNCTION_KEY) {
+  console.error('[RedditIntelligenceAPI] VITE_REDDIT_FUNCTION_KEY is not set in environment variables');
+}
 
 const DEBUG = import.meta.env.DEV || localStorage.getItem('REDDIT_INTELLIGENCE_DEBUG') === 'true';
 
