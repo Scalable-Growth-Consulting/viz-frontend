@@ -45,7 +45,7 @@ const INDUSTRIES = [
   'Food & Beverage',
 ];
 
-type Step = 'idle' | 'orchestrate' | 'trends' | 'polling' | 'done' | 'error';
+type Step = 'idle' | 'orchestrate' | 'orchestrate_polling' | 'trends' | 'polling' | 'done' | 'error';
 
 const KeywordTrendAgent: React.FC = () => {
   const { toast } = useToast();
@@ -76,12 +76,13 @@ const KeywordTrendAgent: React.FC = () => {
   const totalTimeout = 200000;
   const progress = useMemo(() => {
     if (step === 'idle') return 0;
-    if (step === 'orchestrate') return 20;
-    if (step === 'trends') return 40;
-    if (step === 'polling') return Math.min(95, 40 + Math.round((elapsedMs / totalTimeout) * 55));
+    if (step === 'orchestrate') return 10;
+    if (step === 'orchestrate_polling') return Math.min(30, 10 + Math.round((elapsedMs / totalTimeout) * 20));
+    if (step === 'trends') return 35;
+    if (step === 'polling') return Math.min(95, 35 + Math.round((elapsedMs / totalTimeout) * 60));
     if (step === 'done') return 100;
     return 0;
-  }, [step, elapsedMs]);
+  }, [step, elapsedMs, totalTimeout]);
 
   const startAnalysis = async () => {
     try {
@@ -123,7 +124,28 @@ const KeywordTrendAgent: React.FC = () => {
       let orch;
       try {
         orch = await keywordTrendApi.orchestrate({ industry, usp, key_services });
-        addDebugLog('success', `Orchestrate completed: ${orch.keywords?.length || 0} keywords generated`);
+        addDebugLog('success', `Orchestrate started: ${orch.status} (Job ID: ${orch.job_id || 'N/A'})`);
+        
+        // If orchestrate returns PENDING status with job_id, poll for completion
+        if (orch.status === 'PENDING' && orch.job_id) {
+          setStep('orchestrate_polling');
+          addDebugLog('info', `Polling orchestrate job ${orch.job_id}...`);
+          orch = await keywordTrendApi.pollOrchestrateUntilComplete(orch.job_id, {
+            intervalMs: 10000,
+            timeoutMs: totalTimeout,
+            maxConsecutiveErrors: 7,
+            onTick: (a, elapsed) => {
+              setAttempt(a);
+              setElapsedMs(elapsed);
+            },
+            onStatus: (s) => addDebugLog('info', `Orchestrate status: ${s}`),
+            signal: ctr.signal,
+            backoff: { enabled: true, factor: 1.5, maxIntervalMs: 30000, jitter: true },
+          });
+          addDebugLog('success', `Orchestrate completed: ${orch.keywords?.length || 0} keywords generated`);
+        } else if (orch.status === 'COMPLETED') {
+          addDebugLog('success', `Orchestrate completed immediately: ${orch.keywords?.length || 0} keywords generated`);
+        }
       } catch (orchError: any) {
         addDebugLog('error', `Orchestrate failed: ${orchError.message}`);
         // Continue with trends even if orchestrate fails
@@ -413,6 +435,7 @@ const KeywordTrendAgent: React.FC = () => {
                     className="text-xs text-slate-500 dark:text-slate-400"
                   >
                     {step === 'orchestrate' && 'Generating keywords based on your USP…'}
+                    {step === 'orchestrate_polling' && 'Processing keyword extraction…'}
                     {step === 'trends' && 'Starting market trend analysis…'}
                     {step === 'polling' && 'Crunching data and refining insights…'}
                   </motion.div>
@@ -557,6 +580,7 @@ const KeywordTrendAgent: React.FC = () => {
                           <div className="text-center space-y-1">
                             <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
                               {step === 'orchestrate' && 'Generating keywords…'}
+                              {step === 'orchestrate_polling' && 'Extracting keywords…'}
                               {step === 'trends' && 'Analyzing trends…'}
                               {step === 'polling' && 'Processing data…'}
                             </div>

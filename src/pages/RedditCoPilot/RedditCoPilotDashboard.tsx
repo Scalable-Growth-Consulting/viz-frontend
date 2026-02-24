@@ -141,7 +141,7 @@ const RedditCoPilotDashboard: React.FC = () => {
                     <CheckCircle className="w-4 h-4" />
                     Connected ✅
                   </div>
-                  <Link to="/mia/reddit-copilot/settings">
+                  <Link to="/reddit-geo-agent">
                     <Button variant="ghost" size="sm">
                       <SettingsIcon className="w-4 h-4" />
                     </Button>
@@ -268,7 +268,7 @@ const RedditCoPilotDashboard: React.FC = () => {
                   <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
                     Configure your USP, industry, and target keywords for personalized engagement.
                   </p>
-                  <Link to="/mia/reddit-copilot/client-setup">
+                  <Link to="/reddit-geo-agent">
                     <Button 
                       variant={!isProfileComplete ? "default" : "outline"} 
                       className="w-full"
@@ -302,7 +302,7 @@ const RedditCoPilotDashboard: React.FC = () => {
                   <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
                     Run the Reddit commenting agent and monitor live engagement activity.
                   </p>
-                  <Link to="/mia/reddit-copilot/agent-control">
+                  <Link to="/reddit-geo-agent">
                     <Button 
                       variant="default" 
                       className="w-full"
@@ -329,7 +329,7 @@ const RedditCoPilotDashboard: React.FC = () => {
                   <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
                     Manage your Reddit tokens and account settings securely.
                   </p>
-                  <Link to="/mia/reddit-copilot/settings">
+                  <Link to="/reddit-geo-agent">
                     <Button variant="outline" className="w-full">
                       <SettingsIcon className="w-4 h-4 mr-2" />
                       Settings

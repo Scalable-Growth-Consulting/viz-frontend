@@ -82,7 +82,7 @@ const AgentControl: React.FC = () => {
 
   const handleStartAgent = async () => {
     if (!isProfileComplete) {
-      navigate('/mia/reddit-copilot/client-setup');
+      navigate('/reddit-geo-agent');
       return;
     }
 
@@ -154,7 +154,7 @@ const AgentControl: React.FC = () => {
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
-              onClick={() => navigate('/mia/reddit-copilot')}
+              onClick={() => navigate('/reddit-geo-agent')}
               className="mr-2"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -226,7 +226,7 @@ const AgentControl: React.FC = () => {
                           Please complete your client profile first
                         </p>
                         <Button
-                          onClick={() => navigate('/mia/reddit-copilot/client-setup')}
+                          onClick={() => navigate('/reddit-geo-agent')}
                           variant="outline"
                           className="w-full"
                         >

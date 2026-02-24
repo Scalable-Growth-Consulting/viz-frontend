@@ -8,7 +8,7 @@ import { supabase, fetchWithRetry } from '../lib/supabase';
 import { mapErrorToToast } from '../lib/errorMessages';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import Header from '../components/Header';
+import TopNav from '@/components/TopNav';
 import ChatInterface from '../components/ChatInterface';
 import ResultsArea from '../components/ResultsArea';
 import GlobalFooter from '@/components/GlobalFooter';
@@ -486,7 +486,7 @@ const BIZ: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header />
+      <TopNav zone="biz" showData />
       {/* Status bar: right-aligned API status */}
       <div className="px-4 py-2 flex justify-end items-center">
         {renderApiStatus()}

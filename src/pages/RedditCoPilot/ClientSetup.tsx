@@ -82,7 +82,7 @@ const ClientSetup: React.FC = () => {
       });
 
       // Navigate back to main dashboard
-      navigate('/mia/reddit-copilot');
+      navigate('/reddit-geo-agent');
     } catch (error) {
       console.error('Failed to save profile:', error);
       toast({
@@ -128,7 +128,7 @@ const ClientSetup: React.FC = () => {
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
-              onClick={() => navigate('/mia/reddit-copilot')}
+              onClick={() => navigate('/reddit-geo-agent')}
               className="mr-2"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />

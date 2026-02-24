@@ -112,7 +112,7 @@ const Settings: React.FC = () => {
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
-              onClick={() => navigate('/mia/reddit-copilot')}
+              onClick={() => navigate('/reddit-geo-agent')}
               className="mr-2"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -171,7 +171,7 @@ const Settings: React.FC = () => {
                     Connect your Reddit account from the main dashboard to manage tokens here.
                   </p>
                   <Button
-                    onClick={() => navigate('/mia/reddit-copilot')}
+                    onClick={() => navigate('/reddit-geo-agent')}
                     variant="outline"
                   >
                     Go to Dashboard
@@ -334,7 +334,7 @@ const Settings: React.FC = () => {
                   </div>
                   <Button
                     variant="outline"
-                    onClick={() => navigate('/mia/reddit-copilot/client-setup')}
+                    onClick={() => navigate('/reddit-geo-agent')}
                   >
                     Edit Profile
                   </Button>

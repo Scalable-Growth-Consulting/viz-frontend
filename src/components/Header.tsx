@@ -37,51 +37,6 @@ const Header: React.FC<HeaderProps> = ({ showDataSection = true }) => {
               <SheetTitle className="text-left">Navigation</SheetTitle>
             </SheetHeader>
             <div className="mt-4 space-y-6">
-              {/* Zones */}
-              <div>
-                <h3 className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Zones</h3>
-                <div className="grid grid-cols-1 gap-3">
-                  <SheetClose asChild>
-                    <Link 
-                      to="/biz" 
-                      className="flex items-center justify-between bg-gradient-to-r from-viz-accent to-blue-600 text-white px-4 py-3 rounded-lg shadow hover:opacity-90 transition"
-                    >
-                      <div className="flex items-center gap-2">
-                        <BarChartIcon className="w-5 h-5" />
-                        <span className="font-medium">BI Zone</span>
-                      </div>
-                      <span className="opacity-80">→</span>
-                    </Link>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <Link 
-                      to="/riz/dufa" 
-                      className="flex items-center justify-between bg-gradient-to-r from-pink-500 to-viz-accent text-white px-4 py-3 rounded-lg shadow hover:opacity-90 transition"
-                    >
-                      <div className="flex items-center gap-2">
-                        <DatabaseIcon className="w-5 h-5" />
-                        <span className="font-medium">Retail Zone</span>
-                      </div>
-                      <span className="opacity-80">→</span>
-                    </Link>
-                  </SheetClose>
-                  <div className="flex items-center justify-between bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-3 rounded-lg shadow opacity-60 cursor-not-allowed">
-                    <div className="flex items-center gap-2">
-                      <BarChartIcon className="w-5 h-5" />
-                      <span className="font-medium">FIZ</span>
-                    </div>
-                    <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">Coming Soon</span>
-                  </div>
-                  <div className="flex items-center justify-between bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-4 py-3 rounded-lg shadow opacity-60 cursor-not-allowed">
-                    <div className="flex items-center gap-2">
-                      <HeartPulse className="w-5 h-5" />
-                      <span className="font-medium">HIZ</span>
-                    </div>
-                    <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">Coming Soon</span>
-                  </div>
-                </div>
-              </div>
-
               {/* Menu */}
               <div>
                 <h3 className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Menu</h3>
@@ -152,7 +107,7 @@ const Header: React.FC<HeaderProps> = ({ showDataSection = true }) => {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-viz-dark dark:text-white">Viz</h1>
-            <p className="hidden sm:block text-xs text-slate-500 dark:text-viz-text-secondary">virtual intelligence zone</p>
+            <p className="hidden sm:block text-xs text-slate-500 dark:text-viz-text-secondary">venture intelligence zone</p>
           </div>
         </Link>
       </div>
