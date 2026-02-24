@@ -1026,8 +1026,8 @@ const DUFA: React.FC<DUFAProps> = ({ showTopNav = true }) => {
       </div>
       {/* Floating navigation removed: Sidebar + StageTabs are primary navigators */}
       
-      {/* Global Footer */}
-      <GlobalFooter />
+      {/* Global Footer - only show if this is standalone page */}
+      {showTopNav && <GlobalFooter />}
     </div>
   );
 };

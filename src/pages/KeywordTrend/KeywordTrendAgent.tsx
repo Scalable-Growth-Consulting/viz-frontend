@@ -45,7 +45,7 @@ const INDUSTRIES = [
   'Food & Beverage',
 ];
 
-type Step = 'idle' | 'orchestrate' | 'trends' | 'polling' | 'done' | 'error';
+type Step = 'idle' | 'orchestrate' | 'orchestrate_polling' | 'trends' | 'polling' | 'done' | 'error';
 
 const KeywordTrendAgent: React.FC = () => {
   const { toast } = useToast();
@@ -76,12 +76,13 @@ const KeywordTrendAgent: React.FC = () => {
   const totalTimeout = 200000;
   const progress = useMemo(() => {
     if (step === 'idle') return 0;
-    if (step === 'orchestrate') return 20;
-    if (step === 'trends') return 40;
-    if (step === 'polling') return Math.min(95, 40 + Math.round((elapsedMs / totalTimeout) * 55));
+    if (step === 'orchestrate') return 10;
+    if (step === 'orchestrate_polling') return Math.min(30, 10 + Math.round((elapsedMs / totalTimeout) * 20));
+    if (step === 'trends') return 35;
+    if (step === 'polling') return Math.min(95, 35 + Math.round((elapsedMs / totalTimeout) * 60));
     if (step === 'done') return 100;
     return 0;
-  }, [step, elapsedMs]);
+  }, [step, elapsedMs, totalTimeout]);
 
   const startAnalysis = async () => {
     try {
@@ -123,7 +124,28 @@ const KeywordTrendAgent: React.FC = () => {
       let orch;
       try {
         orch = await keywordTrendApi.orchestrate({ industry, usp, key_services });
-        addDebugLog('success', `Orchestrate completed: ${orch.keywords?.length || 0} keywords generated`);
+        addDebugLog('success', `Orchestrate started: ${orch.status} (Job ID: ${orch.job_id || 'N/A'})`);
+        
+        // If orchestrate returns PENDING status with job_id, poll for completion
+        if (orch.status === 'PENDING' && orch.job_id) {
+          setStep('orchestrate_polling');
+          addDebugLog('info', `Polling orchestrate job ${orch.job_id}...`);
+          orch = await keywordTrendApi.pollOrchestrateUntilComplete(orch.job_id, {
+            intervalMs: 10000,
+            timeoutMs: totalTimeout,
+            maxConsecutiveErrors: 7,
+            onTick: (a, elapsed) => {
+              setAttempt(a);
+              setElapsedMs(elapsed);
+            },
+            onStatus: (s) => addDebugLog('info', `Orchestrate status: ${s}`),
+            signal: ctr.signal,
+            backoff: { enabled: true, factor: 1.5, maxIntervalMs: 30000, jitter: true },
+          });
+          addDebugLog('success', `Orchestrate completed: ${orch.keywords?.length || 0} keywords generated`);
+        } else if (orch.status === 'COMPLETED') {
+          addDebugLog('success', `Orchestrate completed immediately: ${orch.keywords?.length || 0} keywords generated`);
+        }
       } catch (orchError: any) {
         addDebugLog('error', `Orchestrate failed: ${orchError.message}`);
         // Continue with trends even if orchestrate fails
@@ -175,7 +197,10 @@ const KeywordTrendAgent: React.FC = () => {
       
       let start;
       try {
-        start = await keywordTrendApi.trendsStart({ keywords: kws.map((k) => k.term) });
+        start = await keywordTrendApi.trendsStart({
+          industry,
+          keywords: kws.map((k) => k.term),
+        });
         addDebugLog('success', `Trends started: ${start.status} (Job ID: ${start.job_id || 'N/A'})`);
       } catch (trendsError: any) {
         addDebugLog('error', `Trends failed: ${trendsError.message}`);
@@ -276,40 +301,36 @@ const KeywordTrendAgent: React.FC = () => {
   };
 
   return (
-    <div className="h-full w-full overflow-auto bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/30">
+    <div className="h-full w-full overflow-auto bg-slate-50 dark:bg-slate-950">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50 shadow-sm">
+      <div className="sticky top-0 z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <motion.div 
-              className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl shadow-lg"
-              whileHover={{ scale: 1.05, rotate: 5 }}
-              transition={{ type: "spring", stiffness: 400 }}
-            >
-              <TrendingUp className="w-6 h-6 text-white" />
-            </motion.div>
-            <div>
-              <h1 className="text-2xl font-black bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 shadow-md">
+              <TrendingUp className="w-5 h-5 text-white" />
+            </div>
+            <div className="space-y-0.5">
+              <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-50 tracking-tight">
                 Keyword & Trend Agent
               </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400">AI-Powered Market Intelligence</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">AI-powered market intelligence for enterprise teams</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             {result?.timeline?.length && (
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={downloadCSV}
-                className="border-indigo-200 hover:bg-indigo-50 dark:border-indigo-800 dark:hover:bg-indigo-950"
+                className="border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 text-xs"
               >
-                <Download className="w-4 h-4 mr-2" /> Export Data
+                <Download className="w-4 h-4 mr-2" /> Export CSV
               </Button>
             )}
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:px-8 space-y-6">
         {/* Error Alert */}
         <AnimatePresence>
           {error && (
@@ -332,21 +353,20 @@ const KeywordTrendAgent: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Input Form */}
-          <div className="lg:col-span-1 space-y-6">
-            <Card className="relative overflow-hidden border-slate-200/50 dark:border-slate-700/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-xl">
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-pink-500/5 pointer-events-none" />
-              <CardHeader className="relative">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg">
-                    <Target className="w-5 h-5 text-white" />
+          <div className="lg:col-span-1 space-y-4">
+            <Card className="relative overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm rounded-2xl">
+              <CardHeader className="relative pb-3">
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-200">
+                    <Target className="w-4 h-4" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg font-bold">Market Analysis</CardTitle>
-                    <CardDescription className="text-xs">Discover trending opportunities</CardDescription>
+                    <CardTitle className="text-sm font-semibold text-slate-900 dark:text-slate-50">Market Analysis</CardTitle>
+                    <CardDescription className="text-xs text-slate-500 dark:text-slate-400">Discover trending opportunities</CardDescription>
                   </div>
                 </div>
               </CardHeader>
-            <CardContent className="space-y-5">
+            <CardContent className="space-y-4 pt-0">
               <div className="space-y-2">
                 <Label htmlFor="industry">Industry</Label>
                 <Input
@@ -385,15 +405,15 @@ const KeywordTrendAgent: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 pt-1">
                 <Button
                   onClick={startAnalysis}
                   disabled={loading}
-                  className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-5"
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analyzing market signals…
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analyzing…
                     </>
                   ) : (
                     <>
@@ -409,27 +429,32 @@ const KeywordTrendAgent: React.FC = () => {
               <AnimatePresence>
                 {loading && (
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="text-sm text-slate-600 dark:text-slate-300"
+                    className="text-xs text-slate-500 dark:text-slate-400"
                   >
-                    {step === 'orchestrate' && 'Generating keywords…'}
-                    {step === 'trends' && 'Analyzing trend insights…'}
-                    {step === 'polling' && 'Crunching data... please wait.'}
+                    {step === 'orchestrate' && 'Generating keywords based on your USP…'}
+                    {step === 'orchestrate_polling' && 'Processing keyword extraction…'}
+                    {step === 'trends' && 'Starting market trend analysis…'}
+                    {step === 'polling' && 'Crunching data and refining insights…'}
                   </motion.div>
                 )}
               </AnimatePresence>
 
               {!!keywords.length && (
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">Generated Keywords</div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="text-xs font-medium text-slate-600 dark:text-slate-300">Generated Keywords</div>
+                  <div className="flex flex-wrap gap-1.5">
                     {keywords.slice(0, 40).map((k) => {
                       const size = k.weight || k.frequency || 1;
                       const scale = Math.min(1.6, 0.9 + size / 10);
                       return (
-                        <Badge key={k.term} className="bg-indigo-50 text-indigo-700 border border-indigo-200" style={{ transform: `scale(${scale})` }}>
+                        <Badge
+                          key={k.term}
+                          className="bg-slate-50 text-slate-700 border border-slate-200 rounded-full"
+                          style={{ transform: `scale(${scale})` }}
+                        >
                           {k.term}
                         </Badge>
                       );
@@ -442,24 +467,33 @@ const KeywordTrendAgent: React.FC = () => {
 
             {/* Debug Panel */}
             {debugLogs.length > 0 && (
-              <Card className="border-slate-200/50 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/50">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-slate-600" />
-                    <CardTitle className="text-sm">Debug Log</CardTitle>
+              <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm rounded-2xl">
+                <CardHeader className="py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-slate-500" />
+                      <CardTitle className="text-xs font-medium text-slate-700 dark:text-slate-200">Debug Log</CardTitle>
+                    </div>
+                    <span className="text-[10px] text-slate-400">Last {debugLogs.length} events</span>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-1 max-h-40 overflow-y-auto text-xs font-mono">
+                <CardContent className="pt-0 pb-3">
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto text-[11px] font-mono">
                     {debugLogs.map((log, idx) => (
-                      <div key={idx} className={`flex gap-2 ${
-                        log.level === 'error' ? 'text-red-600' : 
-                        log.level === 'warn' ? 'text-yellow-600' : 
-                        log.level === 'success' ? 'text-green-600' : 
-                        'text-slate-600'
-                      }`}>
-                        <span className="text-slate-400">{log.timestamp}</span>
-                        <span>{log.message}</span>
+                      <div
+                        key={idx}
+                        className={`flex gap-2 items-baseline ${
+                          log.level === 'error'
+                            ? 'text-red-600'
+                            : log.level === 'warn'
+                            ? 'text-amber-600'
+                            : log.level === 'success'
+                            ? 'text-emerald-600'
+                            : 'text-slate-600'
+                        }`}
+                      >
+                        <span className="text-[10px] text-slate-400 min-w-[52px]">{log.timestamp}</span>
+                        <span className="truncate">{log.message}</span>
                       </div>
                     ))}
                   </div>
@@ -469,28 +503,27 @@ const KeywordTrendAgent: React.FC = () => {
           </div>
 
           {/* Right Column - Results */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4">
             {/* Main Chart */}
-            <Card className="relative overflow-hidden border-slate-200/50 dark:border-slate-700/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-xl">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5 pointer-events-none" />
+            <Card className="relative overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm rounded-2xl">
               <CardHeader className="relative">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl shadow-lg">
-                      <TrendingUp className="w-5 h-5 text-white" />
+                    <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-200">
+                      <TrendingUp className="w-4 h-4" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg font-bold">Trend Timeline</CardTitle>
-                      <CardDescription className="text-xs">Real-time market trends</CardDescription>
+                      <CardTitle className="text-sm font-semibold text-slate-900 dark:text-slate-50">Trend Timeline</CardTitle>
+                      <CardDescription className="text-xs text-slate-500 dark:text-slate-400">Real-time market trends</CardDescription>
                     </div>
                   </div>
                   {step === 'polling' && (
                     <div className="flex items-center gap-3 text-sm">
-                      <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">
+                      <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40">
                         <Activity className="w-3 h-3 mr-1 animate-pulse" />
                         Attempt #{attempt}
                       </Badge>
-                      <Badge variant="outline" className="border-purple-200 bg-purple-50 text-purple-700">
+                      <Badge variant="outline" className="border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950/40">
                         {Math.floor(elapsedMs / 1000)}s
                       </Badge>
                       <Button size="sm" variant="outline" onClick={cancelPolling} className="h-8">
@@ -538,28 +571,25 @@ const KeywordTrendAgent: React.FC = () => {
                       </LineChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="h-full flex flex-col items-center justify-center gap-4">
+                    <div className="h-full flex flex-col items-center justify-center gap-3">
                       {loading ? (
                         <>
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                            className="p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg"
-                          >
-                            <BarChart3 className="w-8 h-8 text-white" />
-                          </motion.div>
-                          <div className="text-center space-y-2">
-                            <div className="text-lg font-semibold text-slate-700 dark:text-slate-300">
-                              {step === 'orchestrate' && 'Generating keywords...'}
-                              {step === 'trends' && 'Analyzing trends...'}
-                              {step === 'polling' && 'Processing data...'}
+                          <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-200">
+                            <BarChart3 className="w-6 h-6" />
+                          </div>
+                          <div className="text-center space-y-1">
+                            <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                              {step === 'orchestrate' && 'Generating keywords…'}
+                              {step === 'orchestrate_polling' && 'Extracting keywords…'}
+                              {step === 'trends' && 'Analyzing trends…'}
+                              {step === 'polling' && 'Processing data…'}
                             </div>
-                            <div className="text-sm text-slate-500">Status: {status}</div>
-                            <div className="w-64 mx-auto">
-                              <Progress value={progress} className="h-2" />
+                            <div className="text-xs text-slate-500">Status: {status}</div>
+                            <div className="w-48 mx-auto">
+                              <Progress value={progress} className="h-1.5" />
                             </div>
                             {step === 'polling' && (
-                              <div className="text-xs text-slate-400">
+                              <div className="text-[11px] text-slate-400">
                                 Attempt #{attempt} • {Math.floor(elapsedMs / 1000)}s elapsed
                               </div>
                             )}
@@ -567,8 +597,8 @@ const KeywordTrendAgent: React.FC = () => {
                         </>
                       ) : (
                         <div className="text-center space-y-3">
-                          <div className="p-4 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-2xl inline-block">
-                            <Eye className="w-8 h-8 text-slate-400" />
+                          <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800 inline-flex items-center justify-center">
+                            <Eye className="w-7 h-7 text-slate-400" />
                           </div>
                           <div className="text-sm text-slate-500">No data yet. Start an analysis to see trends.</div>
                         </div>
@@ -582,14 +612,14 @@ const KeywordTrendAgent: React.FC = () => {
             {/* Insights Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Top Emerging */}
-              <motion.div whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 300 }}>
-                <Card className="h-full border-green-200/50 dark:border-green-800/50 bg-gradient-to-br from-green-50/50 to-emerald-50/50 dark:from-green-950/20 dark:to-emerald-950/20">
+              <motion.div whileHover={{ y: -2 }} transition={{ type: "spring", stiffness: 280 }}>
+                <Card className="h-full border border-emerald-100 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/20 rounded-2xl">
                   <CardHeader>
                     <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-green-500 rounded-lg">
+                      <div className="p-1.5 bg-emerald-500 rounded-lg">
                         <ArrowRight className="w-4 h-4 text-white rotate-[-45deg]" />
                       </div>
-                      <CardTitle className="text-sm font-bold text-green-900 dark:text-green-100">Top Emerging</CardTitle>
+                      <CardTitle className="text-xs font-semibold text-emerald-900 dark:text-emerald-100">Top Emerging</CardTitle>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -600,13 +630,13 @@ const KeywordTrendAgent: React.FC = () => {
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: idx * 0.05 }}
-                          className="px-3 py-2 bg-white dark:bg-green-950/30 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 rounded-lg text-sm font-medium shadow-sm"
+                          className="px-3 py-2 bg-white dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-100 rounded-lg text-xs font-medium shadow-sm"
                         >
                           {i}
                         </motion.div>
                       ))}
                       {!((result?.insights?.topEmerging || insightTopEmerging) || []).length && (
-                        <div className="text-slate-400 text-sm text-center py-4">No data yet</div>
+                        <div className="text-slate-400 text-xs text-center py-4">No data yet</div>
                       )}
                     </div>
                   </CardContent>
@@ -614,14 +644,14 @@ const KeywordTrendAgent: React.FC = () => {
               </motion.div>
 
               {/* Declining */}
-              <motion.div whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 300 }}>
-                <Card className="h-full border-rose-200/50 dark:border-rose-800/50 bg-gradient-to-br from-rose-50/50 to-red-50/50 dark:from-rose-950/20 dark:to-red-950/20">
+              <motion.div whileHover={{ y: -2 }} transition={{ type: "spring", stiffness: 280 }}>
+                <Card className="h-full border border-rose-100 dark:border-rose-900/60 bg-rose-50/60 dark:bg-rose-950/20 rounded-2xl">
                   <CardHeader>
                     <div className="flex items-center gap-2">
                       <div className="p-1.5 bg-rose-500 rounded-lg">
                         <ArrowRight className="w-4 h-4 text-white rotate-[45deg]" />
                       </div>
-                      <CardTitle className="text-sm font-bold text-rose-900 dark:text-rose-100">Declining</CardTitle>
+                      <CardTitle className="text-xs font-semibold text-rose-900 dark:text-rose-100">Declining</CardTitle>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -632,13 +662,13 @@ const KeywordTrendAgent: React.FC = () => {
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: idx * 0.05 }}
-                          className="px-3 py-2 bg-white dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 rounded-lg text-sm font-medium shadow-sm"
+                          className="px-3 py-2 bg-white dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 rounded-lg text-xs font-medium shadow-sm"
                         >
                           {i}
                         </motion.div>
                       ))}
                       {!(result?.insights?.declining || []).length && (
-                        <div className="text-slate-400 text-sm text-center py-4">No data yet</div>
+                        <div className="text-slate-400 text-xs text-center py-4">No data yet</div>
                       )}
                     </div>
                   </CardContent>
@@ -646,14 +676,14 @@ const KeywordTrendAgent: React.FC = () => {
               </motion.div>
 
               {/* Momentum Index */}
-              <motion.div whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 300 }}>
-                <Card className="h-full border-indigo-200/50 dark:border-indigo-800/50 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 dark:from-indigo-950/20 dark:to-purple-950/20">
+              <motion.div whileHover={{ y: -2 }} transition={{ type: "spring", stiffness: 280 }}>
+                <Card className="h-full border border-indigo-100 dark:border-indigo-900/60 bg-indigo-50/60 dark:bg-indigo-950/20 rounded-2xl">
                   <CardHeader>
                     <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg">
+                      <div className="p-1.5 bg-indigo-500 rounded-lg">
                         <Zap className="w-4 h-4 text-white" />
                       </div>
-                      <CardTitle className="text-sm font-bold text-indigo-900 dark:text-indigo-100">Momentum Index</CardTitle>
+                      <CardTitle className="text-xs font-semibold text-indigo-900 dark:text-indigo-100">Momentum Index</CardTitle>
                     </div>
                   </CardHeader>
                   <CardContent className="flex flex-col items-center justify-center py-8">

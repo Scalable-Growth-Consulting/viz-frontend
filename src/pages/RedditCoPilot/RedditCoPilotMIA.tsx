@@ -16,7 +16,7 @@ const RedditCoPilotMIA: React.FC = () => {
 
   const handleRunAgent = () => {
     // Navigate to agent control panel
-    window.location.href = '/mia/reddit-copilot/agent-control';
+    window.location.href = '/reddit-geo-agent';
   };
 
   return (
@@ -103,7 +103,7 @@ const RedditCoPilotMIA: React.FC = () => {
                         <Play className="w-4 h-4 mr-2" />
                         Run Agent
                       </Button>
-                      <Link to="/mia/reddit-copilot/settings">
+                      <Link to="/reddit-geo-agent">
                         <Button variant="outline">
                           <SettingsIcon className="w-4 h-4 mr-2" />
                           Settings
@@ -176,13 +176,13 @@ const RedditCoPilotMIA: React.FC = () => {
                   Set up your client profile, connect your Reddit account, and start automating authentic engagement across Reddit communities.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link to="/mia/reddit-copilot/client-setup">
+                  <Link to="/reddit-geo-agent">
                     <Button variant="outline" className="w-full sm:w-auto">
                       <User className="w-4 h-4 mr-2" />
                       Setup Profile
                     </Button>
                   </Link>
-                  <Link to="/mia/reddit-copilot/agent-control">
+                  <Link to="/reddit-geo-agent">
                     <Button className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white w-full sm:w-auto">
                       <Zap className="w-4 h-4 mr-2" />
                       Agent Control

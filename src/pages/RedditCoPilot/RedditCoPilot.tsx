@@ -18,7 +18,7 @@ const RedditCoPilot: React.FC = () => {
 
   const handleRunAgent = () => {
     // Navigate to agent control panel
-    window.location.href = '/mia/reddit-copilot/agent-control';
+    window.location.href = '/reddit-geo-agent';
   };
 
   return (
@@ -93,7 +93,7 @@ const RedditCoPilot: React.FC = () => {
                         <Play className="w-4 h-4 mr-2" />
                         Run Agent
                       </Button>
-                      <Link to="/mia/reddit-copilot/settings">
+                      <Link to="/reddit-geo-agent">
                         <Button variant="outline" size="sm">
                           <SettingsIcon className="w-4 h-4" />
                         </Button>
@@ -158,7 +158,7 @@ const RedditCoPilot: React.FC = () => {
               className="mt-12 text-center"
             >
               <div className="inline-flex items-center gap-4">
-                <Link to="/mia/reddit-copilot/client-setup">
+                <Link to="/reddit-geo-agent">
                   <Button variant="outline" className="mr-4">
                     Setup Profile
                   </Button>
