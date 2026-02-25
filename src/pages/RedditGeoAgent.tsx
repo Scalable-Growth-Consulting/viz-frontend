@@ -264,14 +264,21 @@ const RedditGeoAgent: React.FC = () => {
     
     try {
       const analysisText = `Business: ${businessContext}\nTarget Audience: ${targetAudience}\nGoal: ${goalLabel[goal]}`;
-      
-      const result = await redditIntelligenceApi.analyzeBusinessContent({
+      const payload = {
         text: analysisText,
+        website: websiteUrl.trim(),
+        region: targetRegion.trim(),
+        description: businessContext.trim(),
+        idealBuyer: targetAudience.trim(),
+        goal: goalLabel[goal],
+        competitors: competitorSet.trim(),
         context: {
           industry: businessContext.split(' ')[0],
-          keywords: targetAudience.split(',').map(k => k.trim()),
+          keywords: targetAudience.split(',').map((k) => k.trim()).filter(Boolean),
         },
-      });
+      };
+      
+      const result = await redditIntelligenceApi.analyzeBusinessContent(payload);
       
       setAnalyzed(true);
       toast({ 
@@ -311,9 +318,15 @@ const RedditGeoAgent: React.FC = () => {
       const result = await redditIntelligenceApi.analyzeBusinessContent({
         text: thread.title,
         subreddit: thread.subreddit.replace('r/', ''),
+        website: websiteUrl.trim(),
+        region: targetRegion.trim(),
+        description: businessContext.trim(),
+        idealBuyer: targetAudience.trim(),
+        goal: goalLabel[goal],
+        competitors: competitorSet.trim(),
         context: {
           industry: businessContext || 'Technology',
-          keywords: targetAudience.split(',').map(k => k.trim()),
+          keywords: targetAudience.split(',').map((k) => k.trim()).filter(Boolean),
         },
       });
       
