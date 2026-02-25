@@ -8,8 +8,12 @@ import {
   CheckCircle2,
   Clock3,
   Copy,
+  Download,
+  FileText,
   Flame,
   Gauge,
+  Info,
+  Lock,
   Radar,
   Search,
   Shield,
@@ -29,6 +33,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -38,6 +43,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Sheet,
   SheetContent,
@@ -230,6 +236,13 @@ const RedditGeoAgent: React.FC = () => {
   const [generatingComment, setGeneratingComment] = useState(false);
   const [analysisData, setAnalysisData] = useState<BusinessAnalysisResponse['data'] | null>(null);
   const [devMode, setDevMode] = useState(false);
+  
+  // Tab navigation state
+  const [activeTab, setActiveTab] = useState('stage1');
+  const [stage1Complete, setStage1Complete] = useState(false);
+  const [stage2Complete, setStage2Complete] = useState(false);
+  const [stage3Complete, setStage3Complete] = useState(false);
+  const [toolstackOpen, setToolstackOpen] = useState(false);
 
   const [analytics, setAnalytics] = useState<AnalyticsResponse | null>(null);
   const [accountRisk, setAccountRisk] = useState<AccountRiskResponse | null>(null);
@@ -398,6 +411,8 @@ const RedditGeoAgent: React.FC = () => {
       }
 
       setAnalysisData(stage1);
+      setStage1Complete(true);
+      setTimeout(() => setActiveTab('stage2'), 1500);
 
       // Stage 2: Trigger subreddit scan with enriched context
       const priorityClusters = (stage1.keywordClusters || [])
@@ -420,10 +435,12 @@ const RedditGeoAgent: React.FC = () => {
             },
           });
 
+          setStage2Complete(true);
           toast({
             title: 'Subreddit scan complete',
             description: `${scanResult.metadata?.totalFound ?? 0} subreddits ranked${scanResult.data?.[0]?.subreddit ? ` | Top: r/${scanResult.data[0].subreddit}` : ''}`,
           });
+          setTimeout(() => setActiveTab('stage3'), 1500);
         } catch (scanError) {
           console.warn('Stage 2 subreddit scan failed (non-blocking):', scanError);
         }
@@ -483,6 +500,7 @@ const RedditGeoAgent: React.FC = () => {
   const openCommentDrawer = async (thread: ThreadRow) => {
     setSelectedThread(thread);
     setDrawerOpen(true);
+    if (!stage3Complete) setStage3Complete(true);
     
     setGeneratingComment(true);
     try {
@@ -600,562 +618,932 @@ const RedditGeoAgent: React.FC = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">Reddit GEO Agent</h1>
+                    <div className="flex items-center gap-3">
+                      <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">Reddit GEO Agent</h1>
+                      <Dialog open={toolstackOpen} onOpenChange={setToolstackOpen}>
+                        <DialogTrigger asChild>
+                          <button className="p-2 rounded-full hover:bg-slate-100 transition-colors" title="View VIZ Reddit Toolstack">
+                            <Info className="w-5 h-5 text-slate-500" />
+                          </button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle className="text-2xl flex items-center gap-2">
+                              <Sparkles className="w-6 h-6 text-viz-accent" />
+                              VIZ Reddit Toolstack
+                            </DialogTitle>
+                            <DialogDescription>
+                              Designed from proven Reddit marketing patterns: audience research, timing optimization, safety controls, and AI-assisted response quality.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid gap-4 md:grid-cols-2 mt-6">
+                            {toolModules.map((module) => {
+                              const Icon = module.icon;
+                              return (
+                                <div key={module.title} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <div className="text-sm font-semibold text-slate-900">{module.title}</div>
+                                      <div className="text-xs text-slate-500 mt-1">Solves: {module.painPoint}</div>
+                                    </div>
+                                    <div className="h-9 w-9 rounded-md bg-slate-100 grid place-items-center flex-shrink-0">
+                                      <Icon className={`h-4 w-4 ${module.iconClass}`} />
+                                    </div>
+                                  </div>
+                                  <p className="text-sm text-slate-600 mt-3">{module.capability}</p>
+                                  <div className="mt-3 text-xs inline-flex items-center rounded-full border border-slate-200 px-2.5 py-1 text-cyan-700 bg-cyan-100">
+                                    {module.impact}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                     <p className="text-slate-600 max-w-4xl">
                       Built in VIZ style: signal-heavy, conversion-aware, and moderation-safe. Discover the right Reddit conversations,
                       prioritize by intent and risk, and ship human-approved replies with confidence.
                     </p>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <MetricCard
-                      title="Opportunity Intelligence Score"
-                      value={`${opportunityScore || 77}/100`}
-                      icon={Target}
-                      variant="cyan"
-                    />
-                    <MetricCard
-                      title="Generative Visibility Score"
-                      value={`${visibilityScore || 82}/100`}
-                      icon={Radar}
-                      variant="indigo"
-                    />
-                    <MetricCard
-                      title="Estimated Monthly Opportunity"
-                      value={`${Math.max(120, opportunityScore * 3)} leads`}
-                      icon={Flame}
-                      variant="orange"
-                    />
+                  {/* Progress Tracker */}
+                  <div className="flex items-center justify-between gap-2 p-4 rounded-lg border border-slate-200 bg-slate-50/50">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-all ${stage1Complete ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
+                        {stage1Complete ? <CheckCircle2 className="w-4 h-4" /> : <div className="w-4 h-4 rounded-full border-2 border-current" />}
+                        <span className="text-xs font-medium">Stage 1</span>
+                      </div>
+                      <div className={`h-0.5 flex-1 transition-all ${stage1Complete ? 'bg-emerald-300' : 'bg-slate-300'}`} />
+                      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-all ${stage2Complete ? 'bg-emerald-100 text-emerald-700' : stage1Complete ? 'bg-cyan-100 text-cyan-700' : 'bg-slate-200 text-slate-600'}`}>
+                        {stage2Complete ? <CheckCircle2 className="w-4 h-4" /> : stage1Complete ? <div className="w-4 h-4 rounded-full border-2 border-current" /> : <Lock className="w-4 h-4" />}
+                        <span className="text-xs font-medium">Stage 2</span>
+                      </div>
+                      <div className={`h-0.5 flex-1 transition-all ${stage2Complete ? 'bg-emerald-300' : 'bg-slate-300'}`} />
+                      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-all ${stage3Complete ? 'bg-emerald-100 text-emerald-700' : stage2Complete ? 'bg-cyan-100 text-cyan-700' : 'bg-slate-200 text-slate-600'}`}>
+                        {stage3Complete ? <CheckCircle2 className="w-4 h-4" /> : stage2Complete ? <div className="w-4 h-4 rounded-full border-2 border-current" /> : <Lock className="w-4 h-4" />}
+                        <span className="text-xs font-medium">Stage 3</span>
+                      </div>
+                      <div className={`h-0.5 flex-1 transition-all ${stage3Complete ? 'bg-emerald-300' : 'bg-slate-300'}`} />
+                      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-all ${stage3Complete ? 'bg-violet-100 text-violet-700' : 'bg-slate-200 text-slate-600'}`}>
+                        {stage3Complete ? <FileText className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                        <span className="text-xs font-medium">Report</span>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             </motion.div>
 
-            {analysisData && scanContext && (
-              <motion.div
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="space-y-6"
-              >
-                <Card className="border-slate-200 bg-gradient-to-br from-white to-slate-50/50 shadow-xl overflow-hidden">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-cyan-400/10 to-blue-500/10 rounded-full blur-3xl" />
-                  <CardHeader className="relative">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-xl flex items-center gap-2 text-slate-900">
-                        <Brain className="w-5 h-5 text-cyan-600" />
-                        Opportunity Intelligence
-                      </CardTitle>
-                      <Badge className="bg-emerald-100 text-emerald-700 border border-emerald-200">Stage 1 Complete</Badge>
-                    </div>
-                    <CardDescription className="text-slate-600">
-                      AI-powered market analysis • {analysisData.nicheProfile.primaryNiche}
-                    </CardDescription>
+            {/* Tabbed Workflow */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+              <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-white border border-slate-200 shadow-sm">
+                <TabsTrigger 
+                  value="stage1" 
+                  className="data-[state=active]:bg-cyan-50 data-[state=active]:text-cyan-900 py-3 px-4 flex flex-col items-start gap-1"
+                >
+                  <div className="flex items-center gap-2 font-semibold text-sm">
+                    <Brain className="w-4 h-4" />
+                    <span>Business Intelligence</span>
+                  </div>
+                  <span className="text-xs text-slate-500 font-normal">Stage 1: Define & analyze</span>
+                </TabsTrigger>
+                
+                <TabsTrigger 
+                  value="stage2" 
+                  disabled={!stage1Complete}
+                  className="data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-900 py-3 px-4 flex flex-col items-start gap-1 disabled:opacity-40"
+                >
+                  <div className="flex items-center gap-2 font-semibold text-sm">
+                    <Target className="w-4 h-4" />
+                    <span>Subreddit Discovery</span>
+                  </div>
+                  <span className="text-xs text-slate-500 font-normal">Stage 2: Ranked communities</span>
+                </TabsTrigger>
+                
+                <TabsTrigger 
+                  value="stage3" 
+                  disabled={!stage2Complete}
+                  className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-900 py-3 px-4 flex flex-col items-start gap-1 disabled:opacity-40"
+                >
+                  <div className="flex items-center gap-2 font-semibold text-sm">
+                    <Zap className="w-4 h-4" />
+                    <span>Thread Targeting</span>
+                  </div>
+                  <span className="text-xs text-slate-500 font-normal">Stage 3: Opportunities & AI</span>
+                </TabsTrigger>
+                
+                <TabsTrigger 
+                  value="report" 
+                  disabled={!stage3Complete}
+                  className="data-[state=active]:bg-violet-50 data-[state=active]:text-violet-900 py-3 px-4 flex flex-col items-start gap-1 disabled:opacity-40"
+                >
+                  <div className="flex items-center gap-2 font-semibold text-sm">
+                    <FileText className="w-4 h-4" />
+                    <span>Executive Report</span>
+                  </div>
+                  <span className="text-xs text-slate-500 font-normal">Summary & export</span>
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Stage 1: Business Intelligence */}
+              <TabsContent value="stage1" className="space-y-6">
+                <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+                  {/* Main Content */}
+                  <div className="space-y-6">
+                    {/* Purpose Section */}
+                    <Card className="border-cyan-200 bg-gradient-to-br from-cyan-50 to-white">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg flex items-center gap-2 text-cyan-900">
+                          <Brain className="w-5 h-5" />
+                          Stage 1: Business Intelligence
+                        </CardTitle>
+                        <CardDescription className="text-slate-600">
+                          Define your business context and analyze market opportunity. We'll identify your niche, target personas, priority keywords, and recommended subreddits.
+                        </CardDescription>
+                      </CardHeader>
+                    </Card>
+
+                    {/* Controls Section */}
+                    <Card className="border-slate-200 bg-white shadow-lg">
+                      <CardHeader>
+                        <CardTitle className="text-base text-slate-900">Business Context</CardTitle>
+                        <CardDescription>Provide your business details to calibrate discovery</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <Input value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} placeholder="Website URL" className="bg-white border-slate-200" />
+                          <Input value={targetRegion} onChange={(e) => setTargetRegion(e.target.value)} placeholder="Target region" className="bg-white border-slate-200" />
+                        </div>
+                        <Input
+                          value={competitorSet}
+                          onChange={(e) => setCompetitorSet(e.target.value)}
+                          placeholder="Top competitors (comma-separated): competitor1.com, competitor2.com"
+                          className="bg-white border-slate-200"
+                        />
+                        <Textarea value={businessContext} onChange={(e) => setBusinessContext(e.target.value)} placeholder="What do you sell? Why do customers buy from you?" className="min-h-[90px] bg-white border-slate-200" />
+                        <Textarea value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="Who is your ideal buyer?" className="min-h-[90px] bg-white border-slate-200" />
+                        <p className="text-xs text-slate-500">Tip: include 2-3 differentiators so the AI drafts match your positioning and tone.</p>
+                        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                          <Select value={goal} onValueChange={(value: Goal) => setGoal(value)}>
+                            <SelectTrigger className="bg-white border-slate-200">
+                              <SelectValue placeholder="Select goal" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="lead_generation">Lead Generation</SelectItem>
+                              <SelectItem value="authority">Authority Building</SelectItem>
+                              <SelectItem value="seo_visibility">SEO Visibility</SelectItem>
+                              <SelectItem value="geo_visibility">GEO Visibility</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button onClick={runScan} disabled={scanning} className="bg-cyan-600 hover:bg-cyan-500 text-white disabled:opacity-50">
+                            {scanning ? 'Scanning...' : 'Run Opportunity Scan'} <ArrowRight className="w-4 h-4 ml-2" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Output Section */}
+                    {analysisData && scanContext && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 18 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 0.1 }}
+                        className="space-y-6"
+                      >
+                        <Card className="border-slate-200 bg-gradient-to-br from-white to-slate-50/50 shadow-xl overflow-hidden">
+                          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-cyan-400/10 to-blue-500/10 rounded-full blur-3xl" />
+                          <CardHeader className="relative">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-xl flex items-center gap-2 text-slate-900">
+                                <Brain className="w-5 h-5 text-cyan-600" />
+                                Opportunity Intelligence
+                              </CardTitle>
+                              <Badge className="bg-emerald-100 text-emerald-700 border border-emerald-200">Stage 1 Complete</Badge>
+                            </div>
+                            <CardDescription className="text-slate-600">
+                              AI-powered market analysis • {analysisData.nicheProfile.primaryNiche}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="relative space-y-6">
+                            <div className="grid gap-4 md:grid-cols-4">
+                              <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-medium text-emerald-700 uppercase tracking-wide">Market Demand</span>
+                                  <TrendingUp className="w-4 h-4 text-emerald-600" />
+                                </div>
+                                <div className="text-2xl font-bold text-emerald-900">
+                                  {analysisData.opportunityBaselineScore?.factors?.marketDemand ?? 'N/A'}
+                                </div>
+                                <div className="mt-1 text-xs text-emerald-600">High willingness to pay</div>
+                              </div>
+
+                              <div className="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-medium text-amber-700 uppercase tracking-wide">Competition</span>
+                                  <Flame className="w-4 h-4 text-amber-600" />
+                                </div>
+                                <div className="text-2xl font-bold text-amber-900">
+                                  {analysisData.opportunityBaselineScore?.factors?.competitionLevel ?? 'N/A'}
+                                </div>
+                                <div className="mt-1 text-xs text-amber-600">Moderate friction</div>
+                              </div>
+
+                              <div className="rounded-xl border border-cyan-200 bg-gradient-to-br from-cyan-50 to-white p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-medium text-cyan-700 uppercase tracking-wide">Reddit Presence</span>
+                                  <Radar className="w-4 h-4 text-cyan-600" />
+                                </div>
+                                <div className="text-2xl font-bold text-cyan-900">
+                                  {analysisData.opportunityBaselineScore?.factors?.redditPresence ?? 'N/A'}
+                                </div>
+                                <div className="mt-1 text-xs text-cyan-600">Emerging opportunity</div>
+                              </div>
+
+                              <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-medium text-violet-700 uppercase tracking-wide">Conversion</span>
+                                  <Target className="w-4 h-4 text-violet-600" />
+                                </div>
+                                <div className="text-2xl font-bold text-violet-900">
+                                  {analysisData.opportunityBaselineScore?.factors?.conversionPotential ?? 'N/A'}
+                                </div>
+                                <div className="mt-1 text-xs text-violet-600">Strong potential</div>
+                              </div>
+                            </div>
+
+                            {analysisData.opportunityBaselineScore?.reasoning && (
+                              <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4">
+                                <div className="text-xs font-medium text-slate-700 mb-2 uppercase tracking-wide">Strategic Reasoning</div>
+                                <p className="text-sm text-slate-600 leading-relaxed">{analysisData.opportunityBaselineScore.reasoning}</p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+
+                        <div className="grid gap-6 lg:grid-cols-2">
+                          <Card className="border-slate-200 bg-white shadow-lg">
+                            <CardHeader>
+                              <CardTitle className="text-lg flex items-center gap-2 text-slate-900">
+                                <Users className="w-5 h-5 text-indigo-600" />
+                                Persona Strategy
+                              </CardTitle>
+                              <CardDescription className="text-slate-600">Decision maker profile & engagement approach</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                              {analysisData.personaModel?.demographics && (
+                                <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-3">
+                                  <div className="text-xs font-semibold text-indigo-700 mb-2 uppercase tracking-wide">Primary Decision Maker</div>
+                                  <div className="text-sm font-medium text-slate-900">
+                                    {analysisData.personaModel.demographics.occupation || 'Technical Leader'}
+                                  </div>
+                                  <div className="text-xs text-slate-600 mt-1">
+                                    {analysisData.personaModel.demographics.age && `${analysisData.personaModel.demographics.age} • `}
+                                    {analysisData.personaModel.demographics.location || 'United States'}
+                                  </div>
+                                </div>
+                              )}
+
+                              {analysisData.personaModel?.painPoints && analysisData.personaModel.painPoints.length > 0 && (
+                                <div>
+                                  <div className="text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wide">Key Pain Points</div>
+                                  <div className="space-y-2">
+                                    {analysisData.personaModel.painPoints.slice(0, 3).map((pain, idx) => (
+                                      <div key={idx} className="flex items-start gap-2 text-sm text-slate-600">
+                                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                                        <span>{pain}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {scanContext.engagementStrategy && (
+                                <div className="rounded-lg border border-emerald-100 bg-emerald-50/50 p-3 space-y-2">
+                                  <div className="text-xs font-semibold text-emerald-700 mb-2 uppercase tracking-wide">Recommended Engagement</div>
+                                  <div className="grid gap-2 text-xs">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-slate-600">Comment Style:</span>
+                                      <span className="font-medium text-slate-900">{scanContext.engagementStrategy.commentStyle}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-slate-600">CTA Approach:</span>
+                                      <span className="font-medium text-slate-900">{scanContext.engagementStrategy.ctaStyle}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-slate-600">Evidence Type:</span>
+                                      <span className="font-medium text-slate-900">{scanContext.engagementStrategy.evidenceType}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+
+                          <Card className="border-slate-200 bg-white shadow-lg">
+                            <CardHeader>
+                              <CardTitle className="text-lg flex items-center gap-2 text-slate-900">
+                                <Zap className="w-5 h-5 text-orange-600" />
+                                Priority Keywords
+                              </CardTitle>
+                              <CardDescription className="text-slate-600">
+                                High-intent clusters for Stage 2 targeting
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                              {scanContext.priorityClusters.slice(0, 4).map((cluster, idx) => (
+                                <div
+                                  key={idx}
+                                  className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 hover:border-cyan-300 hover:bg-cyan-50/30 transition-all"
+                                >
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="font-medium text-sm text-slate-900">{cluster.cluster}</div>
+                                    <Badge
+                                      className={
+                                        cluster.intent === 'transactional'
+                                          ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                          : cluster.intent === 'commercial'
+                                            ? 'bg-cyan-100 text-cyan-700 border-cyan-200'
+                                            : 'bg-slate-100 text-slate-700 border-slate-200'
+                                      }
+                                    >
+                                      {cluster.intent}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {cluster.keywords.slice(0, 4).map((kw, kidx) => (
+                                      <span
+                                        key={kidx}
+                                        className="inline-flex items-center gap-1 text-xs bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-md"
+                                      >
+                                        <Tag className="w-3 h-3" />
+                                        {kw}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </CardContent>
+                          </Card>
+                        </div>
+
+                        {scanContext.subredditSeeds && scanContext.subredditSeeds.length > 0 && (
+                          <Card className="border-slate-200 bg-white shadow-lg">
+                            <CardHeader>
+                              <CardTitle className="text-lg flex items-center gap-2 text-slate-900">
+                                <Target className="w-5 h-5 text-violet-600" />
+                                Subreddit Targets
+                              </CardTitle>
+                              <CardDescription className="text-slate-600">
+                                Prioritized communities based on persona behavior & confidence scoring
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                {scanContext.subredditSeeds.slice(0, 9).map((target, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="rounded-lg border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-3 hover:border-violet-300 hover:shadow-md transition-all"
+                                  >
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="font-medium text-sm text-slate-900">{target.name}</div>
+                                      <div className="text-xs font-semibold text-violet-600">{Math.round(target.confidence * 100)}%</div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </motion.div>
+                    )}
+                  </div>
+
+                  {/* Sidebar - Context-aware panels */}
+                  <div className="space-y-4">
+                    <Card className="border-slate-200 bg-white shadow-sm">
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2 text-slate-900">
+                          <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                          Community-first Guardrails
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {guardrailChecklist.map((item, idx) => (
+                          <div key={idx} className="flex items-start gap-2 text-xs text-slate-600">
+                            <CheckCircle2 className="w-3 h-3 mt-0.5 text-emerald-500 flex-shrink-0" />
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+
+                    {stage1Complete && (
+                      <>
+                        <Card className="border-slate-200 bg-white shadow-sm">
+                          <CardHeader>
+                            <CardTitle className="text-base flex items-center gap-2 text-slate-900">
+                              <Shield className="w-4 h-4 text-cyan-500" />
+                              Account Risk Panel
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div className="flex items-center justify-between text-sm text-slate-600">
+                              <span>Safe Mode</span>
+                              <Switch checked={safeMode} onCheckedChange={setSafeMode} />
+                            </div>
+                            <div>
+                              <div className="flex justify-between text-xs mb-1 text-slate-500">
+                                <span>Promotion Risk</span>
+                                <span>{accountRisk ? accountRisk.riskLevel : (safeMode ? 'Low' : 'Medium')}</span>
+                              </div>
+                              <Progress value={accountRisk ? accountRisk.riskScore * 100 : (safeMode ? 24 : 47)} className="h-2" />
+                            </div>
+                            <p className="text-xs text-slate-500 flex gap-2">
+                              <AlertTriangle className="w-3 h-3 mt-0.5 text-amber-500" />
+                              Value-first response mode reduces moderation flags.
+                            </p>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="border-slate-200 bg-white shadow-sm">
+                          <CardHeader>
+                            <CardTitle className="text-base text-slate-900">Usage Meter</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3 text-sm text-slate-600">
+                            <div>
+                              <div className="flex justify-between mb-1">
+                                <span>Comments generated</span>
+                                <span>{analytics?.summary.totalComments || 0} / 500</span>
+                              </div>
+                              <Progress value={((analytics?.summary.totalComments || 0) / 500) * 100} className="h-2" />
+                            </div>
+                            <div className="text-xs text-slate-500">Goal focus: {goalLabel[goal]}</div>
+                          </CardContent>
+                        </Card>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Stage 2: Subreddit Discovery */}
+              <TabsContent value="stage2" className="space-y-6">
+                <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+                  {/* Main Content */}
+                  <div className="space-y-6">
+                    {/* Purpose Section */}
+                    <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-white">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg flex items-center gap-2 text-indigo-900">
+                          <Target className="w-5 h-5" />
+                          Stage 2: Subreddit Discovery
+                        </CardTitle>
+                        <CardDescription className="text-slate-600">
+                          Explore ranked communities based on your business intelligence. Filter by lead probability, activity, and risk tolerance.
+                        </CardDescription>
+                      </CardHeader>
+                    </Card>
+
+                    {/* Controls Section */}
+                    <Card className="border-slate-200 bg-white shadow-lg">
+                      <CardHeader>
+                        <CardTitle className="text-base text-slate-900">Filters & Discovery</CardTitle>
+                        <CardDescription>Refine your community targeting</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <div>
+                            <label className="text-xs font-medium text-slate-700 mb-1.5 block">Min Lead Probability</label>
+                            <Select defaultValue="70">
+                              <SelectTrigger className="bg-white border-slate-200">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="50">50%+</SelectItem>
+                                <SelectItem value="70">70%+</SelectItem>
+                                <SelectItem value="80">80%+</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-slate-700 mb-1.5 block">Risk Tolerance</label>
+                            <Select defaultValue="medium">
+                              <SelectTrigger className="bg-white border-slate-200">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="low">Low Risk Only</SelectItem>
+                                <SelectItem value="medium">Medium Risk OK</SelectItem>
+                                <SelectItem value="high">All Levels</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-slate-700 mb-1.5 block">Activity Level</label>
+                            <Select defaultValue="all">
+                              <SelectTrigger className="bg-white border-slate-200">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Levels</SelectItem>
+                                <SelectItem value="high">High Activity</SelectItem>
+                                <SelectItem value="medium">Medium+</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Output Section */}
+                    <Card className="border-slate-200 bg-white shadow-lg">
+                      <CardHeader>
+                        <div className="flex items-center justify-between gap-3">
+                          <CardTitle className="text-base text-slate-900">Subreddit Intelligence</CardTitle>
+                          <Badge className="bg-indigo-100 text-indigo-700 border border-indigo-200">
+                            {subredditData.length} communities
+                          </Badge>
+                        </div>
+                        <CardDescription className="text-slate-600">Ranked by lead probability, activity, and moderation risk</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="text-slate-700">Subreddit</TableHead>
+                                <TableHead className="text-slate-700">Members</TableHead>
+                                <TableHead className="text-slate-700">Activity</TableHead>
+                                <TableHead className="text-slate-700">Buyer Intent</TableHead>
+                                <TableHead className="text-slate-700">Risk</TableHead>
+                                <TableHead className="text-slate-700">Lead Probability</TableHead>
+                                <TableHead className="text-slate-700">Best Format</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {subredditData.map((row) => (
+                                <TableRow key={row.name} className="hover:bg-slate-50">
+                                  <TableCell className="font-medium text-slate-900">{row.name}</TableCell>
+                                  <TableCell className="text-slate-600">{row.members}</TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-16 bg-slate-200 rounded-full h-1.5">
+                                        <div className="bg-cyan-500 h-1.5 rounded-full" style={{ width: `${row.activity}%` }} />
+                                      </div>
+                                      <span className="text-xs text-slate-600">{row.activity}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge className={row.buyerIntent >= 85 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-cyan-100 text-cyan-700 border-cyan-200'}>
+                                      {row.buyerIntent}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge className={row.risk <= 30 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : row.risk <= 45 ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-orange-100 text-orange-700 border-orange-200'}>
+                                      {row.risk}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <span className="font-semibold text-slate-900">{row.leadProbability}%</span>
+                                  </TableCell>
+                                  <TableCell className="text-slate-600 text-sm">{row.bestFormat}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Sidebar - Persistent from Stage 1 */}
+                  <div className="space-y-4">
+                    <Card className="border-slate-200 bg-white shadow-sm">
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2 text-slate-900">
+                          <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                          Community-first Guardrails
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {guardrailChecklist.map((item, idx) => (
+                          <div key={idx} className="flex items-start gap-2 text-xs text-slate-600">
+                            <CheckCircle2 className="w-3 h-3 mt-0.5 text-emerald-500 flex-shrink-0" />
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-slate-200 bg-white shadow-sm">
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2 text-slate-900">
+                          <Shield className="w-4 h-4 text-cyan-500" />
+                          Account Risk Panel
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex items-center justify-between text-sm text-slate-600">
+                          <span>Safe Mode</span>
+                          <Switch checked={safeMode} onCheckedChange={setSafeMode} />
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-xs mb-1 text-slate-500">
+                            <span>Promotion Risk</span>
+                            <span>{accountRisk ? accountRisk.riskLevel : (safeMode ? 'Low' : 'Medium')}</span>
+                          </div>
+                          <Progress value={accountRisk ? accountRisk.riskScore * 100 : (safeMode ? 24 : 47)} className="h-2" />
+                        </div>
+                        <p className="text-xs text-slate-500 flex gap-2">
+                          <AlertTriangle className="w-3 h-3 mt-0.5 text-amber-500" />
+                          Value-first response mode reduces moderation flags.
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-slate-200 bg-white shadow-sm">
+                      <CardHeader>
+                        <CardTitle className="text-base text-slate-900">Usage Meter</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3 text-sm text-slate-600">
+                        <div>
+                          <div className="flex justify-between mb-1">
+                            <span>Comments generated</span>
+                            <span>{analytics?.summary.totalComments || 0} / 500</span>
+                          </div>
+                          <Progress value={((analytics?.summary.totalComments || 0) / 500) * 100} className="h-2" />
+                        </div>
+                        <div className="text-xs text-slate-500">Goal focus: {goalLabel[goal]}</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Stage 3: Thread Targeting */}
+              <TabsContent value="stage3" className="space-y-6">
+                <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+                  {/* Main Content */}
+                  <div className="space-y-6">
+                    {/* Purpose Section */}
+                    <Card className="border-orange-200 bg-gradient-to-br from-orange-50 to-white">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg flex items-center gap-2 text-orange-900">
+                          <Zap className="w-5 h-5" />
+                          Stage 3: Thread Targeting
+                        </CardTitle>
+                        <CardDescription className="text-slate-600">
+                          Identify high-intent threads and generate AI-powered, tone-aware responses. Click any thread to open the comment generator.
+                        </CardDescription>
+                      </CardHeader>
+                    </Card>
+
+                    {/* Controls Section */}
+                    <Card className="border-slate-200 bg-white shadow-lg">
+                      <CardHeader>
+                        <CardTitle className="text-base text-slate-900">Thread Filters</CardTitle>
+                        <CardDescription>Refine your opportunity targeting</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <div>
+                            <label className="text-xs font-medium text-slate-700 mb-1.5 block">Subreddit</label>
+                            <Select value={selectedSubreddit} onValueChange={setSelectedSubreddit}>
+                              <SelectTrigger className="bg-white border-slate-200">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Subreddits</SelectItem>
+                                {subredditData.map((sub) => (
+                                  <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-slate-700 mb-1.5 block">Intent Type</label>
+                            <Select value={intentFilter} onValueChange={(value) => setIntentFilter(value as 'all' | IntentType)}>
+                              <SelectTrigger className="bg-white border-slate-200">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Intents</SelectItem>
+                                <SelectItem value="Question">Question</SelectItem>
+                                <SelectItem value="Comparison">Comparison</SelectItem>
+                                <SelectItem value="Complaint">Complaint</SelectItem>
+                                <SelectItem value="Recommendation">Recommendation</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-slate-700 mb-1.5 block">Time Range</label>
+                            <div className="flex items-center gap-2 h-10">
+                              <Switch checked={last24Only} onCheckedChange={setLast24Only} />
+                              <span className="text-sm text-slate-600">Last 24 hours only</span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Output Section */}
+                    <Card className="border-slate-200 bg-white shadow-lg">
+                      <CardHeader>
+                        <div className="flex items-center justify-between gap-3">
+                          <CardTitle className="text-base text-slate-900">Live Thread Opportunities</CardTitle>
+                          <Badge className="bg-orange-100 text-orange-700 border border-orange-200">
+                            {filteredThreads.length} threads
+                          </Badge>
+                        </div>
+                        <CardDescription className="text-slate-600">Click any row to generate AI comment</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="text-slate-700">Subreddit</TableHead>
+                                <TableHead className="text-slate-700">Title</TableHead>
+                                <TableHead className="text-slate-700">Intent</TableHead>
+                                <TableHead className="text-slate-700">Lead Score</TableHead>
+                                <TableHead className="text-slate-700">Risk</TableHead>
+                                <TableHead className="text-slate-700">Posted</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {filteredThreads.map((thread) => (
+                                <TableRow 
+                                  key={thread.id} 
+                                  className="cursor-pointer hover:bg-orange-50/50 transition-colors"
+                                  onClick={() => openCommentDrawer(thread)}
+                                >
+                                  <TableCell className="font-medium text-slate-900">{thread.subreddit}</TableCell>
+                                  <TableCell className="text-slate-700 max-w-md">{thread.title}</TableCell>
+                                  <TableCell>
+                                    <Badge className="bg-slate-100 text-slate-700 border-slate-200">
+                                      {thread.intent}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge className={thread.leadScore >= 85 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : thread.leadScore >= 75 ? 'bg-cyan-100 text-cyan-700 border-cyan-200' : 'bg-slate-100 text-slate-700 border-slate-200'}>
+                                      {thread.leadScore}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge className={thread.riskScore <= 25 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : thread.riskScore <= 35 ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-orange-100 text-orange-700 border-orange-200'}>
+                                      {thread.riskScore}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-slate-600 text-sm">{thread.hoursAgo}h ago</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Sidebar - Persistent */}
+                  <div className="space-y-4">
+                    <Card className="border-slate-200 bg-white shadow-sm">
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2 text-slate-900">
+                          <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                          Community-first Guardrails
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {guardrailChecklist.map((item, idx) => (
+                          <div key={idx} className="flex items-start gap-2 text-xs text-slate-600">
+                            <CheckCircle2 className="w-3 h-3 mt-0.5 text-emerald-500 flex-shrink-0" />
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-slate-200 bg-white shadow-sm">
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2 text-slate-900">
+                          <Shield className="w-4 h-4 text-cyan-500" />
+                          Account Risk Panel
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex items-center justify-between text-sm text-slate-600">
+                          <span>Safe Mode</span>
+                          <Switch checked={safeMode} onCheckedChange={setSafeMode} />
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-xs mb-1 text-slate-500">
+                            <span>Promotion Risk</span>
+                            <span>{accountRisk ? accountRisk.riskLevel : (safeMode ? 'Low' : 'Medium')}</span>
+                          </div>
+                          <Progress value={accountRisk ? accountRisk.riskScore * 100 : (safeMode ? 24 : 47)} className="h-2" />
+                        </div>
+                        <p className="text-xs text-slate-500 flex gap-2">
+                          <AlertTriangle className="w-3 h-3 mt-0.5 text-amber-500" />
+                          Value-first response mode reduces moderation flags.
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-slate-200 bg-white shadow-sm">
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2 text-slate-900">
+                          <Gauge className="w-4 h-4 text-emerald-500" />
+                          Performance Dashboard
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2 text-sm text-slate-600">
+                        <div className="flex justify-between">
+                          <span>Engagement rate</span>
+                          <span className="text-emerald-600">
+                            {analytics ? `${(analytics.summary.engagementRate * 100).toFixed(1)}%` : '78%'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Avg score</span>
+                          <span>{analytics ? analytics.summary.averageScore.toFixed(1) : '2.6'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Total upvotes</span>
+                          <span className="text-cyan-600">{analytics ? analytics.summary.totalUpvotes : '3420'}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-slate-200 bg-white shadow-sm">
+                      <CardContent className="p-5 text-sm text-slate-600">
+                        <div className="flex items-center gap-2 mb-2 text-slate-900">
+                          <Sparkles className="w-4 h-4 text-cyan-500" />
+                          AI Comment Generator
+                        </div>
+                        <p>Open any thread row to generate tone-tuned, risk-aware responses before posting.</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Stage 4: Executive Report */}
+              <TabsContent value="report" className="space-y-6">
+                <Card className="border-slate-200 bg-gradient-to-br from-violet-50 to-white shadow-xl">
+                  <CardHeader>
+                    <CardTitle className="text-2xl flex items-center gap-2">
+                      <FileText className="w-6 h-6 text-violet-600" />
+                      Executive Report
+                    </CardTitle>
+                    <CardDescription>Comprehensive analysis summary with export options</CardDescription>
                   </CardHeader>
-                  <CardContent className="relative space-y-6">
-                    <div className="grid gap-4 md:grid-cols-4">
-                      <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-medium text-emerald-700 uppercase tracking-wide">Market Demand</span>
-                          <TrendingUp className="w-4 h-4 text-emerald-600" />
+                  <CardContent className="space-y-6">
+                    {analysisData ? (
+                      <>
+                        <div className="grid gap-4 md:grid-cols-3">
+                          <div className="p-4 rounded-lg border border-violet-200 bg-white">
+                            <div className="text-sm text-slate-600 mb-1">Opportunity Score</div>
+                            <div className="text-3xl font-bold text-violet-900">
+                              {analysisData.opportunityBaselineScore?.overall || 'N/A'}/100
+                            </div>
+                          </div>
+                          <div className="p-4 rounded-lg border border-violet-200 bg-white">
+                            <div className="text-sm text-slate-600 mb-1">Primary Niche</div>
+                            <div className="text-lg font-semibold text-slate-900">
+                              {analysisData.nicheProfile?.primaryNiche || 'Not analyzed'}
+                            </div>
+                          </div>
+                          <div className="p-4 rounded-lg border border-violet-200 bg-white">
+                            <div className="text-sm text-slate-600 mb-1">Target Communities</div>
+                            <div className="text-3xl font-bold text-violet-900">
+                              {analysisData.subredditTargets?.length || 0}
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-2xl font-bold text-emerald-900">
-                          {analysisData.opportunityBaselineScore?.factors?.marketDemand ?? 'N/A'}
-                        </div>
-                        <div className="mt-1 text-xs text-emerald-600">High willingness to pay</div>
-                      </div>
 
-                      <div className="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-medium text-amber-700 uppercase tracking-wide">Competition</span>
-                          <Flame className="w-4 h-4 text-amber-600" />
+                        <div className="flex gap-3">
+                          <Button className="flex-1 bg-violet-600 hover:bg-violet-700 text-white">
+                            <Download className="w-4 h-4 mr-2" />
+                            Download PDF Report
+                          </Button>
+                          <Button variant="outline" className="flex-1 border-violet-300 text-violet-700 hover:bg-violet-50">
+                            <Download className="w-4 h-4 mr-2" />
+                            Export JSON Data
+                          </Button>
                         </div>
-                        <div className="text-2xl font-bold text-amber-900">
-                          {analysisData.opportunityBaselineScore?.factors?.competitionLevel ?? 'N/A'}
-                        </div>
-                        <div className="mt-1 text-xs text-amber-600">Moderate friction</div>
-                      </div>
-
-                      <div className="rounded-xl border border-cyan-200 bg-gradient-to-br from-cyan-50 to-white p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-medium text-cyan-700 uppercase tracking-wide">Reddit Presence</span>
-                          <Radar className="w-4 h-4 text-cyan-600" />
-                        </div>
-                        <div className="text-2xl font-bold text-cyan-900">
-                          {analysisData.opportunityBaselineScore?.factors?.redditPresence ?? 'N/A'}
-                        </div>
-                        <div className="mt-1 text-xs text-cyan-600">Emerging opportunity</div>
-                      </div>
-
-                      <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-medium text-violet-700 uppercase tracking-wide">Conversion</span>
-                          <Target className="w-4 h-4 text-violet-600" />
-                        </div>
-                        <div className="text-2xl font-bold text-violet-900">
-                          {analysisData.opportunityBaselineScore?.factors?.conversionPotential ?? 'N/A'}
-                        </div>
-                        <div className="mt-1 text-xs text-violet-600">Strong potential</div>
-                      </div>
-                    </div>
-
-                    {analysisData.opportunityBaselineScore?.reasoning && (
-                      <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4">
-                        <div className="text-xs font-medium text-slate-700 mb-2 uppercase tracking-wide">Strategic Reasoning</div>
-                        <p className="text-sm text-slate-600 leading-relaxed">{analysisData.opportunityBaselineScore.reasoning}</p>
+                      </>
+                    ) : (
+                      <div className="text-center py-12 text-slate-500">
+                        Complete Stage 1-3 to generate executive report
                       </div>
                     )}
                   </CardContent>
                 </Card>
+              </TabsContent>
+            </Tabs>
 
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <Card className="border-slate-200 bg-white shadow-lg">
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2 text-slate-900">
-                        <Users className="w-5 h-5 text-indigo-600" />
-                        Persona Strategy
-                      </CardTitle>
-                      <CardDescription className="text-slate-600">Decision maker profile & engagement approach</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {analysisData.personaModel?.demographics && (
-                        <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-3">
-                          <div className="text-xs font-semibold text-indigo-700 mb-2 uppercase tracking-wide">Primary Decision Maker</div>
-                          <div className="text-sm font-medium text-slate-900">
-                            {analysisData.personaModel.demographics.occupation || 'Technical Leader'}
-                          </div>
-                          <div className="text-xs text-slate-600 mt-1">
-                            {analysisData.personaModel.demographics.age && `${analysisData.personaModel.demographics.age} • `}
-                            {analysisData.personaModel.demographics.location || 'United States'}
-                          </div>
-                        </div>
-                      )}
-
-                      {analysisData.personaModel?.painPoints && analysisData.personaModel.painPoints.length > 0 && (
-                        <div>
-                          <div className="text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wide">Key Pain Points</div>
-                          <div className="space-y-2">
-                            {analysisData.personaModel.painPoints.slice(0, 3).map((pain, idx) => (
-                              <div key={idx} className="flex items-start gap-2 text-sm text-slate-600">
-                                <AlertTriangle className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
-                                <span>{pain}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {scanContext.engagementStrategy && (
-                        <div className="rounded-lg border border-emerald-100 bg-emerald-50/50 p-3 space-y-2">
-                          <div className="text-xs font-semibold text-emerald-700 mb-2 uppercase tracking-wide">Recommended Engagement</div>
-                          <div className="grid gap-2 text-xs">
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-600">Comment Style:</span>
-                              <span className="font-medium text-slate-900">{scanContext.engagementStrategy.commentStyle}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-600">CTA Approach:</span>
-                              <span className="font-medium text-slate-900">{scanContext.engagementStrategy.ctaStyle}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-600">Evidence Type:</span>
-                              <span className="font-medium text-slate-900">{scanContext.engagementStrategy.evidenceType}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-600">Risk Tolerance:</span>
-                              <Badge
-                                className={
-                                  scanContext.engagementStrategy.riskTolerance === 'low'
-                                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                                    : scanContext.engagementStrategy.riskTolerance === 'medium-low'
-                                      ? 'bg-cyan-100 text-cyan-700 border-cyan-200'
-                                      : 'bg-amber-100 text-amber-700 border-amber-200'
-                                }
-                              >
-                                {scanContext.engagementStrategy.riskTolerance}
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {analysisData.personaModel?.redditBehavior?.engagementStyle && (
-                        <div className="text-xs text-slate-500 italic border-l-2 border-slate-200 pl-3">
-                          <strong>Reddit Behavior:</strong> {analysisData.personaModel.redditBehavior.engagementStyle}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-slate-200 bg-white shadow-lg">
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2 text-slate-900">
-                        <Zap className="w-5 h-5 text-orange-600" />
-                        Priority Keywords
-                      </CardTitle>
-                      <CardDescription className="text-slate-600">
-                        High-intent clusters for Stage 2 targeting
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {scanContext.priorityClusters.slice(0, 4).map((cluster, idx) => (
-                        <div
-                          key={idx}
-                          className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 hover:border-cyan-300 hover:bg-cyan-50/30 transition-all"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="font-medium text-sm text-slate-900">{cluster.cluster}</div>
-                            <div className="flex items-center gap-2">
-                              <Badge
-                                className={
-                                  cluster.intent === 'transactional'
-                                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                                    : cluster.intent === 'commercial'
-                                      ? 'bg-cyan-100 text-cyan-700 border-cyan-200'
-                                      : 'bg-slate-100 text-slate-700 border-slate-200'
-                                }
-                              >
-                                {cluster.intent}
-                              </Badge>
-                              {cluster.priority === 'high' && (
-                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {cluster.keywords.slice(0, 4).map((kw, kidx) => (
-                              <span
-                                key={kidx}
-                                className="inline-flex items-center gap-1 text-xs bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-md"
-                              >
-                                <Tag className="w-3 h-3" />
-                                {kw}
-                              </span>
-                            ))}
-                            {cluster.keywords.length > 4 && (
-                              <span className="text-xs text-slate-500 px-2 py-0.5">+{cluster.keywords.length - 4} more</span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {scanContext.subredditSeeds && scanContext.subredditSeeds.length > 0 && (
-                  <Card className="border-slate-200 bg-white shadow-lg">
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2 text-slate-900">
-                        <Target className="w-5 h-5 text-violet-600" />
-                        Subreddit Targets
-                      </CardTitle>
-                      <CardDescription className="text-slate-600">
-                        Prioritized communities based on persona behavior & confidence scoring
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        {scanContext.subredditSeeds.slice(0, 9).map((target, idx) => (
-                          <div
-                            key={idx}
-                            className="rounded-lg border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-3 hover:border-violet-300 hover:shadow-md transition-all"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="font-medium text-sm text-slate-900">{target.name}</div>
-                              <div className="text-xs font-semibold text-violet-600">{Math.round(target.confidence * 100)}%</div>
-                            </div>
-                            <Badge
-                              className={
-                                target.type === 'technical-authority'
-                                  ? 'bg-indigo-100 text-indigo-700 border-indigo-200 text-xs'
-                                  : target.type === 'industry-specific'
-                                    ? 'bg-cyan-100 text-cyan-700 border-cyan-200 text-xs'
-                                    : 'bg-slate-100 text-slate-700 border-slate-200 text-xs'
-                              }
-                            >
-                              {target.type.replace('-', ' ')}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </motion.div>
-            )}
-
-            <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, delay: 0.05 }}>
-              <Card className="border-slate-200 bg-gradient-to-br from-white via-slate-50 to-white shadow-lg">
-                <CardHeader>
-                  <CardTitle className="text-xl flex items-center gap-2 text-slate-900"><Sparkles className="w-5 h-5 text-viz-accent" /> VIZ Reddit Toolstack</CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Designed from proven Reddit marketing patterns: audience research, timing optimization, safety controls, and AI-assisted response quality.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {toolModules.map((module, index) => {
-                    const Icon = module.icon;
-                    return (
-                      <motion.div
-                        key={module.title}
-                        initial={{ opacity: 0, y: 14 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.35, delay: 0.08 + index * 0.05 }}
-                        className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-sm font-semibold text-slate-900">{module.title}</div>
-                            <div className="text-xs text-slate-500 mt-1">Solves: {module.painPoint}</div>
-                          </div>
-                          <div className="h-9 w-9 rounded-md bg-slate-100 grid place-items-center">
-                            <Icon className={`h-4 w-4 ${module.iconClass}`} />
-                          </div>
-                        </div>
-                        <p className="text-sm text-slate-600 mt-3">{module.capability}</p>
-                        <div className="mt-3 text-xs inline-flex items-center rounded-full border border-slate-200 px-2.5 py-1 text-cyan-700 bg-cyan-100">
-                          {module.impact}
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
-            <div className="space-y-6">
-              <Card className="border-slate-200 bg-white shadow-lg">
-                <CardHeader>
-                  <div className="flex items-center justify-between gap-3">
-                    <CardTitle className="text-slate-900">1) Business Context</CardTitle>
-                    <Badge className="bg-slate-100 text-slate-700 border border-slate-200">Stage 1</Badge>
-                  </div>
-                  <CardDescription className="text-slate-600">Define offer, buyer, competitors, and objective to calibrate discovery.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <Input value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} placeholder="Website URL" className="bg-white border-slate-200" />
-                    <Input value={targetRegion} onChange={(e) => setTargetRegion(e.target.value)} placeholder="Target region" className="bg-white border-slate-200" />
-                  </div>
-                  <Input
-                    value={competitorSet}
-                    onChange={(e) => setCompetitorSet(e.target.value)}
-                    placeholder="Top competitors (comma-separated): competitor1.com, competitor2.com, competitor3.com"
-                    className="bg-white border-slate-200"
-                  />
-                  <Textarea value={businessContext} onChange={(e) => setBusinessContext(e.target.value)} placeholder="What do you sell? Why do customers buy from you?" className="min-h-[90px] bg-white border-slate-200" />
-                  <Textarea value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="Who is your ideal buyer?" className="min-h-[90px] bg-white border-slate-200" />
-                  <p className="text-xs text-slate-500">Tip: include 2-3 differentiators so the AI drafts match your positioning and tone.</p>
-                  <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                    <Select value={goal} onValueChange={(value: Goal) => setGoal(value)}>
-                      <SelectTrigger className="bg-white border-slate-200">
-                        <SelectValue placeholder="Select goal" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="lead_generation">Lead Generation</SelectItem>
-                        <SelectItem value="authority">Authority Building</SelectItem>
-                        <SelectItem value="seo_visibility">SEO Visibility</SelectItem>
-                        <SelectItem value="geo_visibility">GEO Visibility</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button onClick={runScan} disabled={scanning} className="bg-cyan-600 hover:bg-cyan-500 text-white disabled:opacity-50">
-                      {scanning ? 'Scanning...' : 'Run Opportunity Scan'} <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-slate-200 bg-white shadow-lg">
-                <CardHeader>
-                  <div className="flex items-center justify-between gap-3">
-                    <CardTitle className="text-slate-900">2) Subreddit Intelligence</CardTitle>
-                    <Badge className="bg-slate-100 text-slate-700 border border-slate-200">Stage 2</Badge>
-                  </div>
-                  <CardDescription className="text-slate-600">Ranked by lead probability, activity, and moderation risk.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-slate-100">
-                        <TableHead>Subreddit</TableHead>
-                        <TableHead>Members</TableHead>
-                        <TableHead>Activity</TableHead>
-                        <TableHead>Buyer Intent</TableHead>
-                        <TableHead>Risk</TableHead>
-                        <TableHead>Lead Probability</TableHead>
-                        <TableHead>Best Format</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {subredditData.map((row) => (
-                        <TableRow key={row.name} className="border-slate-100">
-                          <TableCell className="font-medium text-slate-900">{row.name}</TableCell>
-                          <TableCell>{row.members}</TableCell>
-                          <TableCell>{row.activity}</TableCell>
-                          <TableCell>{row.buyerIntent}</TableCell>
-                          <TableCell className={row.risk > 45 ? 'text-amber-500' : 'text-emerald-600'}>{row.risk}</TableCell>
-                          <TableCell>{row.leadProbability}</TableCell>
-                          <TableCell className="text-slate-600">{row.bestFormat}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-
-              <Card className="border-slate-200 bg-white shadow-lg">
-                <CardHeader>
-                  <div className="flex items-center justify-between gap-3">
-                    <CardTitle className="text-slate-900">3) Live Thread Opportunities</CardTitle>
-                    <Badge className="bg-slate-100 text-slate-700 border border-slate-200">Stage 3</Badge>
-                  </div>
-                  <CardDescription className="text-slate-600">Filter by subreddit, intent, and timing to prioritize actionable threads.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <Select value={selectedSubreddit} onValueChange={setSelectedSubreddit}>
-                      <SelectTrigger className="bg-white border-slate-200"><SelectValue placeholder="Subreddit" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All subreddits</SelectItem>
-                        {subredditData.map((row) => <SelectItem key={row.name} value={row.name}>{row.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Select value={intentFilter} onValueChange={(value: 'all' | IntentType) => setIntentFilter(value)}>
-                      <SelectTrigger className="bg-white border-slate-200"><SelectValue placeholder="Intent" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All intents</SelectItem>
-                        <SelectItem value="Question">Question</SelectItem>
-                        <SelectItem value="Comparison">Comparison</SelectItem>
-                        <SelectItem value="Complaint">Complaint</SelectItem>
-                        <SelectItem value="Recommendation">Recommendation</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <div className="flex items-center justify-between rounded-md border border-slate-200 px-3 bg-slate-50">
-                      <span className="text-sm text-slate-700">Last 24 hours</span>
-                      <Switch checked={last24Only} onCheckedChange={setLast24Only} />
-                    </div>
-                  </div>
-
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-slate-800">
-                        <TableHead>Thread</TableHead>
-                        <TableHead>Intent</TableHead>
-                        <TableHead>Lead Score</TableHead>
-                        <TableHead>Risk</TableHead>
-                        <TableHead>Posted</TableHead>
-                        <TableHead></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredThreads.map((thread) => (
-                        <TableRow key={thread.id} className="border-slate-100">
-                          <TableCell>{thread.title}</TableCell>
-                          <TableCell>{thread.intent}</TableCell>
-                          <TableCell className="text-emerald-600">{thread.leadScore}</TableCell>
-                          <TableCell className={thread.riskScore > 35 ? 'text-amber-500' : 'text-cyan-600'}>{thread.riskScore}</TableCell>
-                          <TableCell>{thread.hoursAgo}h ago</TableCell>
-                          <TableCell>
-                            <Button size="sm" onClick={() => openCommentDrawer(thread)} className="bg-slate-900 text-white hover:bg-slate-800">
-                              Generate Reply
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {!filteredThreads.length && (
-                        <TableRow className="border-slate-100">
-                          <TableCell colSpan={6} className="text-center text-slate-500 py-8">
-                            No live threads match your filter set. Relax filters or disable the 24h constraint.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="space-y-4">
-              <Card className="border-slate-200 bg-gradient-to-br from-white to-slate-50 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2 text-slate-900"><ShieldCheck className="w-4 h-4 text-emerald-500" /> Community-First Guardrails</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm text-slate-600">
-                  {guardrailChecklist.map((item) => (
-                    <div key={item} className="flex items-start gap-2">
-                      <div className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
-                      <span>{item}</span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              <Card className="border-slate-200 bg-white shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2 text-slate-900"><Shield className="w-4 h-4 text-cyan-500" /> Account Risk Panel</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between text-sm text-slate-600"><span>Safe Mode</span><Switch checked={safeMode} onCheckedChange={setSafeMode} /></div>
-                  <div>
-                    <div className="flex justify-between text-xs mb-1 text-slate-500">
-                      <span>Promotion Risk</span>
-                      <span>{accountRisk ? accountRisk.riskLevel : (safeMode ? 'Low' : 'Medium')}</span>
-                    </div>
-                    <Progress value={accountRisk ? accountRisk.riskScore * 100 : (safeMode ? 24 : 47)} className="h-2" />
-                  </div>
-                  <p className="text-xs text-slate-500 flex gap-2"><AlertTriangle className="w-3 h-3 mt-0.5 text-amber-500" />Value-first response mode reduces moderation flags.</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-slate-200 bg-white shadow-sm">
-                <CardHeader><CardTitle className="text-base text-slate-900">Usage Meter</CardTitle></CardHeader>
-                <CardContent className="space-y-3 text-sm text-slate-600">
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <span>Comments generated</span>
-                      <span>{analytics?.summary.totalComments || 182} / 500</span>
-                    </div>
-                    <Progress value={((analytics?.summary.totalComments || 182) / 500) * 100} className="h-2" />
-                  </div>
-                  <div>
-                    <div className="flex justify-between mb-1"><span>Subreddits tracked</span><span>14 / 30</span></div>
-                    <Progress value={47} className="h-2" />
-                  </div>
-                  <div className="text-xs text-slate-500">Goal focus: {goalLabel[goal]}</div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-slate-200 bg-white shadow-sm">
-                <CardHeader><CardTitle className="text-base flex items-center gap-2 text-slate-900"><Gauge className="w-4 h-4 text-emerald-500" /> Performance Dashboard</CardTitle></CardHeader>
-                <CardContent className="space-y-2 text-sm text-slate-600">
-                  <div className="flex justify-between">
-                    <span>Engagement rate</span>
-                    <span className="text-emerald-600">
-                      {analytics ? `${(analytics.summary.engagementRate * 100).toFixed(1)}%` : '78%'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Avg score</span>
-                    <span>{analytics ? analytics.summary.averageScore.toFixed(1) : '2.6'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Total upvotes</span>
-                    <span className="text-cyan-600">{analytics ? analytics.summary.totalUpvotes : '3420'}</span>
-                  </div>
-                  <div className="flex justify-between"><span>Status</span><span>{analyzed ? 'Ready' : 'Awaiting scan'}</span></div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-slate-200 bg-white shadow-sm">
-                <CardContent className="p-5 text-sm text-slate-600">
-                  <div className="flex items-center gap-2 mb-2 text-slate-900"><Sparkles className="w-4 h-4 text-cyan-500" /> AI Comment Generator • Stage 4</div>
-                  <p>Open any thread row to generate tone-tuned, risk-aware responses before posting.</p>
-                </CardContent>
-              </Card>
-            </div>
           </div>
-        </div>
         </main>
 
         <GlobalFooter variant="default" />
