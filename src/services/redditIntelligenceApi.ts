@@ -8,6 +8,16 @@ if (!FUNCTION_KEY) {
   console.error('[RedditIntelligenceAPI] VITE_REDDIT_FUNCTION_KEY is not set in environment variables');
 }
 
+async function getCurrentUserId(): Promise<string | null> {
+  try {
+    const { data } = await supabase.auth.getUser();
+    return data.user?.id ?? null;
+  } catch (error) {
+    logger.warn('Failed to resolve current user id', error);
+    return null;
+  }
+}
+
 const DEBUG = import.meta.env.DEV || localStorage.getItem('REDDIT_INTELLIGENCE_DEBUG') === 'true';
 
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
@@ -172,12 +182,18 @@ async function makeRequest<T>(
 }
 
 export interface BusinessAnalysisPayload {
-  text: string;
+  text?: string;
   subreddit?: string;
   context?: {
     industry?: string;
     keywords?: string[];
   };
+  website?: string;
+  region?: string;
+  description?: string;
+  idealBuyer?: string;
+  goal?: string;
+  competitors?: string;
 }
 
 export interface BusinessAnalysisResponse {
@@ -223,6 +239,7 @@ export interface AnalyticsParams {
   endDate?: string;
   subreddit?: string;
   groupBy?: 'day' | 'week' | 'month';
+  userId?: string;
 }
 
 export interface AnalyticsResponse {
@@ -392,7 +409,12 @@ export const redditIntelligenceApi = {
     logger.info('Fetching analytics', params);
     
     try {
-      const query = params ? new URLSearchParams(params as any).toString() : '';
+      const userId = params?.userId ?? (await getCurrentUserId());
+      const searchParams = new URLSearchParams({
+        ...(params ?? {}),
+        ...(userId ? { userId } : {}),
+      } as Record<string, string>);
+      const query = searchParams.toString();
       const result = await makeRequest<AnalyticsResponse>(`/analytics${query ? '?' + query : ''}`);
       
       logger.info('Analytics fetched', { totalComments: result.summary.totalComments });
