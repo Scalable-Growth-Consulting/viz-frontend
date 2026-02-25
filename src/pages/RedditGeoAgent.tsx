@@ -4,6 +4,8 @@ import {
   ArrowRight,
   BarChart3,
   Bot,
+  Brain,
+  CheckCircle2,
   Clock3,
   Copy,
   Flame,
@@ -13,8 +15,11 @@ import {
   Shield,
   ShieldCheck,
   Sparkles,
+  Tag,
   Target,
+  TrendingUp,
   Users,
+  Zap,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -54,7 +59,8 @@ import {
   redditIntelligenceApi, 
   RedditAPIError,
   type AnalyticsResponse,
-  type AccountRiskResponse 
+  type AccountRiskResponse,
+  type BusinessAnalysisResponse,
 } from '@/services/redditIntelligenceApi';
 
 type Goal = 'lead_generation' | 'authority' | 'seo_visibility' | 'geo_visibility';
@@ -111,6 +117,25 @@ const goalLabel: Record<Goal, string> = {
   authority: 'Authority Building',
   seo_visibility: 'SEO Visibility',
   geo_visibility: 'GEO Visibility',
+};
+
+const defaultScoringWeights = {
+  intentWeight: 0.35,
+  personaMatchWeight: 0.25,
+  activityWeight: 0.2,
+  competitionWeight: 0.1,
+  riskWeight: 0.1,
+};
+
+type ScoringWeights = typeof defaultScoringWeights;
+
+type ScanContext = {
+  priorityClusters: BusinessAnalysisResponse['data']['keywordClusters'];
+  personaSignals: BusinessAnalysisResponse['data']['personaModel'];
+  subredditSeeds: BusinessAnalysisResponse['data']['subredditTargets'];
+  scoringWeights: ScoringWeights;
+  engagementStrategy: NonNullable<BusinessAnalysisResponse['data']['engagementStrategy']>;
+  goal: Goal;
 };
 
 const variantText = {
@@ -203,6 +228,8 @@ const RedditGeoAgent: React.FC = () => {
   const [analyzed, setAnalyzed] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [generatingComment, setGeneratingComment] = useState(false);
+  const [analysisData, setAnalysisData] = useState<BusinessAnalysisResponse['data'] | null>(null);
+  const [devMode, setDevMode] = useState(false);
 
   const [analytics, setAnalytics] = useState<AnalyticsResponse | null>(null);
   const [accountRisk, setAccountRisk] = useState<AccountRiskResponse | null>(null);
@@ -219,9 +246,12 @@ const RedditGeoAgent: React.FC = () => {
   }, [selectedSubreddit, intentFilter, last24Only]);
 
   const opportunityScore = useMemo(() => {
+    if (analysisData?.opportunityBaselineScore?.overall) {
+      return analysisData.opportunityBaselineScore.overall;
+    }
     if (!filteredThreads.length) return 0;
     return Math.round(filteredThreads.reduce((sum, thread) => sum + thread.leadScore, 0) / filteredThreads.length);
-  }, [filteredThreads]);
+  }, [analysisData, filteredThreads]);
 
   const visibilityScore = useMemo(() => {
     if (!filteredThreads.length) return 0;
@@ -263,51 +293,192 @@ const RedditGeoAgent: React.FC = () => {
     setScanning(true);
     
     try {
-      const analysisText = `Business: ${businessContext}\nTarget Audience: ${targetAudience}\nGoal: ${goalLabel[goal]}`;
-      const payload = {
-        text: analysisText,
-        website: websiteUrl.trim(),
-        region: targetRegion.trim(),
-        description: businessContext.trim(),
-        idealBuyer: targetAudience.trim(),
-        goal: goalLabel[goal],
-        competitors: competitorSet.trim(),
-        context: {
-          industry: businessContext.split(' ')[0],
-          keywords: targetAudience.split(',').map((k) => k.trim()).filter(Boolean),
-        },
-      };
-      
-      const result = await redditIntelligenceApi.analyzeBusinessContent(payload);
-      
-      setAnalyzed(true);
-      toast({ 
-        title: 'Opportunity scan complete', 
-        description: `Business relevance: ${(result.analysis.businessRelevance * 100).toFixed(0)}% | Sentiment: ${result.analysis.sentiment}` 
-      });
-    } catch (error: any) {
-      console.error('Scan failed:', error);
-      
-      let errorMessage = 'Failed to complete opportunity scan';
-      if (error instanceof RedditAPIError) {
-        if (error.status === 429) {
-          errorMessage = 'Rate limit exceeded. Please try again later.';
-        } else if (error.status && error.status >= 500) {
-          errorMessage = 'Server error. Please try again in a few moments.';
-        } else {
-          errorMessage = error.message;
+      let stage1: BusinessAnalysisResponse['data'];
+
+      if (devMode) {
+        // Mock data for UX testing when API is unavailable
+        await new Promise(r => setTimeout(r, 1500));
+        stage1 = {
+          nicheProfile: {
+            primaryNiche: 'AI Agents for Business Automation',
+            subNiches: ['AI agents for fintech', 'AI agents for ecommerce', 'Agent orchestration'],
+            industryCategory: 'AI Consulting / Intelligent Automation',
+            targetMarket: 'United States mid-market to enterprise',
+          },
+          keywordClusters: [
+            {
+              cluster: 'AI agents fintech',
+              keywords: ['AI agents for fintech', 'autonomous agents fintech', 'compliance AI agents'],
+              intent: 'commercial' as const,
+              priority: 'high' as const,
+            },
+            {
+              cluster: 'AI agents ecommerce',
+              keywords: ['AI agents for ecommerce', 'personalization AI agents', 'customer support AI'],
+              intent: 'commercial' as const,
+              priority: 'high' as const,
+            },
+            {
+              cluster: 'AI agent implementation',
+              keywords: ['AI agent consulting', 'build AI agents', 'enterprise AI integration'],
+              intent: 'transactional' as const,
+              priority: 'high' as const,
+            },
+          ],
+          personaModel: {
+            demographics: {
+              age: '30-50',
+              location: 'United States (NY, SF, Austin)',
+              occupation: 'CTO / Head of Engineering / VP of Data',
+            },
+            painPoints: [
+              'Need to speed up product development and reduce time-to-market',
+              'Scaling personalization without increasing headcount',
+              'Demonstrating clear ROI to executives',
+            ],
+            goals: [
+              'Automate repetitive workflows',
+              'Deploy compliant AI agents quickly',
+              'Prove measurable ROI within 3-6 months',
+            ],
+            redditBehavior: {
+              activeSubreddits: ['r/MachineLearning', 'r/MLOps', 'r/Fintech', 'r/ecommerce'],
+              engagementStyle: 'Lurks for research, posts technical questions, values concrete examples',
+            },
+          },
+          opportunityBaselineScore: {
+            overall: 70,
+            factors: {
+              marketDemand: 85,
+              competitionLevel: 60,
+              redditPresence: 55,
+              conversionPotential: 75,
+            },
+            reasoning: 'Strong market demand for AI agents in fintech and ecommerce. Competition is moderate-to-high. Reddit presence is emerging—can be used for awareness and trust-building.',
+          },
+          scoringWeights: {
+            intentWeight: 0.35,
+            personaMatchWeight: 0.25,
+            activityWeight: 0.2,
+            competitionWeight: 0.1,
+            riskWeight: 0.1,
+          },
+          subredditTargets: [
+            { name: 'r/MachineLearning', type: 'technical-authority' as const, confidence: 0.8 },
+            { name: 'r/Fintech', type: 'industry-specific' as const, confidence: 0.9 },
+            { name: 'r/ecommerce', type: 'industry-specific' as const, confidence: 0.85 },
+            { name: 'r/Entrepreneur', type: 'broad-awareness' as const, confidence: 0.6 },
+          ],
+          engagementStrategy: {
+            commentStyle: 'Technical authority with value-first approach',
+            ctaStyle: 'Soft reference with optional follow-up',
+            evidenceType: 'Case studies + benchmarks',
+            riskTolerance: 'medium-low' as const,
+            reasoning: 'Lead with insight, de-risk with proof, invite follow-up.',
+          },
+        };
+      } else {
+        const analysisText = `Business: ${businessContext}\nTarget Audience: ${targetAudience}\nGoal: ${goalLabel[goal]}`;
+        const payload = {
+          text: analysisText,
+          website: websiteUrl.trim(),
+          region: targetRegion.trim(),
+          description: businessContext.trim(),
+          idealBuyer: targetAudience.trim(),
+          goal: goalLabel[goal],
+          competitors: competitorSet.trim(),
+          context: {
+            industry: businessContext.split(' ')[0],
+            keywords: targetAudience.split(',').map((k) => k.trim()).filter(Boolean),
+          },
+        };
+
+        const result = await redditIntelligenceApi.analyzeBusinessContent(payload);
+        stage1 = result.data;
+      }
+
+      setAnalysisData(stage1);
+
+      // Stage 2: Trigger subreddit scan with enriched context
+      const priorityClusters = (stage1.keywordClusters || [])
+        .filter((cluster) => cluster.priority !== 'low')
+        .slice(0, 6);
+
+      if (!devMode && stage1.personaModel && priorityClusters.length) {
+        try {
+          const scanResult = await redditIntelligenceApi.scanSubreddits({
+            region: targetRegion.trim(),
+            goal: goalLabel[goal],
+            scanContext: {
+              targetClusters: priorityClusters,
+              personaSignals: stage1.personaModel,
+              subredditSeeds: stage1.subredditTargets,
+              scoringWeights: stage1.scoringWeights,
+              engagementStrategy: stage1.engagementStrategy,
+              goal: goalLabel[goal],
+              region: targetRegion.trim(),
+            },
+          });
+
+          toast({
+            title: 'Subreddit scan complete',
+            description: `${scanResult.metadata?.totalFound ?? 0} subreddits ranked${scanResult.data?.[0]?.subreddit ? ` | Top: r/${scanResult.data[0].subreddit}` : ''}`,
+          });
+        } catch (scanError) {
+          console.warn('Stage 2 subreddit scan failed (non-blocking):', scanError);
         }
       }
       
+      setAnalyzed(true);
+      const score = stage1?.opportunityBaselineScore?.overall;
+      const primaryNiche = stage1?.nicheProfile?.primaryNiche;
       toast({ 
-        title: 'Scan failed', 
-        description: errorMessage, 
-        variant: 'destructive' 
+        title: 'Opportunity scan complete', 
+        description: `Score: ${typeof score === 'number' ? score : 'N/A'}/100${primaryNiche ? ` | Niche: ${primaryNiche}` : ''}${devMode ? ' (Dev Mode)' : ''}`
       });
     } finally {
       setScanning(false);
     }
   };
+
+  const scanContext = useMemo<ScanContext | null>(() => {
+    if (!analysisData) return null;
+
+    const weights: ScoringWeights = {
+      intentWeight: analysisData.scoringWeights?.intentWeight ?? defaultScoringWeights.intentWeight,
+      personaMatchWeight: analysisData.scoringWeights?.personaMatchWeight ?? defaultScoringWeights.personaMatchWeight,
+      activityWeight: analysisData.scoringWeights?.activityWeight ?? defaultScoringWeights.activityWeight,
+      competitionWeight: analysisData.scoringWeights?.competitionWeight ?? defaultScoringWeights.competitionWeight,
+      riskWeight: analysisData.scoringWeights?.riskWeight ?? defaultScoringWeights.riskWeight,
+    };
+
+    const fallbackSubreddits = analysisData.personaModel?.redditBehavior?.activeSubreddits?.map((name) => ({
+      name,
+      type: 'technical-authority' as const,
+      confidence: 0.55,
+    })) ?? [];
+
+    const subredditSeeds = (analysisData.subredditTargets?.length ? analysisData.subredditTargets : fallbackSubreddits) ?? [];
+
+    const engagementStrategy = {
+      commentStyle: analysisData.engagementStrategy?.commentStyle ?? 'Value-first authority',
+      ctaStyle: analysisData.engagementStrategy?.ctaStyle ?? 'Soft reference with optional CTA',
+      evidenceType: analysisData.engagementStrategy?.evidenceType ?? 'Case studies + benchmarks',
+      riskTolerance: analysisData.engagementStrategy?.riskTolerance ?? 'medium-low',
+      reasoning: analysisData.engagementStrategy?.reasoning ?? 'Lead with insight, de-risk with proof, invite follow-up.',
+    };
+
+    const priorityClusters = (analysisData.keywordClusters || []).filter((cluster) => cluster.priority !== 'low').slice(0, 6);
+
+    return {
+      priorityClusters,
+      personaSignals: analysisData.personaModel,
+      subredditSeeds,
+      scoringWeights: weights,
+      engagementStrategy,
+      goal,
+    };
+  }, [analysisData, goal]);
 
   const openCommentDrawer = async (thread: ThreadRow) => {
     setSelectedThread(thread);
@@ -330,9 +501,10 @@ const RedditGeoAgent: React.FC = () => {
         },
       });
       
+      const clusterCount = result.data?.keywordClusters?.length ?? 0;
       toast({ 
         title: 'Thread analyzed', 
-        description: `${result.analysis.keyInsights.length} insights generated` 
+        description: `${clusterCount} keyword clusters generated` 
       });
     } catch (error: any) {
       console.error('Thread analysis failed:', error);
@@ -418,6 +590,13 @@ const RedditGeoAgent: React.FC = () => {
                     <Badge className="bg-viz-accent/10 text-viz-accent border border-viz-accent/20">VIZ Branded Agent</Badge>
                     <Badge className="bg-orange-100 text-orange-700 border border-orange-200">Reddit Intelligence OS</Badge>
                     <Badge className="bg-emerald-100 text-emerald-700 border border-emerald-200">Community-first Safety</Badge>
+                    <button
+                      onClick={() => setDevMode(!devMode)}
+                      className="text-xs px-2 py-1 rounded border border-slate-300 hover:bg-slate-100 transition-colors"
+                      title="Toggle dev mode with mock data"
+                    >
+                      {devMode ? '🟢 Dev Mode' : '⚪ Live API'}
+                    </button>
                   </div>
 
                   <div className="space-y-2">
@@ -451,6 +630,259 @@ const RedditGeoAgent: React.FC = () => {
                 </CardContent>
               </Card>
             </motion.div>
+
+            {analysisData && scanContext && (
+              <motion.div
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="space-y-6"
+              >
+                <Card className="border-slate-200 bg-gradient-to-br from-white to-slate-50/50 shadow-xl overflow-hidden">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-cyan-400/10 to-blue-500/10 rounded-full blur-3xl" />
+                  <CardHeader className="relative">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-xl flex items-center gap-2 text-slate-900">
+                        <Brain className="w-5 h-5 text-cyan-600" />
+                        Opportunity Intelligence
+                      </CardTitle>
+                      <Badge className="bg-emerald-100 text-emerald-700 border border-emerald-200">Stage 1 Complete</Badge>
+                    </div>
+                    <CardDescription className="text-slate-600">
+                      AI-powered market analysis • {analysisData.nicheProfile.primaryNiche}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="relative space-y-6">
+                    <div className="grid gap-4 md:grid-cols-4">
+                      <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-medium text-emerald-700 uppercase tracking-wide">Market Demand</span>
+                          <TrendingUp className="w-4 h-4 text-emerald-600" />
+                        </div>
+                        <div className="text-2xl font-bold text-emerald-900">
+                          {analysisData.opportunityBaselineScore?.factors?.marketDemand ?? 'N/A'}
+                        </div>
+                        <div className="mt-1 text-xs text-emerald-600">High willingness to pay</div>
+                      </div>
+
+                      <div className="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-medium text-amber-700 uppercase tracking-wide">Competition</span>
+                          <Flame className="w-4 h-4 text-amber-600" />
+                        </div>
+                        <div className="text-2xl font-bold text-amber-900">
+                          {analysisData.opportunityBaselineScore?.factors?.competitionLevel ?? 'N/A'}
+                        </div>
+                        <div className="mt-1 text-xs text-amber-600">Moderate friction</div>
+                      </div>
+
+                      <div className="rounded-xl border border-cyan-200 bg-gradient-to-br from-cyan-50 to-white p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-medium text-cyan-700 uppercase tracking-wide">Reddit Presence</span>
+                          <Radar className="w-4 h-4 text-cyan-600" />
+                        </div>
+                        <div className="text-2xl font-bold text-cyan-900">
+                          {analysisData.opportunityBaselineScore?.factors?.redditPresence ?? 'N/A'}
+                        </div>
+                        <div className="mt-1 text-xs text-cyan-600">Emerging opportunity</div>
+                      </div>
+
+                      <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-medium text-violet-700 uppercase tracking-wide">Conversion</span>
+                          <Target className="w-4 h-4 text-violet-600" />
+                        </div>
+                        <div className="text-2xl font-bold text-violet-900">
+                          {analysisData.opportunityBaselineScore?.factors?.conversionPotential ?? 'N/A'}
+                        </div>
+                        <div className="mt-1 text-xs text-violet-600">Strong potential</div>
+                      </div>
+                    </div>
+
+                    {analysisData.opportunityBaselineScore?.reasoning && (
+                      <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4">
+                        <div className="text-xs font-medium text-slate-700 mb-2 uppercase tracking-wide">Strategic Reasoning</div>
+                        <p className="text-sm text-slate-600 leading-relaxed">{analysisData.opportunityBaselineScore.reasoning}</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <Card className="border-slate-200 bg-white shadow-lg">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2 text-slate-900">
+                        <Users className="w-5 h-5 text-indigo-600" />
+                        Persona Strategy
+                      </CardTitle>
+                      <CardDescription className="text-slate-600">Decision maker profile & engagement approach</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {analysisData.personaModel?.demographics && (
+                        <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-3">
+                          <div className="text-xs font-semibold text-indigo-700 mb-2 uppercase tracking-wide">Primary Decision Maker</div>
+                          <div className="text-sm font-medium text-slate-900">
+                            {analysisData.personaModel.demographics.occupation || 'Technical Leader'}
+                          </div>
+                          <div className="text-xs text-slate-600 mt-1">
+                            {analysisData.personaModel.demographics.age && `${analysisData.personaModel.demographics.age} • `}
+                            {analysisData.personaModel.demographics.location || 'United States'}
+                          </div>
+                        </div>
+                      )}
+
+                      {analysisData.personaModel?.painPoints && analysisData.personaModel.painPoints.length > 0 && (
+                        <div>
+                          <div className="text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wide">Key Pain Points</div>
+                          <div className="space-y-2">
+                            {analysisData.personaModel.painPoints.slice(0, 3).map((pain, idx) => (
+                              <div key={idx} className="flex items-start gap-2 text-sm text-slate-600">
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                                <span>{pain}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {scanContext.engagementStrategy && (
+                        <div className="rounded-lg border border-emerald-100 bg-emerald-50/50 p-3 space-y-2">
+                          <div className="text-xs font-semibold text-emerald-700 mb-2 uppercase tracking-wide">Recommended Engagement</div>
+                          <div className="grid gap-2 text-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-600">Comment Style:</span>
+                              <span className="font-medium text-slate-900">{scanContext.engagementStrategy.commentStyle}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-600">CTA Approach:</span>
+                              <span className="font-medium text-slate-900">{scanContext.engagementStrategy.ctaStyle}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-600">Evidence Type:</span>
+                              <span className="font-medium text-slate-900">{scanContext.engagementStrategy.evidenceType}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-600">Risk Tolerance:</span>
+                              <Badge
+                                className={
+                                  scanContext.engagementStrategy.riskTolerance === 'low'
+                                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                    : scanContext.engagementStrategy.riskTolerance === 'medium-low'
+                                      ? 'bg-cyan-100 text-cyan-700 border-cyan-200'
+                                      : 'bg-amber-100 text-amber-700 border-amber-200'
+                                }
+                              >
+                                {scanContext.engagementStrategy.riskTolerance}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {analysisData.personaModel?.redditBehavior?.engagementStyle && (
+                        <div className="text-xs text-slate-500 italic border-l-2 border-slate-200 pl-3">
+                          <strong>Reddit Behavior:</strong> {analysisData.personaModel.redditBehavior.engagementStyle}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-slate-200 bg-white shadow-lg">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2 text-slate-900">
+                        <Zap className="w-5 h-5 text-orange-600" />
+                        Priority Keywords
+                      </CardTitle>
+                      <CardDescription className="text-slate-600">
+                        High-intent clusters for Stage 2 targeting
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {scanContext.priorityClusters.slice(0, 4).map((cluster, idx) => (
+                        <div
+                          key={idx}
+                          className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 hover:border-cyan-300 hover:bg-cyan-50/30 transition-all"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="font-medium text-sm text-slate-900">{cluster.cluster}</div>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                className={
+                                  cluster.intent === 'transactional'
+                                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                    : cluster.intent === 'commercial'
+                                      ? 'bg-cyan-100 text-cyan-700 border-cyan-200'
+                                      : 'bg-slate-100 text-slate-700 border-slate-200'
+                                }
+                              >
+                                {cluster.intent}
+                              </Badge>
+                              {cluster.priority === 'high' && (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {cluster.keywords.slice(0, 4).map((kw, kidx) => (
+                              <span
+                                key={kidx}
+                                className="inline-flex items-center gap-1 text-xs bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-md"
+                              >
+                                <Tag className="w-3 h-3" />
+                                {kw}
+                              </span>
+                            ))}
+                            {cluster.keywords.length > 4 && (
+                              <span className="text-xs text-slate-500 px-2 py-0.5">+{cluster.keywords.length - 4} more</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {scanContext.subredditSeeds && scanContext.subredditSeeds.length > 0 && (
+                  <Card className="border-slate-200 bg-white shadow-lg">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2 text-slate-900">
+                        <Target className="w-5 h-5 text-violet-600" />
+                        Subreddit Targets
+                      </CardTitle>
+                      <CardDescription className="text-slate-600">
+                        Prioritized communities based on persona behavior & confidence scoring
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {scanContext.subredditSeeds.slice(0, 9).map((target, idx) => (
+                          <div
+                            key={idx}
+                            className="rounded-lg border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-3 hover:border-violet-300 hover:shadow-md transition-all"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="font-medium text-sm text-slate-900">{target.name}</div>
+                              <div className="text-xs font-semibold text-violet-600">{Math.round(target.confidence * 100)}%</div>
+                            </div>
+                            <Badge
+                              className={
+                                target.type === 'technical-authority'
+                                  ? 'bg-indigo-100 text-indigo-700 border-indigo-200 text-xs'
+                                  : target.type === 'industry-specific'
+                                    ? 'bg-cyan-100 text-cyan-700 border-cyan-200 text-xs'
+                                    : 'bg-slate-100 text-slate-700 border-slate-200 text-xs'
+                              }
+                            >
+                              {target.type.replace('-', ' ')}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </motion.div>
+            )}
 
             <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, delay: 0.05 }}>
               <Card className="border-slate-200 bg-gradient-to-br from-white via-slate-50 to-white shadow-lg">
@@ -726,7 +1158,7 @@ const RedditGeoAgent: React.FC = () => {
         </div>
         </main>
 
-        <GlobalFooter variant="light" />
+        <GlobalFooter variant="default" />
       </div>
 
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
