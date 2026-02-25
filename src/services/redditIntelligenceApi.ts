@@ -197,16 +197,108 @@ export interface BusinessAnalysisPayload {
 }
 
 export interface BusinessAnalysisResponse {
-  analysis: {
-    sentiment: string;
-    businessRelevance: number;
-    keyInsights: string[];
-    actionableItems: string[];
-    industryAlignment: number;
+  success: boolean;
+  data: {
+    nicheProfile: {
+      primaryNiche: string;
+      subNiches: string[];
+      industryCategory: string;
+      targetMarket: string;
+    };
+    keywordClusters: Array<{
+      cluster: string;
+      keywords: string[];
+      intent: 'informational' | 'commercial' | 'transactional';
+      priority: 'high' | 'medium' | 'low';
+    }>;
+    personaModel?: {
+      demographics?: { age?: string; location?: string; occupation?: string };
+      painPoints?: string[];
+      goals?: string[];
+      redditBehavior?: { activeSubreddits?: string[]; engagementStyle?: string };
+    };
+    opportunityBaselineScore?: {
+      overall?: number;
+      factors?: {
+        marketDemand?: number;
+        competitionLevel?: number;
+        redditPresence?: number;
+        conversionPotential?: number;
+      };
+      reasoning?: string;
+    };
+    scoringWeights?: {
+      intentWeight?: number;
+      personaMatchWeight?: number;
+      activityWeight?: number;
+      competitionWeight?: number;
+      riskWeight?: number;
+    };
+    subredditTargets?: Array<{
+      name: string;
+      type: 'technical-authority' | 'industry-specific' | 'broad-awareness';
+      confidence: number;
+    }>;
+    engagementStrategy?: {
+      commentStyle?: string;
+      ctaStyle?: string;
+      evidenceType?: string;
+      riskTolerance?: 'low' | 'medium-low' | 'medium' | 'high';
+      reasoning?: string;
+    };
   };
   metadata: {
-    processedAt: string;
-    model: string;
+    analyzedAt: string;
+    websiteScraped: boolean;
+  };
+}
+
+export interface ScanContextPayload {
+  targetClusters: Array<{
+    cluster: string;
+    keywords: string[];
+    intent: 'informational' | 'commercial' | 'transactional';
+    priority: 'high' | 'medium' | 'low';
+  }>;
+  personaSignals?: BusinessAnalysisResponse['data']['personaModel'];
+  subredditSeeds?: NonNullable<BusinessAnalysisResponse['data']['subredditTargets']>;
+  scoringWeights?: BusinessAnalysisResponse['data']['scoringWeights'];
+  engagementStrategy?: BusinessAnalysisResponse['data']['engagementStrategy'];
+  goal?: string;
+  region?: string;
+}
+
+export interface ScanSubredditsPayload {
+  region?: string;
+  goal?: string;
+  scanContext: ScanContextPayload;
+}
+
+export interface ScanSubredditsResponse {
+  success: boolean;
+  data: Array<{
+    subreddit: string;
+    members: number;
+    activeUsers: number;
+    description: string;
+    activityScore: number;
+    buyerIntentScore: number;
+    riskScore: number;
+    leadProbability: number;
+    personaMatchScore: number;
+    seedConfidence?: number;
+    bestFormat: string;
+    metrics: {
+      questionRatio: number;
+      avgScore: number;
+      avgComments: number;
+    };
+  }>;
+  metadata: {
+    scannedAt: string;
+    totalFound: number;
+    goal?: string;
+    cacheExpiry: string;
   };
 }
 
@@ -371,7 +463,13 @@ export interface HRSystemJobsResponse {
 
 export const redditIntelligenceApi = {
   async analyzeBusinessContent(payload: BusinessAnalysisPayload): Promise<BusinessAnalysisResponse> {
-    logger.info('Analyzing business content', { textLength: payload.text.length });
+    logger.info('Analyzing business content', {
+      hasWebsite: !!payload.website,
+      hasRegion: !!payload.region,
+      hasDescription: !!payload.description,
+      hasIdealBuyer: !!payload.idealBuyer,
+      goal: payload.goal,
+    });
     
     try {
       const result = await makeRequest<BusinessAnalysisResponse>('/analyze-business', {
@@ -380,10 +478,40 @@ export const redditIntelligenceApi = {
         timeoutMs: 45000,
       });
       
-      logger.info('Business analysis completed', { sentiment: result.analysis.sentiment });
+      logger.info('Business analysis completed', {
+        score: result.data?.opportunityBaselineScore?.overall,
+        primaryNiche: result.data?.nicheProfile?.primaryNiche,
+      });
       return result;
     } catch (error) {
       logger.error('Business analysis failed', error);
+      throw error;
+    }
+  },
+
+  async scanSubreddits(payload: ScanSubredditsPayload): Promise<ScanSubredditsResponse> {
+    logger.info('Scanning subreddits with scan context', {
+      hasContext: !!payload.scanContext,
+      clusterCount: payload.scanContext?.targetClusters?.length || 0,
+      seedCount: payload.scanContext?.subredditSeeds?.length || 0,
+      goal: payload.goal || payload.scanContext?.goal,
+    });
+
+    try {
+      const result = await makeRequest<ScanSubredditsResponse>('/scan-subreddits', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        timeoutMs: 60000,
+      });
+
+      logger.info('Subreddit scan completed', {
+        totalFound: result.metadata?.totalFound,
+        topSubreddit: result.data?.[0]?.subreddit,
+      });
+
+      return result;
+    } catch (error) {
+      logger.error('Subreddit scan failed', error);
       throw error;
     }
   },
