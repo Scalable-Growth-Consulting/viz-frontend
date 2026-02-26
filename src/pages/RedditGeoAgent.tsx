@@ -67,6 +67,7 @@ import {
   type AnalyticsResponse,
   type AccountRiskResponse,
   type BusinessAnalysisResponse,
+  type ScanSubredditsResponse,
 } from '@/services/redditIntelligenceApi';
 
 type Goal = 'lead_generation' | 'authority' | 'seo_visibility' | 'geo_visibility';
@@ -82,6 +83,10 @@ interface SubredditRow {
   risk: number;
   leadProbability: number;
   bestFormat: string;
+  description?: string;
+  activeUsers?: number;
+  personaMatch?: number;
+  source?: 'seed' | 'scan';
 }
 
 interface ThreadRow {
@@ -211,6 +216,18 @@ const guardrailChecklist = [
   'Human approval before publishing AI-assisted comments',
 ];
 
+const formatCompactNumber = (value: number): string => {
+  if (!Number.isFinite(value)) return '0';
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${Math.round(value / 1_000)}K`;
+  return `${value}`;
+};
+
+const normalizeSubredditName = (name: string): string => {
+  if (!name) return '';
+  return name.startsWith('r/') ? name : `r/${name}`;
+};
+
 const RedditGeoAgent: React.FC = () => {
   const { toast } = useToast();
 
@@ -248,6 +265,27 @@ const RedditGeoAgent: React.FC = () => {
   const [accountRisk, setAccountRisk] = useState<AccountRiskResponse | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [loadingRisk, setLoadingRisk] = useState(false);
+  const [stage2Rows, setStage2Rows] = useState<SubredditRow[]>(subredditData);
+  const [stage2Metadata, setStage2Metadata] = useState<ScanSubredditsResponse['metadata'] | null>(null);
+  const [minLeadProbabilityFilter, setMinLeadProbabilityFilter] = useState('70');
+  const [riskToleranceFilter, setRiskToleranceFilter] = useState<'low' | 'medium' | 'high'>('medium');
+  const [activityLevelFilter, setActivityLevelFilter] = useState<'all' | 'high' | 'medium'>('all');
+
+  const filteredStage2Rows = useMemo(() => {
+    const minLead = Number(minLeadProbabilityFilter);
+
+    return stage2Rows.filter((row) => {
+      if (Number.isFinite(minLead) && row.leadProbability < minLead) return false;
+
+      if (riskToleranceFilter === 'low' && row.risk > 30) return false;
+      if (riskToleranceFilter === 'medium' && row.risk > 45) return false;
+
+      if (activityLevelFilter === 'high' && row.activity < 75) return false;
+      if (activityLevelFilter === 'medium' && row.activity < 60) return false;
+
+      return true;
+    });
+  }, [stage2Rows, minLeadProbabilityFilter, riskToleranceFilter, activityLevelFilter]);
 
   const filteredThreads = useMemo(() => {
     return threadData.filter((thread) => {
@@ -414,6 +452,27 @@ const RedditGeoAgent: React.FC = () => {
       setStage1Complete(true);
       setTimeout(() => setActiveTab('stage2'), 1500);
 
+      const seededRows: SubredditRow[] = (stage1.subredditTargets || []).map((seed, index) => ({
+        name: normalizeSubredditName(seed.name),
+        members: 'TBD',
+        activity: Math.max(55, 78 - index * 5),
+        buyerIntent: Math.max(60, 86 - index * 4),
+        risk: Math.max(20, 28 + index * 5),
+        leadProbability: Math.round(seed.confidence * 100),
+        bestFormat: seed.type === 'technical-authority' ? 'Benchmarks' : seed.type === 'industry-specific' ? 'Case Study' : 'Founder Q&A',
+        source: 'seed',
+      }));
+
+      if (seededRows.length > 0) {
+        setStage2Rows(seededRows);
+        setStage2Metadata({
+          scannedAt: new Date().toISOString(),
+          totalFound: seededRows.length,
+          goal: goalLabel[goal],
+          cacheExpiry: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        });
+      }
+
       // Stage 2: Trigger subreddit scan with enriched context
       const priorityClusters = (stage1.keywordClusters || [])
         .filter((cluster) => cluster.priority !== 'low')
@@ -435,6 +494,25 @@ const RedditGeoAgent: React.FC = () => {
             },
           });
 
+          const apiRows: SubredditRow[] = (scanResult.data || []).map((row) => ({
+            name: normalizeSubredditName(row.subreddit),
+            members: formatCompactNumber(row.members),
+            activity: Math.round(row.activityScore),
+            buyerIntent: Math.round(row.buyerIntentScore),
+            risk: Math.round(row.riskScore),
+            leadProbability: Math.round(row.leadProbability),
+            bestFormat: row.bestFormat,
+            description: row.description,
+            activeUsers: row.activeUsers,
+            personaMatch: Math.round(row.personaMatchScore),
+            source: 'scan',
+          }));
+
+          if (apiRows.length > 0) {
+            setStage2Rows(apiRows);
+          }
+          setStage2Metadata(scanResult.metadata);
+
           setStage2Complete(true);
           toast({
             title: 'Subreddit scan complete',
@@ -444,6 +522,8 @@ const RedditGeoAgent: React.FC = () => {
         } catch (scanError) {
           console.warn('Stage 2 subreddit scan failed (non-blocking):', scanError);
         }
+      } else if (seededRows.length > 0) {
+        setStage2Complete(true);
       }
       
       setAnalyzed(true);
@@ -1102,6 +1182,25 @@ const RedditGeoAgent: React.FC = () => {
                         <CardDescription className="text-slate-600">
                           Explore ranked communities based on your business intelligence. Filter by lead probability, activity, and risk tolerance.
                         </CardDescription>
+                        {analysisData && (
+                          <div className="mt-3 rounded-lg border border-indigo-100 bg-white/80 p-3 space-y-2">
+                            <div className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">Inherited from Stage 1</div>
+                            <div className="grid gap-2 sm:grid-cols-3 text-xs">
+                              <div>
+                                <div className="text-slate-500">Primary Niche</div>
+                                <div className="font-medium text-slate-900">{analysisData.nicheProfile?.primaryNiche || 'N/A'}</div>
+                              </div>
+                              <div>
+                                <div className="text-slate-500">Priority Clusters</div>
+                                <div className="font-medium text-slate-900">{scanContext?.priorityClusters?.length || 0}</div>
+                              </div>
+                              <div>
+                                <div className="text-slate-500">Seed Communities</div>
+                                <div className="font-medium text-slate-900">{scanContext?.subredditSeeds?.length || 0}</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </CardHeader>
                     </Card>
 
@@ -1115,7 +1214,7 @@ const RedditGeoAgent: React.FC = () => {
                         <div className="grid gap-3 md:grid-cols-3">
                           <div>
                             <label className="text-xs font-medium text-slate-700 mb-1.5 block">Min Lead Probability</label>
-                            <Select defaultValue="70">
+                            <Select value={minLeadProbabilityFilter} onValueChange={setMinLeadProbabilityFilter}>
                               <SelectTrigger className="bg-white border-slate-200">
                                 <SelectValue />
                               </SelectTrigger>
@@ -1128,7 +1227,7 @@ const RedditGeoAgent: React.FC = () => {
                           </div>
                           <div>
                             <label className="text-xs font-medium text-slate-700 mb-1.5 block">Risk Tolerance</label>
-                            <Select defaultValue="medium">
+                            <Select value={riskToleranceFilter} onValueChange={(value: 'low' | 'medium' | 'high') => setRiskToleranceFilter(value)}>
                               <SelectTrigger className="bg-white border-slate-200">
                                 <SelectValue />
                               </SelectTrigger>
@@ -1141,7 +1240,7 @@ const RedditGeoAgent: React.FC = () => {
                           </div>
                           <div>
                             <label className="text-xs font-medium text-slate-700 mb-1.5 block">Activity Level</label>
-                            <Select defaultValue="all">
+                            <Select value={activityLevelFilter} onValueChange={(value: 'all' | 'high' | 'medium') => setActivityLevelFilter(value)}>
                               <SelectTrigger className="bg-white border-slate-200">
                                 <SelectValue />
                               </SelectTrigger>
@@ -1162,10 +1261,13 @@ const RedditGeoAgent: React.FC = () => {
                         <div className="flex items-center justify-between gap-3">
                           <CardTitle className="text-base text-slate-900">Subreddit Intelligence</CardTitle>
                           <Badge className="bg-indigo-100 text-indigo-700 border border-indigo-200">
-                            {subredditData.length} communities
+                            {filteredStage2Rows.length} communities
                           </Badge>
                         </div>
-                        <CardDescription className="text-slate-600">Ranked by lead probability, activity, and moderation risk</CardDescription>
+                        <CardDescription className="text-slate-600">
+                          Ranked by lead probability, activity, and moderation risk
+                          {stage2Metadata?.scannedAt ? ` • Updated ${new Date(stage2Metadata.scannedAt).toLocaleString()}` : ''}
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <div className="overflow-x-auto">
@@ -1182,10 +1284,16 @@ const RedditGeoAgent: React.FC = () => {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {subredditData.map((row) => (
+                              {filteredStage2Rows.map((row) => (
                                 <TableRow key={row.name} className="hover:bg-slate-50">
-                                  <TableCell className="font-medium text-slate-900">{row.name}</TableCell>
-                                  <TableCell className="text-slate-600">{row.members}</TableCell>
+                                  <TableCell className="font-medium text-slate-900">
+                                    <div>{row.name}</div>
+                                    {row.description && <div className="text-xs text-slate-500 mt-0.5 line-clamp-1">{row.description}</div>}
+                                  </TableCell>
+                                  <TableCell className="text-slate-600">
+                                    <div>{row.members}</div>
+                                    {typeof row.activeUsers === 'number' && <div className="text-xs text-slate-500">{formatCompactNumber(row.activeUsers)} active</div>}
+                                  </TableCell>
                                   <TableCell>
                                     <div className="flex items-center gap-2">
                                       <div className="w-16 bg-slate-200 rounded-full h-1.5">
@@ -1210,6 +1318,13 @@ const RedditGeoAgent: React.FC = () => {
                                   <TableCell className="text-slate-600 text-sm">{row.bestFormat}</TableCell>
                                 </TableRow>
                               ))}
+                              {!filteredStage2Rows.length && (
+                                <TableRow>
+                                  <TableCell colSpan={7} className="text-center py-8 text-slate-500">
+                                    No communities match current filters. Relax filters to view ranked subreddits.
+                                  </TableCell>
+                                </TableRow>
+                              )}
                             </TableBody>
                           </Table>
                         </div>
